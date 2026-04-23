@@ -61,6 +61,7 @@ That command:
 - runs the test suite
 - packages the JAR
 - installs the artifact into your local Maven repository
+- installs a test-support JAR with the `tests` classifier
 
 You do not need Maven installed globally if you use the wrapper. On the same
 machine, another Maven project can then depend on this SDK version without
@@ -80,16 +81,34 @@ They are reference/demo code only:
 - they are not packaged into the published SDK jar
 - they are meant to show usage patterns, not provide the main consumer API
 
+Reusable test support such as `dppsdk.support.TestDataFactory` is published
+separately in the `dpp-sdk` test JAR and can be consumed with the `tests`
+classifier.
+
 ## Use It From Another Maven Project
 
 Add the dependency above to the consumer project `pom.xml`, then import the SDK
 classes you need.
+
+If a consumer test needs `dppsdk.support.TestDataFactory`, add this additional
+test-scope dependency:
+
+```xml
+<dependency>
+    <groupId>com.example.dppsdk</groupId>
+    <artifactId>dpp-sdk</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <classifier>tests</classifier>
+    <scope>test</scope>
+</dependency>
+```
 
 The most common entry points are:
 - `dppsdk.model.*` builders for manual object construction
 - `dppsdk.validation.ValidationService` for validation
 - `dppsdk.mapper.Cir4FunFurnitureDppMapper` for explicit mapping
 - `dppsdk.transport.DppJsonCodec` for JSON send/receive
+- `dppsdk.support.TestDataFactory` from the `tests` classifier for reusable valid test data
 
 ## Quick Usage
 
