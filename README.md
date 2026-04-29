@@ -149,6 +149,9 @@ public interface DppValidator<T> {
 ```
 
 The client uses those abstractions and does not directly depend on a specific DPP type such as `Cir4FunFurnitureDpp`.
+Full DPP JSON serialization and deserialization is handled by the injected `DppCodec<T>`, not by this client library.
+The client only reads small response envelope fields such as `success`, `status`, `message`, `dppId`, and list IDs.
+That lightweight response parsing is intentionally limited for v1/demo use, so `dpp-client` does not add its own JSON library.
 
 ## Registry Client vs Repo Client
 
@@ -170,7 +173,7 @@ RepoResponse delete(String id);
 List<String> list();
 ```
 
-Create and update validate and serialize before sending. Get deserializes response JSON into `T`. Delete returns a simple response object. List assumes either a JSON string array such as `["id-1","id-2"]` or an object with an `ids` string array such as `{"ids":["id-1","id-2"]}`.
+Create and update validate and serialize before sending. Get deserializes DPP response JSON through the supplied codec. Delete returns a simple response object. List assumes either a JSON string array such as `["id-1","id-2"]` or an object with an `ids` string array such as `{"ids":["id-1","id-2"]}`.
 
 ## Configuration
 
