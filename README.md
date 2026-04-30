@@ -1,172 +1,150 @@
 # DPP Backend Demo
 
-Small partner-facing backend demo for the Cir4Fun DPP SDK.
+Partner-facing Java backend demo showing how `dpp-sdk` and the simplified fixed-endpoint `dpp-client` work together.
 
-It contains two Spring Boot services:
+Use this file as the quickstart for building and running the demo. Use `DEMO_GUIDE.md` as the live-demo script and talking-points guide.
 
-- `mock-eu-registry-service`: simulates an EU DPP registry on port `8081`
-- `dpp-producer-service`: command-line producer demo that builds DPPs with the SDK and sends them to the registry
+## Purpose
 
-The demo intentionally avoids production infrastructure. There is no database, no real authentication, no Kafka, no Docker, and no real EU registry integration.
+This repo exists to show the reuse boundary between the SDK, the HTTP client library, and a small partner-facing backend demo:
 
-The producer also includes one explicit SDK `TestDataFactory` example. That factory is part of the SDK test JAR, so it is useful for demos and integration tests, while normal application code should prefer SDK builders or its own local factories.
+- `dpp-sdk` owns DPP models, builders, validation, payload mapping, and JSON transport.
+- `dpp-client` owns generic fixed-endpoint HTTP clients and client-side error separation.
+- This repo adds only Cir4Fun demo fixtures, adapters, mock services, runners, and Postman collections.
 
-## What This Shows
+## What It Shows
 
-- Building `Cir4FunFurnitureDpp` objects with SDK builders
-- Serializing and deserializing DPP JSON with SDK `DppJsonCodec`
-- Validating DPPs with SDK `ValidationService`
-- Sending DPP JSON between two backend services over HTTP
-- Demonstrating accepted, rejected, malformed, query, update, and delete flows
+- Build Cir4Fun DPPs with SDK builders and demo fixtures.
+- Show a full DPP assembled step by step by building `DppCore` common fields first, then wrapping it in `Cir4FunFurnitureDpp`.
+- Validate DPPs with SDK `ValidationService`.
+- Show SDK required-field protection when an incomplete DPP is built.
+- Demonstrate immutable edits and deletes with `toBuilder()`.
+- Convert DPPs to and from JSON with SDK `DppJsonCodec`.
+- Keep the external DTO/JSON payload shape flat while the domain model uses `DppCore`.
+- Adapt the SDK type to `dpp-client` with thin `DppCodec<T>` and `DppValidator<T>` adapters.
+- Show that the client integration surface stays small: base URL plus codec and validator adapters.
+- Use `HttpDppRepoClient` and `HttpDppRegistryClient` against mock HTTP services.
+- Store a DPP in the repo service, fetch/update/list/delete it, and register a stored DPP with the registry.
+- Demonstrate invalid DPP, malformed JSON, not-found, HTTP, and network error paths.
 
-## Prerequisite
+## Modules
 
-Build and install the SDK locally first:
+- `dpp-demo-common`: demo DPP factory plus SDK-to-client adapters.
+- `mock-eu-registry-service`: mock registry HTTP service on `http://localhost:8081`.
+- `mock-dpp-repo-service`: mock repo HTTP service on `http://localhost:8082`.
+- `dpp-producer-service`: command-line SDK and HTTP demo runner.
+
+## Prerequisites
+
+Install the reusable libraries locally first. Update the paths if your `dpp-sdk` or `dpp-client` checkouts live elsewhere.
 
 ```powershell
-cd DPP_SDK
-mvn clean install
-```
+cd C:\Users\yah70309\Desktop\DPP_SDK
+.\mvnw.cmd clean install
 
-or, if the SDK project uses the Maven wrapper:
-
-```powershell
-cd DPP_SDK
+cd C:\Users\yah70309\Desktop\clients\dpp-client
 .\mvnw.cmd clean install
 ```
 
-This demo depends on:
+## Build
 
-```xml
-<groupId>com.example.dppsdk</groupId>
-<artifactId>dpp-sdk</artifactId>
-<version>1.0.0-SNAPSHOT</version>
-```
-
-## Build The Demo
+Windows:
 
 ```powershell
-cd dpp-backend-demo
-mvn clean package
+cd C:\Users\yah70309\Desktop\demo
+mvnw.cmd clean package
 ```
 
-If Maven is not on PATH but IntelliJ is installed, its bundled Maven can also be used.
+Linux/macOS:
 
-## Run The Registry
+```bash
+./mvnw clean package
+```
 
-Terminal 1:
+## Run Services
+
+Start the services in this order before the default HTTP demo flow:
+
+Start the registry:
 
 ```powershell
 java -jar mock-eu-registry-service\target\mock-eu-registry-service-1.0.0-SNAPSHOT.jar --debug=false
 ```
 
-Registry base URL:
+Start the repo:
 
-```text
-http://localhost:8081
+```powershell
+java -jar mock-dpp-repo-service\target\mock-dpp-repo-service-1.0.0-SNAPSHOT.jar --debug=false
 ```
 
-## Run The Producer
+## Run Demo
 
-Terminal 2:
+Expected flow:
+
+1. Run `sdk` when you want the SDK-only capability walkthrough.
+2. Run the default mode or `http` when the registry and repo services are already running.
+3. Run `all` when you want the SDK walkthrough first and then the HTTP flow.
+
+With registry and repo already running:
 
 ```powershell
 java -jar dpp-producer-service\target\dpp-producer-service-1.0.0-SNAPSHOT.jar --debug=false
 ```
 
-To use a different registry URL:
+The default run is the HTTP end-to-end flow. For a fuller stakeholder demo, run SDK capability checks first and then reuse those same SDK-built DPPs in the HTTP flow:
 
 ```powershell
-java -jar dpp-producer-service\target\dpp-producer-service-1.0.0-SNAPSHOT.jar http://localhost:8081 --debug=false
+java -jar dpp-producer-service\target\dpp-producer-service-1.0.0-SNAPSHOT.jar all --debug=false
 ```
 
-## Expected Demo Output
+SDK-only mode does not require the backend services:
 
-The producer runs these scenarios:
-
-1. Valid manual DPP accepted
-2. Valid factory DPP accepted
-3. SDK `TestDataFactory` valid DPP accepted
-4. Invalid validation case rejected
-5. SDK `TestDataFactory` invalid documentation case rejected
-6. Malformed JSON rejected
-7. Accepted DPP queried back and mapped to SDK domain object
-8. Valid DPP update accepted
-9. DPP list and delete confirmed
-
-You should see output like:
-
-```text
-=== 1. Valid manual DPP ===
-success : true
-status  : ACCEPTED
-
-=== 3. SDK TestDataFactory quick example ===
-success : true
-status  : ACCEPTED
-
-=== 4. Invalid validation case ===
-success : false
-status  : REJECTED
-message : Validation failed: Nameplate.supplier must have role SUPPLIER, but got DISTRIBUTOR
-
-=== 7. Query back and map with SDK codec ===
-Product name   : Cir4Fun Platform Bed
-DPP ID         : 49192c87-20c8-4b6f-88de-48b56ca4c211
-Classification : Furniture / Beds
-Manufacturer   : Cir4Fun Furniture GmbH
+```powershell
+java -jar dpp-producer-service\target\dpp-producer-service-1.0.0-SNAPSHOT.jar sdk --debug=false
 ```
 
-## Registry Endpoints
+The SDK-only mode shows `DppCore` construction, validation, mapper/JSON round trips, and immutable edit/delete examples for characteristics, documentation, and bill of materials entries.
 
-Base URL: `http://localhost:8081`
+Explicit HTTP-only mode:
 
-- `POST /dpps`: accepts DPP JSON, maps with SDK `DppJsonCodec`, validates with SDK `ValidationService`, stores in memory
-- `GET /dpps/{id}`: returns a stored DPP as SDK-produced JSON inside `jsonPayload`
-- `PUT /dpps/{id}`: maps, validates, and updates an existing DPP
-- `DELETE /dpps/{id}`: deletes a stored DPP
-- `GET /dpps`: lists stored DPP summaries
+```powershell
+java -jar dpp-producer-service\target\dpp-producer-service-1.0.0-SNAPSHOT.jar http --debug=false
+```
 
-## What Is Mocked
+Optional base URL overrides:
+
+```powershell
+java -jar dpp-producer-service\target\dpp-producer-service-1.0.0-SNAPSHOT.jar http http://localhost:8081 http://localhost:8082 --debug=false
+```
+
+The producer uses only public `HttpDppRepoClient` and `HttpDppRegistryClient` APIs. The clients use fixed endpoints.
+
+Successful runs print step-by-step console output for the selected flow and finish without stack traces.
+
+## Postman
+
+Import:
+
+- `postman/dpp_registry_service.postman_collection.json`
+- `postman/dpp_repo_service.postman_collection.json`
+
+Base URLs:
+
+- Registry: `http://localhost:8081`
+- Repo: `http://localhost:8082`
+
+The collections include valid DPP flows, invalid DPP flows, malformed JSON, not-found cases, and repo-to-registry registration. The repo-to-registry registration is demonstrated in Postman through `Register stored DPP through repo`.
+
+## Mocked And Not Production-Ready
+
+Mocked:
 
 - EU registry behavior
-- Credentials/API key handling
-- Persistence, using only an in-memory `Map`
+- DPP repo behavior
+- Persistence, using in-memory maps
 
-## What Is Not Implemented
+Not implemented:
 
-- Real EU registry API calls
-- Real authentication or authorization
-- Database persistence
-- Production security, retries, auditing, or monitoring
-- Kafka, Docker, or external infrastructure
-
-## SDK Usage
-
-Both services use the SDK as a Maven dependency.
-
-The registry uses:
-
-- `DppJsonCodec#fromJson`
-- `DppJsonCodec#toJson`
-- `ValidationService#validate`
-
-The producer uses:
-
-- SDK builders for `Cir4FunFurnitureDpp` and nested domain objects
-- SDK `dppsdk.support.TestDataFactory` for one quick demo/test-fixture example
-- `DppJsonCodec#toJson` before sending HTTP requests
-- `DppJsonCodec#fromJson` after receiving stored DPP JSON from the registry
-
-The `TestDataFactory` dependency is intentionally limited to the producer demo:
-
-```xml
-<dependency>
-    <groupId>com.example.dppsdk</groupId>
-    <artifactId>dpp-sdk</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
-    <classifier>tests</classifier>
-</dependency>
-```
-
-For real application code, treat that factory as a convenience for demos/tests, not as the main SDK API.
+- Real EU registry integration
+- Real database
+- Production resilience, retries, auditing, or monitoring
