@@ -40,20 +40,21 @@ DppRepoClient<MyDpp> repoClient = new HttpDppRepoClient<>(
 ```
 
 ```java
-DppRegistryClient<MyDpp> registryClient = new HttpDppRegistryClient<>(
-    "https://api.example.com",
-    new MyDppCodecAdapter(),
-    new MyDppValidatorAdapter()
+DppRegistryClient registryClient = new HttpDppRegistryClient(
+    "https://api.example.com"
 );
 ```
 
-In this SDK setup, those codec and validator implementations typically wrap classes from `dpp-data-model`. For the Cir4Fun model, that usually means `dppsdk.transport.DppJsonCodec` for JSON and `dppsdk.validation.ValidationService` for validation. This client does not depend on a specific DPP model, though, so it will also accept implementations for other DPP types as long as they provide `DppCodec<T>` and `DppValidator<T>`.
+In this SDK setup, those codec and validator implementations typically wrap classes from `dpp-sdk`. For the Cir4Fun model, that usually means `dppsdk.transport.DppJsonCodec` for JSON and `dppsdk.validation.ValidationService` for validation. This client does not depend on a specific DPP model, though, so it will also accept implementations for other DPP types as long as they provide `DppCodec<T>` and `DppValidator<T>`.
 
 ```text
 DPP type T
   -> DppCodec<T>
   -> DppValidator<T>
-  -> HttpDppRegistryClient<T> / HttpDppRepoClient<T>
+  -> HttpDppRepoClient<T>
+
+DPP ID string
+  -> HttpDppRegistryClient
 ```
 
 Example:
@@ -89,7 +90,7 @@ DppRepoClient<Cir4FunFurnitureDpp> repoClient = new HttpDppRepoClient<>(
 );
 
 RepoResponse created = repoClient.create(dpp);
-Cir4FunFurnitureDpp loaded = repoClient.get(dpp.id());
+Cir4FunFurnitureDpp loaded = repoClient.get(dpp.getPassportMetadata().getUniqueProductIdentifier().toString());
 ```
 
 ## Standard Endpoints
@@ -99,11 +100,14 @@ The clients use fixed endpoint paths.
 Registry:
 
 - `POST /registry/dpps/register`
+  Body: `{"dppId":"...","repoUrl":"..."}`
+  Response fields may include `dppId`, `repoUrl`, `registeredAt`, and `lastUpdatedAt`
 
 Repository:
 
 - `POST /repo/dpps`
 - `GET /repo/dpps/{id}`
+- `GET /repo/dpps/{id}/exists`
 - `PUT /repo/dpps/{id}`
 - `DELETE /repo/dpps/{id}`
 - `GET /repo/dpps`
@@ -115,7 +119,7 @@ The `{id}` path segment is URL-encoded before requests are sent.
 Registry client:
 
 ```java
-RegistryResponse registerDpp(T dpp);
+RegistryResponse registerDpp(String dppId, String repoUrl);
 ```
 
 Repository client:
@@ -123,6 +127,7 @@ Repository client:
 ```java
 RepoResponse create(T dpp);
 T get(String id);
+boolean exists(String id);
 RepoResponse update(String id, T dpp);
 RepoResponse delete(String id);
 List<String> list();
@@ -141,16 +146,17 @@ public interface DppValidator<T> {
 }
 ```
 
-Full DPP JSON serialization and deserialization is handled by the injected `DppCodec<T>`, not by this client library. The client only reads small response envelope fields such as `success`, `status`, `message`, `dppId`, and list IDs.
+Full DPP JSON serialization and deserialization is handled by the injected `DppCodec<T>` for repository CRUD, not by this client library. The client only reads small response envelope fields such as `success`, `status`, `message`, `dppId`, `repoUrl`, `registeredAt`, `lastUpdatedAt`, and list IDs.
 
 ## Behavior
 
-`HttpDppRegistryClient<T>` validates, serializes, and posts a DPP to the fixed registry endpoint.
+`HttpDppRegistryClient` posts a lightweight JSON body containing `dppId` and `repoUrl` to the fixed registry endpoint.
 
 `HttpDppRepoClient<T>` supports repository CRUD:
 
 - create and update validate and serialize before sending
 - get deserializes the DPP response through the supplied codec
+- exists reads a lightweight repository existence response
 - delete returns a simple `RepoResponse`
 - list accepts either `["id-1","id-2"]` or `{"ids":["id-1","id-2"]}`
 
