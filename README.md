@@ -3,6 +3,7 @@
 Partner-facing Java backend demo showing how `dpp-sdk` and the simplified fixed-endpoint `dpp-client` work together.
 
 Use this file as the quickstart for building and running the demo. Use `DEMO_GUIDE.md` as the live-demo script and talking-points guide.
+Use `docs/DEMO_ARCHITECTURE_AUDIT.md` and `docs/demo_integration_architecture.drawio` for the canonical architecture review and diagram.
 
 ## Purpose
 
@@ -11,6 +12,11 @@ This repo exists to show the reuse boundary between the SDK, the HTTP client lib
 - `dpp-sdk` owns DPP models, builders, validation, payload mapping, and JSON transport.
 - `dpp-client` owns generic fixed-endpoint HTTP clients and client-side error separation.
 - This repo adds only Cir4Fun demo fixtures, adapters, mock services, runners, and Postman collections.
+
+Runtime truth note:
+
+- The canonical runtime view for this demo is the `demo` repo plus the locally installed `dpp-sdk` and `dpp-client` snapshot artifacts used at build/run time.
+- The linked `DPP_SDK` source checkout may lag that installed snapshot. In particular, the installed SDK currently exposes `DppCore`, which this demo uses.
 
 ## What It Shows
 
@@ -23,7 +29,7 @@ This repo exists to show the reuse boundary between the SDK, the HTTP client lib
 - Keep the external DTO/JSON payload shape flat while the domain model uses `DppCore`.
 - Adapt the SDK type to `dpp-client` with thin `DppCodec<T>` and `DppValidator<T>` adapters.
 - Show that the client integration surface stays small: base URL plus codec and validator adapters.
-- Use `HttpDppRepoClient` and `HttpDppRegistryClient` against mock HTTP services.
+- Use `HttpDppRepoClient` and `HttpDppRegistryClient` against the mock repository and registry services, with registry registration carrying both `dppId` and `repoUrl`.
 - Store a DPP in the repo service, fetch/update/list/delete it, and register a stored DPP with the registry.
 - Demonstrate invalid DPP, malformed JSON, not-found, HTTP, and network error paths.
 
@@ -31,7 +37,7 @@ This repo exists to show the reuse boundary between the SDK, the HTTP client lib
 
 - `dpp-demo-common`: demo DPP factory plus SDK-to-client adapters.
 - `mock-eu-registry-service`: mock registry HTTP service on `http://localhost:8081`.
-- `mock-dpp-repo-service`: mock repo HTTP service on `http://localhost:8082`.
+- `mock-dpp-repo-service`: mock repo HTTP service on `http://localhost:8080`.
 - `dpp-producer-service`: command-line SDK and HTTP demo runner.
 
 ## Prerequisites
@@ -114,10 +120,10 @@ java -jar dpp-producer-service\target\dpp-producer-service-1.0.0-SNAPSHOT.jar ht
 Optional base URL overrides:
 
 ```powershell
-java -jar dpp-producer-service\target\dpp-producer-service-1.0.0-SNAPSHOT.jar http http://localhost:8081 http://localhost:8082 --debug=false
+java -jar dpp-producer-service\target\dpp-producer-service-1.0.0-SNAPSHOT.jar http http://localhost:8091 http://localhost:8090 --debug=false
 ```
 
-The producer uses only public `HttpDppRepoClient` and `HttpDppRegistryClient` APIs. The clients use fixed endpoints.
+The producer uses public `HttpDppRepoClient` APIs for repository CRUD and public `HttpDppRegistryClient` APIs for registry registration with `dppId` plus `repoUrl`. All later registry access remains ID-based.
 
 Successful runs print step-by-step console output for the selected flow and finish without stack traces.
 
@@ -131,9 +137,9 @@ Import:
 Base URLs:
 
 - Registry: `http://localhost:8081`
-- Repo: `http://localhost:8082`
+- Repo: `http://localhost:8080`
 
-The collections include valid DPP flows, invalid DPP flows, malformed JSON, not-found cases, and repo-to-registry registration. The repo-to-registry registration is demonstrated in Postman through `Register stored DPP through repo`.
+The collections include valid repository flows, registry registration flows that send `dppId` plus `repoUrl`, malformed JSON, not-found cases, and repo-to-registry registration. The repo-to-registry registration is demonstrated in Postman through `Register stored DPP through repo`.
 
 ## Mocked And Not Production-Ready
 
