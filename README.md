@@ -50,6 +50,15 @@ The payload layer now uses the same canonical nesting in Java, including
 `coreDpp`, while `DppJsonCodec` still emits and accepts the legacy flat JSON
 shape for compatibility.
 
+## Identifiers Used By Standard APIs
+
+- DPP ID maps to `PassportMetadata.uniqueProductIdentifier`.
+- Product ID maps to `Nameplate.gtinCode`.
+- Callers can use `dpp.getDppId()`, `dpp.getProductId()`,
+  `DppIdentifiers.dppId(dpp)`, and `DppIdentifiers.productId(dpp)`.
+- The SDK still does not implement HTTP endpoints, persistence, registry
+  submission, or database behavior.
+
 ## Documentation
 
 - `SDK_USAGE.md`: how to construct, validate, map, and serialize a DPP
