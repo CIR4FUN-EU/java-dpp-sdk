@@ -1,25 +1,27 @@
 # DPP Client
 
-Generic Java HTTP clients for standardized Digital Product Passport (DPP) registry and repository endpoints.
+Internal pre-release Java HTTP clients for standardized Digital Product Passport (DPP) standard-style mock repository and registry APIs.
 
-This library is intentionally small. It provides only:
+This is not a stable public API. The library is currently aligned to the standard-style mock endpoints and may change between internal releases without compatibility shims.
+
+This library stays intentionally small. It provides:
 
 - generic client interfaces
 - Java `HttpClient` implementations
-- simple response classes
+- API wrapper DTOs and simple response DTOs
 - separated client exceptions
+- injected `DppCodec<T>` for full DPP JSON mapping
+- injected `DppValidator<T>` for client-side validation before create operations
 
-It does not provide DPP domain models, builders, validation rules, mapping logic, payload classes, authentication, endpoint customization, mock clients, databases, or backend wiring.
+It does not provide DPP domain models, builders, payload mappers, databases, authentication, backend wiring, retries, async clients, or endpoint customization.
 
 ## Local Dependency
-
-If you installed this project locally with `mvn install`, `./mvnw install`, or `mvnw.cmd install`, consume it from another Maven project with:
 
 ```xml
 <dependency>
     <groupId>dpp.client</groupId>
     <artifactId>dpp-client</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.2.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -27,110 +29,86 @@ If you installed this project locally with `mvn install`, `./mvnw install`, or `
 
 Consumers provide:
 
-- a `DppCodec<T>` to convert a DPP object to and from JSON
-- a `DppValidator<T>` to validate a DPP before write operations
-- a base URL for the registry or repository service
+- a `DppCodec<T>` to convert a full DPP object to and from JSON
+- a `DppValidator<T>` to validate a full DPP before create operations
+- a base URL for the target mock service
 
 ```java
 DppRepoClient<MyDpp> repoClient = new HttpDppRepoClient<>(
-    "https://api.example.com",
-    new MyDppCodecAdapter(),
-    new MyDppValidatorAdapter()
+    "http://localhost:8080",
+    myCodec,
+    myValidator
 );
-```
 
-```java
 DppRegistryClient registryClient = new HttpDppRegistryClient(
-    "https://api.example.com"
+    "http://localhost:8081"
 );
 ```
 
-In this SDK setup, those codec and validator implementations typically wrap classes from `dpp-sdk`. For the Cir4Fun model, that usually means `dppsdk.transport.DppJsonCodec` for JSON and `dppsdk.validation.ValidationService` for validation. This client does not depend on a specific DPP model, though, so it will also accept implementations for other DPP types as long as they provide `DppCodec<T>` and `DppValidator<T>`.
+The client remains generic. SDK usage stays behind `DppCodec<T>` and `DppValidator<T>`. The SDK should not parse HTTP wrappers.
 
-```text
-DPP type T
-  -> DppCodec<T>
-  -> DppValidator<T>
-  -> HttpDppRepoClient<T>
+## Standard-Style Endpoints
 
-DPP ID string
-  -> HttpDppRegistryClient
-```
+The client now targets only the standard-style mock API paths.
+Legacy CRUD/list/exists compatibility methods and legacy response DTOs have been removed.
 
-Example:
+Repository / Life Cycle API:
 
-```java
-import dppsdk.model.Cir4FunFurnitureDpp;
-import dppsdk.transport.DppJsonCodec;
-import dppsdk.validation.ValidationService;
+- `POST /dpps`
+- `GET /dpps/{dppId}`
+- `GET /dppsByProductId/{productId}`
+- `GET /dppsByProductIdAndDate/{productId}?date={timestamp}`
+- `POST /dppsByProductIds`
+- `PATCH /dpps/{dppId}`
+- `DELETE /dpps/{dppId}`
 
-Cir4FunFurnitureDpp dpp = ...;
+Repository / Fine Granular API:
 
-DppJsonCodec jsonCodec = new DppJsonCodec();
-ValidationService validationService = new ValidationService();
-
-DppCodec<Cir4FunFurnitureDpp> codec = new DppCodec<>() {
-    @Override
-    public String toJson(Cir4FunFurnitureDpp dpp) {
-        return jsonCodec.toJson(dpp);
-    }
-
-    @Override
-    public Cir4FunFurnitureDpp fromJson(String json) {
-        return jsonCodec.fromJson(json);
-    }
-};
-
-DppValidator<Cir4FunFurnitureDpp> validator = validationService::validate;
-
-DppRepoClient<Cir4FunFurnitureDpp> repoClient = new HttpDppRepoClient<>(
-    "https://api.example.com",
-    codec,
-    validator
-);
-
-RepoResponse created = repoClient.create(dpp);
-Cir4FunFurnitureDpp loaded = repoClient.get(dpp.getPassportMetadata().getUniqueProductIdentifier().toString());
-```
-
-## Standard Endpoints
-
-The clients use fixed endpoint paths.
+- `GET /dpps/{dppId}/elements/{elementPath}`
+- `PATCH /dpps/{dppId}/elements/{elementPath}`
 
 Registry:
 
-- `POST /registry/dpps/register`
-  Body: `{"dppId":"...","repoUrl":"..."}`
-  Response fields may include `dppId`, `repoUrl`, `registeredAt`, and `lastUpdatedAt`
+- `POST /registerDPP`
 
-Repository:
+Mock/internal convenience lookups:
 
-- `POST /repo/dpps`
-- `GET /repo/dpps/{id}`
-- `GET /repo/dpps/{id}/exists`
-- `PUT /repo/dpps/{id}`
-- `DELETE /repo/dpps/{id}`
-- `GET /repo/dpps`
+- `GET /registry/dpps/{registryId}`
+- `GET /registry/dpps/by-dpp-id/{dppId}`
 
-The `{id}` path segment is URL-encoded before requests are sent.
+Old production endpoint paths are no longer used:
+
+- `/repo/dpps...`
+- `/registry/dpps/register`
+
+All path parameters are URL-encoded. `elementPath` is encoded as a single path segment so dotted and bracketed paths are transmitted correctly.
 
 ## Public Interfaces
-
-Registry client:
-
-```java
-RegistryResponse registerDpp(String dppId, String repoUrl);
-```
 
 Repository client:
 
 ```java
-RepoResponse create(T dpp);
-T get(String id);
-boolean exists(String id);
-RepoResponse update(String id, T dpp);
-RepoResponse delete(String id);
-List<String> list();
+public interface DppRepoClient<T> {
+    CreateDppResponse createDpp(T dpp);
+    T readDppById(String dppId);
+    T readDppByProductId(String productId);
+    T readDppVersionByProductIdAndDate(String productId, Instant date);
+    ReadDppIdsResponse readDppIdsByProductIds(List<String> productIds, Integer limit, String cursor);
+    T updateDppById(String dppId, JsonNode partialDpp);
+    DeleteDppResponse deleteDppById(String dppId);
+    JsonNode readDataElement(String dppId, String elementPath);
+    JsonNode updateDataElement(String dppId, String elementPath, JsonNode payload);
+}
+```
+
+Registry client:
+
+```java
+public interface DppRegistryClient {
+    RegisterDppResponse postNewDppToRegistry(RegisterDppRequest request);
+    Optional<RegistryRecordResponse> readRegistryRecordByRegistryId(String registryId);
+    Optional<RegistryRecordResponse> readRegistryRecordByDppId(String dppId);
+}
 ```
 
 Codec and validator:
@@ -146,36 +124,105 @@ public interface DppValidator<T> {
 }
 ```
 
-Full DPP JSON serialization and deserialization is handled by the injected `DppCodec<T>` for repository CRUD, not by this client library. The client only reads small response envelope fields such as `success`, `status`, `message`, `dppId`, `repoUrl`, `registeredAt`, `lastUpdatedAt`, and list IDs.
+## API Wrapper
+
+The mock APIs return a standard wrapper:
+
+```json
+{
+  "statusCode": "Success",
+  "payload": {},
+  "messages": []
+}
+```
+
+`HttpSupport` parses this wrapper with Jackson inside the client library. Full DPP payload objects are still handed off to `DppCodec<T>`.
+
+## Internal HTTP Behavior
+
+- The default HTTP clients are intended for internal mock-service integration.
+- Connect timeout: `5 seconds`
+- Request timeout: `15 seconds`
+- Automatic retries are not currently performed.
+- Authentication, authorization, and OAuth/token handling are not currently implemented.
+- Timeout, connection, and network failures are surfaced as `DppNetworkClientException`.
 
 ## Behavior
 
-`HttpDppRegistryClient` posts a lightweight JSON body containing `dppId` and `repoUrl` to the fixed registry endpoint.
+- `createDpp` validates with `DppValidator<T>` before sending, then serializes the full DPP with `DppCodec<T>`.
+- `readDppById`, `readDppByProductId`, `readDppVersionByProductIdAndDate`, and `updateDppById` read a full DPP payload and deserialize it through `DppCodec<T>`.
+- `updateDppById` sends a partial JSON merge-style patch as `JsonNode`. It does not validate before sending because it is not a full DPP.
+- `readDataElement` and `updateDataElement` use `JsonNode` because fine-granular values can be strings, numbers, objects, arrays, or booleans.
+- `updateDataElement` does not validate before sending because it is a partial element update.
+- At this stage, wrapper payload handling does not distinguish a missing fine-granular `payload` field from an explicit JSON `null` payload; both are treated as invalid wrapper payloads, so `payload: null` is not yet supported for fine-granular reads or updates.
+- Requests send `Accept: application/json` and only send `Content-Type: application/json` when a body is present.
 
-`HttpDppRepoClient<T>` supports repository CRUD:
+## Example
 
-- create and update validate and serialize before sending
-- get deserializes the DPP response through the supplied codec
-- exists reads a lightweight repository existence response
-- delete returns a simple `RepoResponse`
-- list accepts either `["id-1","id-2"]` or `{"ids":["id-1","id-2"]}`
+```java
+DppRepoClient<MyDpp> repoClient = new HttpDppRepoClient<>(
+    "http://localhost:8080",
+    myCodec,
+    myValidator
+);
 
-Requests send JSON `Accept` headers and `Content-Type` only when a request body exists. Auth headers are not supported for now.
+CreateDppResponse created = repoClient.createDpp(dpp);
+MyDpp loaded = repoClient.readDppById(created.getDppId());
+
+JsonNode name = repoClient.readDataElement(
+    created.getDppId(),
+    "characteristics.productName"
+);
+
+ObjectMapper mapper = new ObjectMapper();
+JsonNode patch = mapper.readTree("{\"characteristics\":{\"productName\":\"Updated Name\"}}");
+MyDpp updated = repoClient.updateDppById(created.getDppId(), patch);
+
+RegisterDppRequest request = new RegisterDppRequest(
+    productIdentifier,
+    dppIdentifier,
+    operatorIdentifier,
+    repoUrl
+);
+
+RegisterDppResponse registered = registryClient.postNewDppToRegistry(request);
+```
 
 ## Errors
 
 Client failures use runtime exceptions:
 
 - `DppValidationClientException` for validator failures before a request is sent
-- `DppMappingClientException` for codec or response mapping failures
-- `DppHttpClientException` for non-2xx HTTP responses, including status code and response body
+- `DppMappingClientException` for codec or client-side JSON mapping failures
+- `DppHttpClientException` for non-2xx HTTP responses
 - `DppNetworkClientException` for network, timeout, I/O, or interruption failures
+- `DppApiClientException` for 2xx HTTP responses whose wrapper `statusCode` is an API error
 
-## Current Scope
+## Retry Note
 
-For this SDK foundation, the client intentionally does not support:
+Automatic retries are intentionally not implemented in this stage. Write operations such as create, patch, delete, register, and element update are not retried automatically because they are not guaranteed to be idempotent. If a request times out after the server processed it, retrying automatically could create duplicate or conflicting behavior. A later stage may add limited retry support for safe read-only operations once idempotency and operational requirements are defined.
+
+## Next-Stage Requirements / Not Implemented Yet
+
+- backup provider / backup operator registration
+- configurable timeout settings
+- retry configuration
+- authentication and authorization
+- OAuth/token handling
+- access-control rules
+- persistent database-backed mock services
+- real EC registry integration
+- real archiving service integration
+- production monitoring/observability
+
+Backup provider / backup operator support is intentionally not part of the current client API. The active registry request contains only `productIdentifier`, `dppIdentifier`, `operatorIdentifier`, and `repoUrl`. Backup-related identifiers should be added later only after the expected registry contract and failover/archive behavior are defined.
+
+## Scope
+
+This library intentionally does not support:
 
 - authentication or custom headers
 - configurable endpoint templates
 - mock clients
 - retries, pagination, caching, or async behavior
+- Cir4Fun model dependencies in the main client library

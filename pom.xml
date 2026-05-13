@@ -6,11 +6,11 @@
 
     <groupId>dpp.client</groupId>
     <artifactId>dpp-client</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.2.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>dpp-client</name>
-    <description>Generic HTTP client library for DPP registry and repository endpoints.</description>
+    <description>Internal pre-release HTTP client library for DPP standard-style mock registry and repository endpoints.</description>
 
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
@@ -19,6 +19,16 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.18.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>2.18.2</version>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
