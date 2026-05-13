@@ -15,6 +15,16 @@ This library stays intentionally small. It provides:
 
 It does not provide DPP domain models, builders, payload mappers, databases, authentication, backend wiring, retries, async clients, or endpoint customization.
 
+## Getting Started
+
+For local development, install the current snapshot into your local Maven repository first:
+
+```powershell
+.\mvnw.cmd clean install
+```
+
+That publishes `dpp.client:dpp-client:0.2.0-SNAPSHOT` to your local `.m2` so other local projects can depend on it without a remote artifact repository.
+
 ## Local Dependency
 
 ```xml
@@ -24,6 +34,22 @@ It does not provide DPP domain models, builders, payload mappers, databases, aut
     <version>0.2.0-SNAPSHOT</version>
 </dependency>
 ```
+
+If your consumer project uses the same local Maven repository, no extra repository configuration is needed.
+
+## Local Usage
+
+Typical local setup:
+
+1. Start the local mock repository and registry services.
+2. Add the `dpp-client` snapshot dependency to the consumer project.
+3. Provide a `DppCodec<T>` and `DppValidator<T>` for your concrete DPP type.
+4. Create repo and registry clients with the local service base URLs.
+
+Example local URLs:
+
+- repository mock service: `http://localhost:8080`
+- registry mock service: `http://localhost:8081`
 
 ## Quick Start
 
@@ -46,6 +72,32 @@ DppRegistryClient registryClient = new HttpDppRegistryClient(
 ```
 
 The client remains generic. SDK usage stays behind `DppCodec<T>` and `DppValidator<T>`. The SDK should not parse HTTP wrappers.
+
+## Minimal Local Flow
+
+```java
+DppRepoClient<MyDpp> repoClient = new HttpDppRepoClient<>(
+    "http://localhost:8080",
+    myCodec,
+    myValidator
+);
+
+DppRegistryClient registryClient = new HttpDppRegistryClient(
+    "http://localhost:8081"
+);
+
+CreateDppResponse created = repoClient.createDpp(dpp);
+MyDpp loaded = repoClient.readDppById(created.getDppId());
+
+RegisterDppResponse registered = registryClient.postNewDppToRegistry(
+    new RegisterDppRequest(
+        productIdentifier,
+        created.getDppId(),
+        operatorIdentifier,
+        repoUrl
+    )
+);
+```
 
 ## Standard-Style Endpoints
 
