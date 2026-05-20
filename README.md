@@ -140,14 +140,19 @@ Successful runs print step-by-step console output for the selected flow and fini
 
 Import:
 
-- `postman/dpp_lifecycle_api.postman_collection.json`
-- `postman/dpp_registry_api.postman_collection.json`
-- `postman/dpp_fine_granular_api.postman_collection.json`
+- `postman/dpp-lifecycle-api.verified-export-shape.postman_collection.json`
+- `postman/dpp-registry-api.verified-export-shape.postman_collection.json`
+- `postman/dpp-fine-granular-api.import-safe.postman_collection.json`
 
 Base URLs:
 
 - Registry: `http://localhost:8081`
 - Repo: `http://localhost:8080`
+
+Default in-memory demo data on clean startup:
+
+- Repo preloads DPP `49192c87-20c8-4b6f-88de-48b56ca4c211` for product `04012345678901`.
+- Registry preloads metadata record `8a5be5de-7c76-46ef-a1d5-4875d3f4a5dc` for a separate demo DPP and repo URL `http://localhost:8080`.
 
 The collections cover the new standard-style mock APIs only:
 
