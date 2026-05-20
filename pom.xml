@@ -19,7 +19,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring.boot.version>3.3.0</spring.boot.version>
         <dpp.sdk.version>1.0.0-SNAPSHOT</dpp.sdk.version>
-        <dpp.client.version>0.2.0-SNAPSHOT</dpp.client.version>
+        <dpp.client.version>0.3.0</dpp.client.version>
         <junit.jupiter.version>5.10.2</junit.jupiter.version>
     </properties>
 
