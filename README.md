@@ -68,6 +68,8 @@ Linux/macOS:
 ./mvnw clean package
 ```
 
+On Linux/macOS, `mvnw` is committed as executable, so a fresh clone should run `./mvnw ...` without a manual `chmod +x`.
+
 Common verification commands on Windows:
 
 ```powershell
@@ -75,6 +77,11 @@ Common verification commands on Windows:
 .\mvnw.cmd clean verify
 .\mvnw.cmd clean package
 ```
+
+Wrapper note:
+
+- The Maven wrapper jar is committed in this repo.
+- On a machine that does not already have the Maven 3.9.11 distribution cached, the first wrapper run may download it from Maven Central.
 
 ## Run Services
 
