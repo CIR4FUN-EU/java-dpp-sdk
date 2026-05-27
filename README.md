@@ -30,9 +30,17 @@ Dependency direction:
 Install all modules into the local Maven repository:
 
 ```powershell
+# Windows
 cd dpp-client
 .\mvnw.cmd clean install
 ```
+```bash
+# Linux/MacOS
+cd dpp-client
+./mvnw clean install
+```
+
+
 
 Use only the artifacts needed by the consuming project:
 
@@ -192,17 +200,34 @@ Wrapper parsing is handled by each client module. Concrete DPP payload parsing r
 Common local validation commands:
 
 ```powershell
+# Windows
 cd dpp-client
 .\mvnw.cmd validate
 .\mvnw.cmd test
 .\mvnw.cmd clean test
 .\mvnw.cmd clean verify
 ```
+```bash
+# Linux/MacOS
+cd dpp-client
+./mvnw validate
+./mvnw test
+./mvnw clean test
+./mvnw clean verify
+```
+
 
 Targeted module validation examples:
 
 ```powershell
+# Windows
 cd dpp-client
 .\mvnw.cmd -pl dpp-repo-client -am test
 .\mvnw.cmd -pl dpp-registry-client -am test
+```
+```bash
+# Linux/MacOS
+cd dpp-client
+./mvnw -pl dpp-repo-client -am test
+./mvnw -pl dpp-registry-client -am test
 ```
