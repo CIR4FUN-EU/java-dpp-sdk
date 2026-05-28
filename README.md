@@ -45,12 +45,24 @@ Runtime truth note:
 
 Install the reusable libraries locally first from your own split SDK/data-model checkout and `dpp-sdk-clients` checkout.
 
+Windows:
+
 ```powershell
 cd <path-to-dpp-datamodel>
 .\mvnw.cmd clean install
 
 cd <path-to-dpp-sdk-clients>
 .\mvnw.cmd clean install
+```
+
+Linux/MacOS:
+
+```bash
+cd <path-to-dpp-datamodel>
+./mvnw clean install
+
+cd <path-to-dpp-sdk-clients>
+./mvnw clean install
 ```
 
 ## Build
@@ -62,7 +74,7 @@ Windows:
 .\mvnw.cmd clean package
 ```
 
-Linux/macOS:
+Linux/MacOS:
 
 ```bash
 ./mvnw clean package
@@ -70,12 +82,20 @@ Linux/macOS:
 
 On Linux/macOS, `mvnw` is committed as executable, so a fresh clone should run `./mvnw ...` without a manual `chmod +x`.
 
-Common verification commands on Windows:
+Common verification commands on:
 
 ```powershell
+# Windows
 .\mvnw.cmd clean test
 .\mvnw.cmd clean verify
 .\mvnw.cmd clean package
+```
+
+```bash
+# Linux/MacOS
+./mvnw clean test
+./mvnw clean verify
+./mvnw clean package
 ```
 
 Wrapper note:
@@ -89,14 +109,21 @@ Start the services in this order before the default standards demo flow:
 
 Start the registry:
 
-```powershell
-java -jar mock-eu-registry\target\mock-eu-registry-1.0.0-SNAPSHOT-exec.jar --debug=false
+```bash
+java -jar mock-eu-registry\target\mock-eu-registry-1.0.0-SNAPSHOT-exec.jar --debug=false # Windows
+```
+```bash
+java -jar mock-eu-registry/target/mock-eu-registry-1.0.0-SNAPSHOT-exec.jar --debug=false # Linux/MacOS
 ```
 
 Start the repo:
 
-```powershell
-java -jar mock-dpp-repo\target\mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=false
+```bash
+java -jar mock-dpp-repo\target\mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=false # Windows
+```
+
+```bash
+java -jar mock-dpp-repo/target/mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=false # Linux/MacOS
 ```
 
 ## Run Demo
@@ -110,34 +137,49 @@ Expected flow:
 
 With registry and repo already running:
 
-```powershell
-java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar --debug=false
+```bash
+java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar --debug=false # Windows
+```
+```bash
+java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar --debug=false # Linux/MacOS
 ```
 
 The default run is the standards end-to-end flow. For a fuller stakeholder demo, run SDK capability checks first and then reuse those same SDK-built DPPs in the HTTP flow:
 
-```powershell
-java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar all --debug=false
+```bash
+java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar all --debug=false # Windows
+```
+```bash
+java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar all --debug=false # Linux/MacOS
 ```
 
 SDK-only mode does not require the backend services:
 
-```powershell
-java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar sdk --debug=false
+```bash
+java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar sdk --debug=false # Windows
+```
+```bash
+java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar sdk --debug=false # Linux/MacOS
 ```
 
 The SDK-only mode shows `DppCore` construction, `Dpp4FunValidationService`, mapper/JSON round trips, and immutable edit/delete examples for characteristics, documentation, and bill of materials entries.
 
 Explicit HTTP-only mode:
 
-```powershell
-java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar http --debug=false
+```bash
+java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar http --debug=false # Windows
+```
+```bash
+java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar http --debug=false # Linux/MacOS
 ```
 
 Optional base URL overrides:
 
-```powershell
-java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar http http://localhost:8091 http://localhost:8090 --debug=false
+```bash
+java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar http http://localhost:8091 http://localhost:8090 --debug=false # Windows
+```
+```bash
+java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar http http://localhost:8091 http://localhost:8090 --debug=false # Linux/MacOS
 ```
 
 The producer uses public `HttpDppRepoClient` APIs for the Life Cycle and Fine Granular flows and public `HttpDppRegistryClient` APIs for `/registerDPP`. The upstream split registry client does not expose the mock-only lookup endpoints, so the producer uses a small demo-local HTTP helper only for `GET /registry/dpps/...` read-back against this mock service. The demo creates the DPP in the repo first, then calls the registry; the repo service does not automatically call the registry.
