@@ -33,10 +33,18 @@ Depends on `dpp-core` and owns the furniture-specific extension:
 
 ## Build And Test
 
-```bash
+```powershell
+# Windows
 .\mvnw.cmd validate
 .\mvnw.cmd test
 .\mvnw.cmd clean verify
+```
+
+```powershell
+# Linux/MacOS
+./mvnw validate
+./mvnw test
+./mvnw clean verify
 ```
 
 ## Main Entry Points
