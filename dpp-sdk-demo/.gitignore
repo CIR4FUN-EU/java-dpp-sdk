@@ -1,8 +1,0 @@
-target/
-**/target/
-.idea/
-*.iml
-.DS_Store
-AGENTS.md
-.codex/
-docs/

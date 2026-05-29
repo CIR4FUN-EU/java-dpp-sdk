@@ -27,16 +27,22 @@ Dependency direction:
 
 ## Local Maven Usage
 
+Monorepo note:
+
+- If you are working from the `Dpp-SDK` monorepo root, use the root `README.md` for the full cross-project build order.
+- If you are working from the `Dpp-SDK` monorepo root, prefer the root `mvnw` or `mvnw.cmd` as the canonical wrapper.
+- The commands below are for building this subproject in isolation.
+
 Install all modules into the local Maven repository:
 
 ```powershell
 # Windows
-cd dpp-client
+cd dpp-sdk-clients
 .\mvnw.cmd clean install
 ```
 ```bash
 # Linux/MacOS
-cd dpp-client
+cd dpp-sdk-clients
 ./mvnw clean install
 ```
 
@@ -201,7 +207,7 @@ Common local validation commands:
 
 ```powershell
 # Windows
-cd dpp-client
+cd dpp-sdk-clients
 .\mvnw.cmd validate
 .\mvnw.cmd test
 .\mvnw.cmd clean test
@@ -209,7 +215,7 @@ cd dpp-client
 ```
 ```bash
 # Linux/MacOS
-cd dpp-client
+cd dpp-sdk-clients
 ./mvnw validate
 ./mvnw test
 ./mvnw clean test
@@ -221,13 +227,13 @@ Targeted module validation examples:
 
 ```powershell
 # Windows
-cd dpp-client
+cd dpp-sdk-clients
 .\mvnw.cmd -pl dpp-repo-client -am test
 .\mvnw.cmd -pl dpp-registry-client -am test
 ```
 ```bash
 # Linux/MacOS
-cd dpp-client
+cd dpp-sdk-clients
 ./mvnw -pl dpp-repo-client -am test
 ./mvnw -pl dpp-registry-client -am test
 ```

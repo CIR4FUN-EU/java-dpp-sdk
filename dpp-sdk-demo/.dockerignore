@@ -1,5 +1,5 @@
 .git
-.codex/
+.gitignore
 .vscode/
 **/.idea/
 **/*.iml

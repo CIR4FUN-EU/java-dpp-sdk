@@ -135,7 +135,7 @@ docker login container-registry.gitlab.cc-asp.fraunhofer.de
 docker compose -f docker-compose.build.yml push
 ```
 
-That works because the repo-root `.env` now carries the GitLab registry path and image names used by both compose files.
+That works because `dpp-sdk-demo/.env` carries the GitLab registry path and image names used by both compose files.
 
 Base URLs for the live demo:
 
@@ -150,7 +150,7 @@ Container networking caveat:
 
 Registry verification config note:
 
-- The registry service reads the repo port from the repo-root `.env` when present and otherwise falls back to `8080`.
+- The registry service reads the repo port from `dpp-sdk-demo/.env` when present and otherwise falls back to `8080`.
 - That shared config drives the seeded registry record and the registry's internal verification base URL.
 - `POST /registerDPP` still starts from the `repoUrl` inside the request payload.
 - If that payload matches the configured public repo base URL, the registry internally rewrites only the verification hop to its configured verification base URL.
@@ -164,7 +164,7 @@ Runner URL resolution behavior:
   - Repo: `http://mock-dpp-repo:${DPP_REPO_PORT}`
 - If those checks fail, it falls back to `http://localhost:${DPP_REGISTRY_PORT}` and `http://localhost:${DPP_REPO_PORT}`.
 - If both the Docker-style and localhost health checks fail for a service, the runner throws an exception and quits before the demo flow continues.
-- The repo-root `.env` controls those ports when present; if `.env` is missing, the old `8081` and `8080` defaults still apply.
+- `dpp-sdk-demo/.env` controls those ports when present; if `.env` is missing, the old `8081` and `8080` defaults still apply.
 
 ## 4. Run The HTTP Client Demo
 

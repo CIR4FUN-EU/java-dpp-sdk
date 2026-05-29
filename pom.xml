@@ -1,0 +1,19 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>dpp.platform</groupId>
+    <artifactId>dpp-platform</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>DPP Platform</name>
+    <description>Top-level aggregator for the DPP datamodel, client, and demo subprojects.</description>
+
+    <modules>
+        <module>dpp-datamodel</module>
+        <module>dpp-sdk-clients</module>
+        <module>dpp-sdk-demo</module>
+    </modules>
+</project>

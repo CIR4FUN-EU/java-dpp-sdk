@@ -6,6 +6,12 @@ This phase is draft-prEN-18222-aligned. It is not a claim of final EN 18222 comp
 
 Use this file as the quickstart for building and running the demo. Use `DEMO_GUIDE.md` as the live-demo script, walkthrough, and talking-points guide.
 
+Monorepo note:
+
+- If you are starting from the `Dpp-SDK` monorepo root, use the root `README.md` first for the full repository structure and top-level build commands.
+- If you are starting from the `Dpp-SDK` monorepo root, prefer the root `mvnw` or `mvnw.cmd` as the canonical wrapper.
+- The commands below are scoped to the `dpp-sdk-demo` subproject unless noted otherwise.
+
 ## Purpose
 
 This repo exists to show the reuse boundary between the SDK, the HTTP client library, and a small partner-facing backend demo:
@@ -30,31 +36,30 @@ The integration demo is the piece that connects the other two parts of the proje
 
 ## Prerequisites
 
-Install the reusable libraries locally first from your own split SDK/data-model checkout and `dpp-sdk-clients` checkout.
+- Recommended JDK: Java 17.
+- The demo build targets Java 17. Newer JDKs may work, but Java 17 is the supported baseline for development and validation.
+
+If you are working inside this monorepo, build from the repo root first so the reactor installs the upstream SDK and client artifacts in the correct order.
 
 Windows:
 
 ```powershell
-cd <path-to-dpp-datamodel>
-.\mvnw.cmd clean install
-
-cd <path-to-dpp-sdk-clients>
-.\mvnw.cmd clean install
+.\mvnw.cmd -f dpp-datamodel/pom.xml clean install
+.\mvnw.cmd -f dpp-sdk-clients/pom.xml clean install
 ```
 
 Linux/MacOS:
 
 ```bash
-cd <path-to-dpp-datamodel>
-./mvnw clean install
-
-cd <path-to-dpp-sdk-clients>
-./mvnw clean install
+./mvnw -f dpp-datamodel/pom.xml clean install
+./mvnw -f dpp-sdk-clients/pom.xml clean install
 ```
+
+If you are using `dpp-sdk-demo` outside this monorepo, you still need compatible `dpp-datamodel` and `dpp-sdk-clients` artifacts installed in your local Maven repository first.
 
 ## Configuration
 
-Optional repo-root `.env`:
+Optional `dpp-sdk-demo/.env`:
 
 ```properties
 DPP_REPO_PORT=8080
@@ -65,22 +70,25 @@ DPP_REPO_IMAGE_NAME=mock-dpp-repo
 DPP_REGISTRY_IMAGE_NAME=mock-eu-registry
 ```
 
-- Docker Compose uses those values automatically.
-- Local Spring Boot runs also use those values when you launch the jars from the repository root.
+- Docker Compose uses those values automatically when you pass `--env-file dpp-sdk-demo/.env` from the monorepo root or run compose inside `dpp-sdk-demo`.
+- Local JAR runs use those values when you launch from inside `dpp-sdk-demo`.
 - If `.env` is missing, the previous defaults still apply: repo `8080`, registry `8081`.
 
 ## Build
 
+Change into `dpp-sdk-demo` before running the wrapper commands below:
+
 Windows:
 
 ```powershell
-# Run from the repository root
+# Run from dpp-sdk-demo
 .\mvnw.cmd clean package
 ```
 
 Linux/MacOS:
 
 ```bash
+# Run from dpp-sdk-demo
 ./mvnw clean package
 ```
 
@@ -109,7 +117,7 @@ Wrapper note:
 
 ### 1. Run Locally With Java
 
-Build first, then start the services in this order before the default standards demo flow. Run these commands from the repository root so the optional repo-root `.env` is picked up.
+Build first, then start the services in this order before the default standards demo flow. Run these commands from `dpp-sdk-demo` so the optional subproject `.env` is picked up.
 
 Start the registry:
 
@@ -278,7 +286,7 @@ Base URLs:
 - Registry: `http://localhost:${DPP_REGISTRY_PORT}` or default `http://localhost:8081`
 - Repo: `http://localhost:${DPP_REPO_PORT}` or default `http://localhost:8080`
 
-Postman does not read the repo-root `.env` automatically. If you changed ports in `.env`, update the Postman collection variables to match.
+Postman does not read `dpp-sdk-demo/.env` automatically. If you changed ports in `.env`, update the Postman collection variables to match.
 
 For the actual request-by-request explanation and collection flow, use `DEMO_GUIDE.md`.
 
