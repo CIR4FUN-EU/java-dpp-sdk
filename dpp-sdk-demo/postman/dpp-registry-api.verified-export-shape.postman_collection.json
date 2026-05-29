@@ -1,0 +1,430 @@
+{
+  "info": {
+    "_postman_id": "bf8ff51e-71fd-4f9a-8725-3ad3a4dbcc46",
+    "name": "Mock EU Registry API",
+    "description": "Manual smoke collection for the mock EU registry API. Run requests in order. The collection creates a fresh repo DPP before registration, captures runtime identifiers for the lookup requests, and deletes the repo DPP at the end. Registry metadata itself has no delete endpoint in the current mock API, so isolation is achieved with fresh IDs per run.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "0"
+  },
+  "item": [
+    {
+      "name": "Create repo DPP for registration flow",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const newDppId = pm.variables.replaceIn('{{$guid}}');",
+              "const productId = '04' + Date.now().toString().slice(-12);",
+              "pm.collectionVariables.set('dppId', newDppId);",
+              "pm.collectionVariables.set('productId', productId);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('wrapper status is SuccessCreated', function () { pm.expect(json.statusCode).to.eql('SuccessCreated'); });",
+              "pm.test('payload.dppId is present', function () { pm.expect(json.payload.dppId).to.be.a('string').and.not.empty; });",
+              "pm.collectionVariables.set('dppId', json.payload.dppId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"classification\": {\n    \"sector\": \"Furniture\",\n    \"group\": \"Home and office furniture\",\n    \"category\": \"Beds\",\n    \"tags\": [\"cir4fun\", \"demo\"]\n  },\n  \"characteristics\": {\n    \"productName\": \"Cir4Fun Registry Demo Bed\",\n    \"description\": \"Partner demo product passport\",\n    \"brand\": \"Cir4Fun\",\n    \"productType\": \"Bed\",\n    \"dimensions\": {\n      \"width\": 90.0,\n      \"height\": 80.0,\n      \"depth\": 120.0,\n      \"unit\": \"cm\"\n    },\n    \"weight\": 24.5,\n    \"color\": \"Warm oak\",\n    \"features\": [\"repairable\", \"recyclable\"]\n  },\n  \"billOfMaterials\": {\n    \"materials\": [\n      {\n        \"name\": \"FSC certified wood\",\n        \"mandatory\": true,\n        \"portion\": 72.0,\n        \"reference\": \"MAT-WOOD-001\"\n      }\n    ],\n    \"components\": [],\n    \"parts\": []\n  },\n  \"passportMetadata\": {\n    \"uniqueProductIdentifier\": \"{{dppId}}\",\n    \"passportUpdateDates\": [\"2026-04-24\"],\n    \"qrCodeOrDigitalTag\": \"https://demo.example/dpp/{{dppId}}\",\n    \"externalDocumentationLink\": \"https://demo.example/docs/furniture\"\n  },\n  \"nameplate\": {\n    \"gtinCode\": \"{{productId}}\",\n    \"internalArticleNumber\": \"C4F-DEMO-REG-001\",\n    \"batchNumber\": \"DEMO-2026-04\",\n    \"customsTariffNumber\": \"940360\",\n    \"uriOfTheProduct\": \"https://demo.example/products/c4f-demo-reg-001\",\n    \"manufacturer\": {\n      \"name\": \"Cir4Fun Furniture GmbH\",\n      \"gln\": \"4000001000005\",\n      \"uri\": \"https://demo.example/organizations/cir4fun-furniture-gmbh\",\n      \"contact\": {\n        \"organization\": \"Cir4Fun Furniture GmbH\",\n        \"email\": {\n          \"emailAddress\": \"contact@demo.example\",\n          \"typeOfEmail\": \"business\"\n        }\n      },\n      \"role\": \"MANUFACTURER\"\n    },\n    \"supplier\": {\n      \"name\": \"Partner Supplier GmbH\",\n      \"gln\": \"4000001000005\",\n      \"uri\": \"https://demo.example/organizations/partner-supplier-gmbh\",\n      \"contact\": {\n        \"organization\": \"Partner Supplier GmbH\",\n        \"email\": {\n          \"emailAddress\": \"contact@demo.example\",\n          \"typeOfEmail\": \"business\"\n        }\n      },\n      \"role\": \"SUPPLIER\"\n    }\n  },\n  \"documentation\": {\n    \"digitalInstructionsLink\": \"https://demo.example/docs/assembly\",\n    \"safetyInstructionsLink\": \"https://demo.example/docs/safety\",\n    \"downloadable\": true,\n    \"availableForYears\": 10,\n    \"paperCopyAvailableOnRequest\": true\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{repoBaseUrl}}/dpps",
+          "host": [
+            "{{repoBaseUrl}}"
+          ],
+          "path": [
+            "dpps"
+          ]
+        },
+        "description": "Creates a fresh repo DPP through the host-reachable repo base URL so registration and lookup requests do not depend on shared startup seed data."
+      },
+      "response": []
+    },
+    {
+      "name": "Register DPP in mock EU registry",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('wrapper status is SuccessCreated', function () { pm.expect(json.statusCode).to.eql('SuccessCreated'); });",
+              "pm.test('payload.registryIdentifier is present', function () { pm.expect(json.payload.registryIdentifier).to.be.a('string').and.not.empty; });",
+              "pm.collectionVariables.set('registryId', json.payload.registryIdentifier);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productIdentifier\": \"{{productId}}\",\n  \"dppIdentifier\": \"{{dppId}}\",\n  \"operatorIdentifier\": \"operator-123\",\n  \"repoUrl\": \"{{repoBaseUrl}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{registryBaseUrl}}/registerDPP",
+          "host": [
+            "{{registryBaseUrl}}"
+          ],
+          "path": [
+            "registerDPP"
+          ]
+        },
+        "description": "Registration succeeds only if the registry can verify {{repoBaseUrl}}/dpps/{{dppId}} through its configured internal HEAD verification path."
+      },
+      "response": []
+    },
+    {
+      "name": "RegisterDPP missing required field",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('HTTP 400', function () { pm.response.to.have.status(400); });",
+              "pm.test('wrapper status is ClientErrorBadRequest', function () { pm.expect(json.statusCode).to.eql('ClientErrorBadRequest'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productIdentifier\": \" \",\n  \"dppIdentifier\": \"{{dppId}}\",\n  \"operatorIdentifier\": \"operator-123\",\n  \"repoUrl\": \"{{repoBaseUrl}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{registryBaseUrl}}/registerDPP",
+          "host": [
+            "{{registryBaseUrl}}"
+          ],
+          "path": [
+            "registerDPP"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "RegisterDPP missing repo DPP",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('HTTP 404', function () { pm.response.to.have.status(404); });",
+              "pm.test('wrapper status is ClientErrorResourceNotFound', function () { pm.expect(json.statusCode).to.eql('ClientErrorResourceNotFound'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productIdentifier\": \"{{productId}}\",\n  \"dppIdentifier\": \"00000000-0000-0000-0000-000000000000\",\n  \"operatorIdentifier\": \"operator-123\",\n  \"repoUrl\": \"{{repoBaseUrl}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{registryBaseUrl}}/registerDPP",
+          "host": [
+            "{{registryBaseUrl}}"
+          ],
+          "path": [
+            "registerDPP"
+          ]
+        },
+        "description": "Expected: ClientErrorResourceNotFound because the registry verifies repoUrl + HEAD /dpps/00000000-0000-0000-0000-000000000000 before storing metadata."
+      },
+      "response": []
+    },
+    {
+      "name": "RegisterDPP repo unavailable",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('HTTP 502', function () { pm.response.to.have.status(502); });",
+              "pm.test('wrapper status is ServerErrorBadGateway', function () { pm.expect(json.statusCode).to.eql('ServerErrorBadGateway'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productIdentifier\": \"{{productId}}\",\n  \"dppIdentifier\": \"11111111-1111-1111-1111-111111111111\",\n  \"operatorIdentifier\": \"operator-123\",\n  \"repoUrl\": \"{{unreachableRepoUrl}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{registryBaseUrl}}/registerDPP",
+          "host": [
+            "{{registryBaseUrl}}"
+          ],
+          "path": [
+            "registerDPP"
+          ]
+        },
+        "description": "Expected: ServerErrorBadGateway because the registry cannot complete repo HEAD verification."
+      },
+      "response": []
+    },
+    {
+      "name": "Read mock registry record by registry id",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('wrapper status is Success', function () { pm.expect(json.statusCode).to.eql('Success'); });",
+              "pm.test('registry id matches runtime value', function () { pm.expect(json.payload.registryIdentifier).to.eql(pm.collectionVariables.get('registryId')); });",
+              "pm.test('dpp id matches runtime value', function () { pm.expect(json.payload.dppIdentifier).to.eql(pm.collectionVariables.get('dppId')); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{registryBaseUrl}}/registry/dpps/{{registryId}}",
+          "host": [
+            "{{registryBaseUrl}}"
+          ],
+          "path": [
+            "registry",
+            "dpps",
+            "{{registryId}}"
+          ]
+        },
+        "header": []
+      },
+      "response": []
+    },
+    {
+      "name": "Read missing registry record",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('HTTP 404', function () { pm.response.to.have.status(404); });",
+              "pm.test('wrapper status is ClientErrorResourceNotFound', function () { pm.expect(json.statusCode).to.eql('ClientErrorResourceNotFound'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{registryBaseUrl}}/registry/dpps/{{missingRegistryId}}",
+          "host": [
+            "{{registryBaseUrl}}"
+          ],
+          "path": [
+            "registry",
+            "dpps",
+            "{{missingRegistryId}}"
+          ]
+        },
+        "header": []
+      },
+      "response": []
+    },
+    {
+      "name": "Read mock registry record by dpp id",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('wrapper status is Success', function () { pm.expect(json.statusCode).to.eql('Success'); });",
+              "pm.test('registry record points at runtime dpp id', function () { pm.expect(json.payload.dppIdentifier).to.eql(pm.collectionVariables.get('dppId')); });",
+              "pm.test('registry record points at runtime product id', function () { pm.expect(json.payload.productIdentifier).to.eql(pm.collectionVariables.get('productId')); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{registryBaseUrl}}/registry/dpps/by-dpp-id/{{dppId}}",
+          "host": [
+            "{{registryBaseUrl}}"
+          ],
+          "path": [
+            "registry",
+            "dpps",
+            "by-dpp-id",
+            "{{dppId}}"
+          ]
+        },
+        "header": []
+      },
+      "response": []
+    },
+    {
+      "name": "Delete repo DPP cleanup",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('wrapper status is SuccessNoContent', function () { pm.expect(json.statusCode).to.eql('SuccessNoContent'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}",
+          "host": [
+            "{{repoBaseUrl}}"
+          ],
+          "path": [
+            "dpps",
+            "{{dppId}}"
+          ]
+        },
+        "description": "Deletes the repo DPP created by this collection. The current mock registry API has no delete endpoint for metadata records, so registry-side isolation comes from fresh IDs per run."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "registryBaseUrl",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "repoBaseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "unreachableRepoUrl",
+      "value": "http://localhost:65530",
+      "type": "string"
+    },
+    {
+      "key": "dppId",
+      "value": "49192c87-20c8-4b6f-88de-48b56ca4c211",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "04012345678901",
+      "type": "string"
+    },
+    {
+      "key": "registryId",
+      "value": "8a5be5de-7c76-46ef-a1d5-4875d3f4a5dc",
+      "type": "string"
+    },
+    {
+      "key": "missingRegistryId",
+      "value": "22222222-2222-2222-2222-222222222222",
+      "type": "string"
+    }
+  ]
+}

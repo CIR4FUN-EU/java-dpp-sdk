@@ -1,0 +1,12 @@
+.git
+.codex/
+.vscode/
+**/.idea/
+**/*.iml
+**/.DS_Store
+**/Thumbs.db
+**/target/
+!mock-dpp-repo/target/
+!mock-dpp-repo/target/*-exec.jar
+!mock-eu-registry/target/
+!mock-eu-registry/target/*-exec.jar

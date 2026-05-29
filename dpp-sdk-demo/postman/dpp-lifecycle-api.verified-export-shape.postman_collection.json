@@ -1,0 +1,743 @@
+{
+  "info": {
+    "_postman_id": "911cc53d-9d2e-4458-b58b-f721da522049",
+    "name": "DPP Lifecycle API",
+    "description": "Manual smoke collection for the mock DPP repository lifecycle API. Run requests in order. CreateDPP generates a fresh dppId/productId and captures versionDate. HEAD /dpps/{dppId} is an internal lightweight verification endpoint used by the registry. Lifecycle events are internal mock events, not full Track & Trace.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "0"
+  },
+  "item": [
+    {
+      "name": "00 Health",
+      "item": [
+        {
+          "name": "Repo Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('service is UP', function () { pm.expect(json.status).to.eql('UP'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Checks repo service.",
+            "url": {
+              "raw": "http://localhost:8080/health",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 Happy Path",
+      "item": [
+        {
+          "name": "CreateDPP",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const newDppId = pm.variables.replaceIn('{{$guid}}');",
+                  "const productId = '04' + Date.now().toString().slice(-12);",
+                  "pm.collectionVariables.set('dppId', newDppId);",
+                  "pm.collectionVariables.set('productId', productId);",
+                  "pm.collectionVariables.set('versionDate', new Date().toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('wrapper status is SuccessCreated', function () { pm.expect(json.statusCode).to.eql('SuccessCreated'); });",
+                  "pm.test('payload.dppId is present', function () { pm.expect(json.payload.dppId).to.be.a('string').and.not.empty; });",
+                  "pm.collectionVariables.set('dppId', json.payload.dppId);",
+                  "pm.collectionVariables.set('versionDate', new Date().toISOString());"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Creates a valid DPP; generates fresh IDs.",
+            "url": {
+              "raw": "http://localhost:8080/dpps",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "dpps"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"classification\": {\n    \"sector\": \"Furniture\",\n    \"group\": \"Home and office furniture\",\n    \"category\": \"Beds\",\n    \"tags\": [\"cir4fun\", \"demo\"]\n  },\n  \"characteristics\": {\n    \"productName\": \"Cir4Fun Platform Bed\",\n    \"description\": \"Partner demo product passport\",\n    \"brand\": \"Cir4Fun\",\n    \"productType\": \"Bed\",\n    \"dimensions\": {\n      \"width\": 90.0,\n      \"height\": 80.0,\n      \"depth\": 120.0,\n      \"unit\": \"cm\"\n    },\n    \"weight\": 24.5,\n    \"color\": \"Warm oak\",\n    \"features\": [\"repairable\", \"recyclable\"]\n  },\n  \"billOfMaterials\": {\n    \"materials\": [\n      {\n        \"name\": \"FSC certified wood\",\n        \"mandatory\": true,\n        \"portion\": 72.0,\n        \"reference\": \"MAT-WOOD-001\"\n      }\n    ],\n    \"components\": [],\n    \"parts\": []\n  },\n  \"passportMetadata\": {\n    \"uniqueProductIdentifier\": \"{{dppId}}\",\n    \"passportUpdateDates\": [\"2026-04-24\"],\n    \"qrCodeOrDigitalTag\": \"https://demo.example/dpp/{{dppId}}\",\n    \"externalDocumentationLink\": \"https://demo.example/docs/furniture\"\n  },\n  \"nameplate\": {\n    \"gtinCode\": \"{{productId}}\",\n    \"internalArticleNumber\": \"C4F-DEMO-001\",\n    \"batchNumber\": \"DEMO-2026-04\",\n    \"customsTariffNumber\": \"940360\",\n    \"uriOfTheProduct\": \"https://demo.example/products/c4f-demo-001\",\n    \"manufacturer\": {\n      \"name\": \"Cir4Fun Furniture GmbH\",\n      \"gln\": \"4000001000005\",\n      \"uri\": \"https://demo.example/organizations/cir4fun-furniture-gmbh\",\n      \"contact\": {\n        \"organization\": \"Cir4Fun Furniture GmbH\",\n        \"email\": {\n          \"emailAddress\": \"contact@demo.example\",\n          \"typeOfEmail\": \"business\"\n        }\n      },\n      \"role\": \"MANUFACTURER\"\n    },\n    \"supplier\": {\n      \"name\": \"Partner Supplier GmbH\",\n      \"gln\": \"4000001000005\",\n      \"uri\": \"https://demo.example/organizations/partner-supplier-gmbh\",\n      \"contact\": {\n        \"organization\": \"Partner Supplier GmbH\",\n        \"email\": {\n          \"emailAddress\": \"contact@demo.example\",\n          \"typeOfEmail\": \"business\"\n        }\n      },\n      \"role\": \"SUPPLIER\"\n    }\n  },\n  \"documentation\": {\n    \"digitalInstructionsLink\": \"https://demo.example/docs/assembly\",\n    \"safetyInstructionsLink\": \"https://demo.example/docs/safety\",\n    \"downloadable\": true,\n    \"availableForYears\": 10,\n    \"paperCopyAvailableOnRequest\": true\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify DPP exists by HEAD",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "HEAD",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Lightweight verification endpoint.",
+            "url": {
+              "raw": "http://localhost:8080/dpps/{{dppId}}",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "dpps",
+                "{{dppId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ReadDPPById",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('wrapper status is Success', function () { pm.expect(json.statusCode).to.eql('Success'); });",
+                  "pm.test('payload is full DPP', function () { pm.expect(json.payload.passportMetadata.uniqueProductIdentifier).to.eql(pm.collectionVariables.get('dppId')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Reads by DPP ID.",
+            "url": {
+              "raw": "http://localhost:8080/dpps/{{dppId}}",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "dpps",
+                "{{dppId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ReadDPPByProductId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('wrapper status is Success', function () { pm.expect(json.statusCode).to.eql('Success'); });",
+                  "pm.test('productId matches', function () { pm.expect(json.payload.nameplate.gtinCode).to.eql(pm.collectionVariables.get('productId')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Reads by product ID.",
+            "url": {
+              "raw": "http://localhost:8080/dppsByProductId/{{productId}}",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "dppsByProductId",
+                "{{productId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "UpdateDPPById",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('wrapper status is Success', function () { pm.expect(json.statusCode).to.eql('Success'); });",
+                  "pm.test('updated product name returned', function () { pm.expect(json.payload.characteristics.productName).to.eql('Cir4Fun Platform Bed - Postman Update'); });",
+                  "pm.collectionVariables.set('versionDate', new Date().toISOString());"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Applies JSON Merge Patch.",
+            "url": {
+              "raw": "http://localhost:8080/dpps/{{dppId}}",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "dpps",
+                "{{dppId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"characteristics\": {\n    \"productName\": \"Cir4Fun Platform Bed - Postman Update\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ReadDPPVersionByProductIdAndDate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('wrapper status is Success', function () { pm.expect(json.statusCode).to.eql('Success'); });",
+                  "pm.test('snapshot payload present', function () { pm.expect(json.payload).to.be.an('object'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Reads snapshot at versionDate.",
+            "url": {
+              "raw": "http://localhost:8080/dppsByProductIdAndDate/{{productId}}?date={{versionDate}}",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "dppsByProductIdAndDate",
+                "{{productId}}"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{versionDate}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ReadDPPIdsByProductIds",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('wrapper status is Success', function () { pm.expect(json.statusCode).to.eql('Success'); });",
+                  "pm.test('contains created DPP', function () { pm.expect(json.payload.dppIdentifiers).to.include(pm.collectionVariables.get('dppId')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Resolves DPP IDs.",
+            "url": {
+              "raw": "http://localhost:8080/dppsByProductIds",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "dppsByProductIds"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productIdentifiers\": [\"{{productId}}\"],\n  \"limit\": 10,\n  \"cursor\": \"0\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 Internal Lifecycle Events",
+      "item": [
+        {
+          "name": "ReadDPP Events",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('wrapper status is Success', function () { pm.expect(json.statusCode).to.eql('Success'); });",
+                  "pm.test('events have shape', function () { pm.expect(json.payload).to.be.an('array').and.not.empty; pm.expect(json.payload[0]).to.have.property('eventType'); pm.expect(json.payload[0]).to.have.property('occurredAt'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Reads internal mock events.",
+            "url": {
+              "raw": "http://localhost:8080/dpps/{{dppId}}/events",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "dpps",
+                "{{dppId}}",
+                "events"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 Cleanup",
+      "item": [
+        {
+          "name": "DeleteDPPById",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('wrapper status is SuccessNoContent', function () { pm.expect(json.statusCode).to.eql('SuccessNoContent'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Soft-deletes DPP.",
+            "url": {
+              "raw": "http://localhost:8080/dpps/{{dppId}}",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "dpps",
+                "{{dppId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 Sad Paths",
+      "item": [
+        {
+          "name": "Verify missing DPP by HEAD",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "HEAD",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "HEAD missing DPP.",
+            "url": {
+              "raw": "http://localhost:8080/dpps/{{missingDppId}}",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "dpps",
+                "{{missingDppId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Read missing DPP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 404', function () { pm.response.to.have.status(404); });",
+                  "pm.test('wrapper status is ClientErrorResourceNotFound', function () { pm.expect(json.statusCode).to.eql('ClientErrorResourceNotFound'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Read missing DPP.",
+            "url": {
+              "raw": "http://localhost:8080/dpps/{{missingDppId}}",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "dpps",
+                "{{missingDppId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CreateDPP malformed JSON",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('malformedCreateBody', '{\\n  \\\"characteristics\\\":');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('wrapper status is ClientErrorBadRequest', function () { pm.expect(json.statusCode).to.eql('ClientErrorBadRequest'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Malformed JSON.",
+            "url": {
+              "raw": "http://localhost:8080/dpps",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "dpps"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{malformedCreateBody}}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ReadDPPIds invalid cursor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('wrapper status is ClientErrorBadRequest', function () { pm.expect(json.statusCode).to.eql('ClientErrorBadRequest'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Invalid cursor.",
+            "url": {
+              "raw": "http://localhost:8080/dppsByProductIds",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "dppsByProductIds"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productIdentifiers\": [\"{{productId}}\"],\n  \"limit\": 10,\n  \"cursor\": \"not-a-number\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete missing DPP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 404', function () { pm.response.to.have.status(404); });",
+                  "pm.test('wrapper status is ClientErrorResourceNotFound', function () { pm.expect(json.statusCode).to.eql('ClientErrorResourceNotFound'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Delete missing DPP.",
+            "url": {
+              "raw": "http://localhost:8080/dpps/{{missingDppId}}",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "dpps",
+                "{{missingDppId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "repoBaseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "dppId",
+      "value": "49192c87-20c8-4b6f-88de-48b56ca4c211",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "04012345678901",
+      "type": "string"
+    },
+    {
+      "key": "versionDate",
+      "value": "2026-05-13T12:00:00Z",
+      "type": "string"
+    },
+    {
+      "key": "missingDppId",
+      "value": "00000000-0000-0000-0000-000000000000",
+      "type": "string"
+    },
+    {
+      "key": "malformedCreateBody",
+      "value": "{\n  \"characteristics\":",
+      "type": "string"
+    }
+  ]
+}
