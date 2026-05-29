@@ -1,0 +1,6 @@
+target/
+.m2/
+out/
+*.class
+*.log
+
