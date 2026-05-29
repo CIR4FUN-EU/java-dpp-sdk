@@ -4,7 +4,7 @@ Partner-facing Java backend demo showing how `com.example.dppsdk:dpp4fun:0.3.0` 
 
 This phase is draft-prEN-18222-aligned. It is not a claim of final EN 18222 compliance or production readiness.
 
-Use this file as the quickstart for building and running the demo. Use `DEMO_GUIDE.md` as the live-demo script and talking-points guide.
+Use this file as the quickstart for building and running the demo. Use `DEMO_GUIDE.md` as the live-demo script, walkthrough, and talking-points guide.
 
 ## Purpose
 
@@ -20,26 +20,13 @@ Runtime truth note:
 - The canonical runtime view for this demo is the `demo` repo plus the locally installed `dpp4fun`, `dpp-core`, and `dpp-sdk-clients` artifacts used at build/run time.
 - Treat Maven-resolved classes as the source of truth.
 
-## What It Shows
-
-- Build Dpp4Fun DPPs with SDK builders and demo fixtures.
-- Show a full DPP assembled step by step by building `DppCore` common fields first, then wrapping it in `Dpp4Fun`.
-- Validate full product DPPs with SDK `Dpp4FunValidationService`.
-- Show SDK required-field protection when an incomplete DPP is built.
-- Demonstrate immutable edits and deletes with `toBuilder()`.
-- Convert DPPs to and from JSON with SDK `Dpp4FunJsonCodec`.
-- Keep the external DTO/JSON payload shape flat while the domain model uses `DppCore`.
-- Adapt the SDK type to `dpp-repo-client` with thin `DppCodec<T>` and `DppValidator<T>` adapters.
-- Show that the client integration surface stays small: base URL plus codec and validator adapters.
-- Use `HttpDppRepoClient` and `HttpDppRegistryClient` against the mock Life Cycle API, simplified Fine Granular API, and Registry API.
-- Store a DPP in the repo service, verify it by lightweight HEAD, read it by ID or product ID, patch the full DPP, read and update a single element, query IDs by product IDs, register it with the registry, and soft-delete it.
-- Demonstrate invalid DPP, malformed JSON, conflict, not-found, HTTP, and network error paths.
-
 ## Modules
 
-- `mock-eu-registry`: mock registry HTTP service on `http://localhost:8081`.
-- `mock-dpp-repo`: mock repo HTTP service on `http://localhost:8080`.
+- `mock-eu-registry`: mock registry HTTP service, default host URL `http://localhost:8081`.
+- `mock-dpp-repo`: mock repo HTTP service, default host URL `http://localhost:8080`.
 - `dpp-integration-demo`: command-line SDK and HTTP demo runner, including the demo DPP factory, thin SDK-to-client adapters, and the mock-only registry read-back helper used for internal visibility.
+
+The integration demo is the piece that connects the other two parts of the project. It creates and validates demo DPPs, talks to the repo and registry mock APIs, and gives you one repeatable flow for local validation, Docker validation, and partner demos.
 
 ## Prerequisites
 
@@ -65,6 +52,23 @@ cd <path-to-dpp-sdk-clients>
 ./mvnw clean install
 ```
 
+## Configuration
+
+Optional repo-root `.env`:
+
+```properties
+DPP_REPO_PORT=8080
+DPP_REGISTRY_PORT=8081
+DPP_IMAGE_REGISTRY=container-registry.gitlab.cc-asp.fraunhofer.de/digital-product-passport-sdk/dpp-sdk-demo
+DPP_IMAGE_TAG=0.1.0
+DPP_REPO_IMAGE_NAME=mock-dpp-repo
+DPP_REGISTRY_IMAGE_NAME=mock-eu-registry
+```
+
+- Docker Compose uses those values automatically.
+- Local Spring Boot runs also use those values when you launch the jars from the repository root.
+- If `.env` is missing, the previous defaults still apply: repo `8080`, registry `8081`.
+
 ## Build
 
 Windows:
@@ -80,9 +84,7 @@ Linux/MacOS:
 ./mvnw clean package
 ```
 
-On Linux/macOS, `mvnw` is committed as executable, so a fresh clone should run `./mvnw ...` without a manual `chmod +x`.
-
-Common verification commands on:
+Common verification commands:
 
 ```powershell
 # Windows
@@ -103,22 +105,25 @@ Wrapper note:
 - The Maven wrapper jar is committed in this repo.
 - On a machine that does not already have the Maven 3.9.11 distribution cached, the first wrapper run may download it from Maven Central.
 
-## Run Services
+## Run Options
 
-Start the services in this order before the default standards demo flow:
+### 1. Run Locally With Java
+
+Build first, then start the services in this order before the default standards demo flow. Run these commands from the repository root so the optional repo-root `.env` is picked up.
 
 Start the registry:
 
-```bash
+```powershell
 java -jar mock-eu-registry\target\mock-eu-registry-1.0.0-SNAPSHOT-exec.jar --debug=false # Windows
 ```
+
 ```bash
 java -jar mock-eu-registry/target/mock-eu-registry-1.0.0-SNAPSHOT-exec.jar --debug=false # Linux/MacOS
 ```
 
 Start the repo:
 
-```bash
+```powershell
 java -jar mock-dpp-repo\target\mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=false # Windows
 ```
 
@@ -126,67 +131,141 @@ java -jar mock-dpp-repo\target\mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=fal
 java -jar mock-dpp-repo/target/mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=false # Linux/MacOS
 ```
 
-## Run Demo
+Use this when you want the two mock services running directly on the host with the configured `.env` ports.
 
-Expected flow:
+### 2. Run Local Containers From Locally Built Images
 
-1. Run `sdk` when you want the SDK-only capability walkthrough.
-2. Run the default mode, `standards`, or `http` when the registry and repo services are already running.
-3. Run `all` when you want the SDK walkthrough first and then the HTTP flow.
-4. Run `sdk-http` when you want the same combined flow as `all`.
+This is the maintainer workflow when you want Dockerized services built from the current checkout.
+
+```powershell
+.\mvnw.cmd clean package
+docker compose -f docker-compose.build.yml up --build
+```
+
+What this does:
+
+- Builds the executable service JARs locally with Maven.
+- Builds the registry-qualified repo and registry images from those packaged JARs.
+- Starts the two mock services in Docker on the ports configured by `.env`.
+
+Important:
+
+- `docker compose -f docker-compose.build.yml build` builds images only.
+- `docker compose -f docker-compose.build.yml up` or `up -d` runs containers.
+- `up --build` does both.
+
+### 3. Publish Images
+
+Use this when you want to push the current repo and registry images to the GitLab project container registry.
+
+```powershell
+.\mvnw.cmd clean package
+docker compose -f docker-compose.build.yml build
+docker login container-registry.gitlab.cc-asp.fraunhofer.de
+docker compose -f docker-compose.build.yml push
+```
+
+With the committed `.env`, the pushed image names are:
+
+- `container-registry.gitlab.cc-asp.fraunhofer.de/digital-product-passport-sdk/dpp-sdk-demo/mock-dpp-repo:0.1.0`
+- `container-registry.gitlab.cc-asp.fraunhofer.de/digital-product-passport-sdk/dpp-sdk-demo/mock-eu-registry:0.1.0`
+
+If you want to test a different tag, override `DPP_IMAGE_TAG` before both push and pull. The pushed tag and pulled tag must match.
+
+### 4. Run Containers From Already Published Images
+
+Use this when the images already exist in the GitLab registry and you want a pull-only workflow.
+
+```powershell
+docker login container-registry.gitlab.cc-asp.fraunhofer.de
+docker compose pull
+docker compose up -d
+docker compose ps
+```
+
+If you want to run a different published tag without editing `.env`, override it for the current shell first:
+
+```powershell
+$env:DPP_IMAGE_TAG="test-1"
+docker compose pull
+docker compose up -d
+```
+
+This is also how you pull an already existing image tag for a clean retest on another machine.
+
+## Validate / Test
+
+After startup, you can validate the running mocks in three ways:
+
+- Run the integration demo.
+- Run the Postman collections.
+- Use the repo and registry services directly as lightweight mock/test doubles for local development and manual API testing.
+
+The detailed walkthrough, what each step demonstrates, and the longer demo explanation belong in `DEMO_GUIDE.md`.
+
+### Integration Demo
 
 With registry and repo already running:
 
-```bash
+```powershell
 java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar --debug=false # Windows
 ```
+
 ```bash
 java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar --debug=false # Linux/MacOS
 ```
 
 The default run is the standards end-to-end flow. For a fuller stakeholder demo, run SDK capability checks first and then reuse those same SDK-built DPPs in the HTTP flow:
 
-```bash
+```powershell
 java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar all --debug=false # Windows
 ```
+
 ```bash
 java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar all --debug=false # Linux/MacOS
 ```
 
 SDK-only mode does not require the backend services:
 
-```bash
+```powershell
 java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar sdk --debug=false # Windows
 ```
+
 ```bash
 java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar sdk --debug=false # Linux/MacOS
 ```
 
-The SDK-only mode shows `DppCore` construction, `Dpp4FunValidationService`, mapper/JSON round trips, and immutable edit/delete examples for characteristics, documentation, and bill of materials entries.
-
 Explicit HTTP-only mode:
 
-```bash
+```powershell
 java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar http --debug=false # Windows
 ```
+
 ```bash
 java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar http --debug=false # Linux/MacOS
 ```
 
 Optional base URL overrides:
 
-```bash
+```powershell
 java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar http http://localhost:8091 http://localhost:8090 --debug=false # Windows
 ```
+
 ```bash
 java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar http http://localhost:8091 http://localhost:8090 --debug=false # Linux/MacOS
 ```
 
-The producer uses public `HttpDppRepoClient` APIs for the Life Cycle and Fine Granular flows and public `HttpDppRegistryClient` APIs for `/registerDPP`. The upstream split registry client does not expose the mock-only lookup endpoints, so the producer uses a small demo-local HTTP helper only for `GET /registry/dpps/...` read-back against this mock service. The demo creates the DPP in the repo first, then calls the registry; the repo service does not automatically call the registry.
+Default URL resolution for the HTTP demo runner:
 
-Successful runs print step-by-step console output for the selected flow and finish without stack traces.
+- If you do not pass explicit service URLs, the runner checks Docker-style service names first:
+  - Registry: `http://mock-eu-registry:${DPP_REGISTRY_PORT}`
+  - Repo: `http://mock-dpp-repo:${DPP_REPO_PORT}`
+- If those health checks fail, it falls back to:
+  - Registry: `http://localhost:${DPP_REGISTRY_PORT}`
+  - Repo: `http://localhost:${DPP_REPO_PORT}`
+- If neither candidate is reachable for a service, the runner throws an exception and exits before the demo flow starts.
 
-## Postman
+### Postman
 
 Import:
 
@@ -196,38 +275,54 @@ Import:
 
 Base URLs:
 
-- Registry: `http://localhost:8081`
-- Repo: `http://localhost:8080`
+- Registry: `http://localhost:${DPP_REGISTRY_PORT}` or default `http://localhost:8081`
+- Repo: `http://localhost:${DPP_REPO_PORT}` or default `http://localhost:8080`
 
-Default in-memory demo data on clean startup:
+Postman does not read the repo-root `.env` automatically. If you changed ports in `.env`, update the Postman collection variables to match.
 
-- Repo preloads DPP `49192c87-20c8-4b6f-88de-48b56ca4c211` for product `04012345678901`.
-- Registry preloads metadata record `8a5be5de-7c76-46ef-a1d5-4875d3f4a5dc` for a separate demo DPP and repo URL `http://localhost:8080`.
+For the actual request-by-request explanation and collection flow, use `DEMO_GUIDE.md`.
 
-Collection independence:
+### Quick Smoke Checks
 
-- The lifecycle collection already creates a fresh DPP and deletes it at the end.
-- The fine-granular collection now creates its own DPP at the start and deletes it at the end.
-- The registry collection now creates its own repo DPP before registration and deletes that repo DPP at the end.
-- The mock registry API has no delete endpoint for registry metadata, so registry-record isolation is achieved with fresh identifiers per run rather than metadata cleanup.
-- The startup seed remains useful for ad-hoc manual requests, but the happy-path collection runs do not depend on it.
+Windows:
 
-The collections cover the new standard-style mock APIs only:
+```powershell
+curl.exe http://localhost:8080/health
+curl.exe http://localhost:8081/health
+```
 
-- Repo Life Cycle API: `POST /dpps`, `GET /dpps/{dppId}`, `HEAD /dpps/{dppId}`, `GET /dppsByProductId/{productId}`, `GET /dppsByProductIdAndDate/{productId}`, `POST /dppsByProductIds`, `PATCH /dpps/{dppId}`, `DELETE /dpps/{dppId}`, `GET /dpps/{dppId}/events`
-- Repo Fine Granular API: `GET/PATCH /dpps/{dppId}/elements/{elementPath}`
-- Registry API: `POST /registerDPP` as the main registration operation, `GET /registry/dpps/{registryId}` as an internal/mock lookup helper, and `GET /registry/dpps/by-dpp-id/{dppId}` as an internal/mock lookup helper
-- Service health: repo `GET /health` and registry `GET /health`
+Linux/MacOS:
 
-`HEAD /dpps/{dppId}` is an internal lightweight verification endpoint. It returns 200 when an active DPP exists, 404 when the DPP is missing or soft-deleted, and no DPP payload. The mock registry uses it to verify repo references before storing registry metadata.
+```bash
+curl http://localhost:8080/health
+curl http://localhost:8081/health
+```
 
-`GET /dpps/{dppId}/events` is an internal/mock lifecycle-events endpoint for demo and test visibility. It is not a full Track & Trace API.
+## Runtime Notes
 
-The repo `GET /health` endpoint is also demo-local and unwrapped. It exists for quick smoke checks and Postman flow setup, not as part of the reusable repo client contract.
+From the host machine, Postman, or a browser:
 
-`POST /registerDPP` verifies the referenced DPP with `{repoUrl}/dpps/{dppIdentifier}` using HEAD before storing metadata. The registry does not fetch full DPP JSON and does not run SDK validation; it trusts the repo as the validated DPP store. A missing DPP fails with `ClientErrorResourceNotFound`, while an unreachable or failing repo returns `ServerErrorBadGateway`.
+- Repo: `http://localhost:${DPP_REPO_PORT}`
+- Registry: `http://localhost:${DPP_REGISTRY_PORT}`
 
-## Mocked And Not Production-Ready
+From the registry container to the repo container:
+
+- Use `http://mock-dpp-repo:${DPP_REPO_PORT}`
+- Do not use `http://localhost:${DPP_REPO_PORT}`
+
+Why:
+
+- `localhost` inside the `mock-eu-registry` container means the registry container itself, not the host and not the repo container.
+- The registry handles that internally for the standard public repo URL path, but the network distinction still matters when you debug requests manually.
+
+Compose file roles:
+
+- `docker-compose.build.yml`: build-and-run workflow for local image creation and optional push.
+- `docker-compose.yml`: pull-and-run workflow for already published images.
+
+## Mock Boundary
+
+This repo provides demo-focused mock services and a producer/demo runner. It is intentionally not production-ready.
 
 Mocked:
 
@@ -245,18 +340,3 @@ Not implemented:
 - AAS adapter
 - Backup identifier/operator/provider placeholders
 - Full official draft data-model field coverage
-
-## Current Mock Boundary
-
-- The repo service now implements the standard-style Life Cycle API and simplified Fine Granular API.
-- The registry service now implements `POST /registerDPP` plus two internal lookup endpoints for test/debug convenience.
-- Registry registration verifies the repo reference before storing metadata; the client/demo still orchestrates create-then-register.
-- Responses use the upstream split `DppApiResponse` wrappers with correlation IDs in error messages.
-- Storage is intentionally in-memory only for this phase.
-- These mocks are internal use ready at the API and test level, but they are not production-secure.
-
-## Future Work
-
-- Upstream split payload modules now own the shared repo and registry request/response contracts used by the mock services.
-- This repo keeps only demo-local DTOs that are not provided upstream, such as health payloads and internal mock registry lookup payloads.
-- If the internal mock lookup surface grows further, extract those mock-only DTOs into a neutral demo contract module instead of rebuilding client behavior locally.
