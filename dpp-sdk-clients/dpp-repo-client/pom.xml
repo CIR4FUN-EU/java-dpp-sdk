@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>dpp.client</groupId>
+        <artifactId>dpp-sdk-clients</artifactId>
+        <version>0.3.0</version>
+    </parent>
+
+    <artifactId>dpp-repo-client</artifactId>
+    <packaging>jar</packaging>
+
+    <name>dpp-repo-client</name>
+    <description>Repository HTTP client behavior for draft-prEN-18222-aligned DPP repository endpoints.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>dpp.client</groupId>
+            <artifactId>dpp-repo-payloads</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

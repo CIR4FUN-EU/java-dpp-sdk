@@ -1,0 +1,15 @@
+target/
+.home/
+
+*.class
+*.log
+
+AGENTS.md
+.codex/
+
+.idea/
+.vscode/
+*.iml
+
+.DS_Store
+Thumbs.db
