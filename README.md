@@ -195,7 +195,7 @@ Linux/macOS:
 ```bash
 ./mvnw -f dpp-sdk-demo/pom.xml clean package                                                    # Build the demo jars used by the Docker images
 
-docker compose -f dpp-sdk-demo/docker-compose.build.yml --env-file dpp-sdk-demo/.env up --build
+DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose -f dpp-sdk-demo/docker-compose.build.yml --env-file dpp-sdk-demo/.env up --build
  # Build the images and start the demo services
 ```
 
