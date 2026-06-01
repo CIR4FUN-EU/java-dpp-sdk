@@ -1,15 +1,16 @@
-# DPP Platform
+# DPP SDK
 
 ## Overview
 
 This monorepo contains:
 
-- the DPP data model and SDK modules
-- generic DPP repository and registry HTTP client modules
-- demo and mock services plus an integration demo runtime
+- the DPP data model and SDK modules implemented in Java
+- demo and mock services for DPP repository and DPP registry for end-to-end interaction
+- HTTP client modules for DPP-Repository and DPP-Registry
+- demo runtime
+- the implementation follows the drafted standardised API standards specified by the CEN/CENELEC JTC24 committee as of 06/2026
 
 Use this root README as the quick entry point. For module-specific details, use the README and docs inside each subproject.
-
 ## Repository Structure
 
 ```text
