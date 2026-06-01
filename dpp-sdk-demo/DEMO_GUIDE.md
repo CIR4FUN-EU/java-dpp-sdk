@@ -2,7 +2,7 @@
 
 Use this as the single live-demo script and reference guide. It keeps the demo focused on how the SDK and client libraries are reused without copying their logic into the demo services.
 
-For build, prerequisite, and basic run commands, use `README.md` first. This guide is for presenting the demo flow and explaining what each step is meant to show.
+For build, prerequisite, and basic run commands, use `README.md` first. This guide is only for presenting the demo flow and explaining what each step is meant to show.
 
 ## 1. Introduce The Split
 
@@ -117,25 +117,14 @@ Validation and mapping semantics are unchanged; only the domain construction pat
 
 ## 3. Start The HTTP Services
 
-Start the registry and repo services as described in `README.md`.
+Start the registry and repo services using the relevant commands from `README.md`.
 
-For the current containerized maintainer workflow, `README.md` now includes:
+Presenter note:
 
-```powershell
-.\mvnw.cmd clean package
-docker compose -f docker-compose.build.yml up --build
-```
-
-For publishing to this GitLab project's container registry, `README.md` now includes:
-
-```powershell
-.\mvnw.cmd clean package
-docker compose -f docker-compose.build.yml build
-docker login container-registry.gitlab.cc-asp.fraunhofer.de
-docker compose -f docker-compose.build.yml push
-```
-
-That works because `dpp-sdk-demo/.env` carries the GitLab registry path and image names used by both compose files.
+- Use the local JAR workflow from `README.md` when you want the services visible on the host without Docker.
+- Use the local container build workflow from `README.md` when you want to demonstrate the current Dockerized maintainer path.
+- Use the published-image pull or push workflows from `README.md` only when that operating context matters to the audience.
+- `dpp-sdk-demo/.env` carries the current image names, tags, and default ports used by those workflows.
 
 Base URLs for the live demo:
 
@@ -168,29 +157,12 @@ Runner URL resolution behavior:
 
 ## 4. Run The HTTP Client Demo
 
-Run the standards HTTP flow:
+Run the integration-demo command from `README.md`.
 
-```powershell
-# Windows
-java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar --debug=false
-```
+Presenter note:
 
-```bash
-# Linux/MacOS
-java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar --debug=false
-```
-
-For the fuller stakeholder demo, run SDK capability checks first and then reuse the same SDK-built DPPs in the HTTP flow:
-
-```powershell
-# Windows
-java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar all --debug=false
-```
-
-```bash
-# Linux/MacOS
-java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar all --debug=false
-```
+- Use the default run for the standard HTTP lifecycle flow.
+- Use `all` when you want to show the SDK capability checks first and then reuse the same SDK-built DPPs in the HTTP flow.
 
 Point out:
 
@@ -256,19 +228,7 @@ Say:
 
 ## Postman Collections
 
-Use the import and startup details from `README.md`. The list below is the presenter-facing reference.
-
-- `postman/dpp-registry-api.verified-export-shape.postman_collection.json`
-- `postman/dpp-fine-granular-api.import-safe.postman_collection.json`
-- `postman/dpp-lifecycle-api.verified-export-shape.postman_collection.json`
-
-Variables:
-
-- `registryBaseUrl = http://localhost:${DPP_REGISTRY_PORT}` or default `http://localhost:8081`
-- `repoBaseUrl = http://localhost:${DPP_REPO_PORT}` or default `http://localhost:8080`
-- `dppId = 49192c87-20c8-4b6f-88de-48b56ca4c211`
-- `productId = 04012345678901`
-- `registryId = 8a5be5de-7c76-46ef-a1d5-4875d3f4a5dc`
+Use the import names, base URLs, and startup details from `README.md`. This section is only the presenter-facing reminder of what the collections demonstrate.
 
 The repo and registry mocks still start with default in-memory records for ad-hoc manual inspection, but the main happy-path collections do not depend on that shared startup state.
 

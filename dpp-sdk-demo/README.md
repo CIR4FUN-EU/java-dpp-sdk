@@ -4,7 +4,7 @@ Partner-facing Java backend demo showing how `com.example.dppsdk:dpp4fun:0.3.0` 
 
 This phase is draft-prEN-18222-aligned. It is not a claim of final EN 18222 compliance or production readiness.
 
-Use this file as the quickstart for building and running the demo. Use `DEMO_GUIDE.md` as the live-demo script, walkthrough, and talking-points guide.
+Use this file as the single setup and operations reference for building and running the demo. Use `DEMO_GUIDE.md` only as the live-demo script, walkthrough, and talking-points guide.
 
 Monorepo note:
 
@@ -14,7 +14,7 @@ Monorepo note:
 
 ## Purpose
 
-This repo exists to show the reuse boundary between the SDK, the HTTP client library, and a small partner-facing backend demo:
+This `dpp-sdk-demo` subproject exists to show the reuse boundary between the SDK, the HTTP client library, and a small partner-facing backend demo:
 
 - `dpp4fun` owns the `Dpp4Fun` product aggregate, furniture-specific builders/model classes, mapper support, validation, and `Dpp4FunJsonCodec`.
 - `dpp-core` owns reusable core DPP models, validators, payload mapping, and shared utilities used transitively by `dpp4fun`.
@@ -23,7 +23,7 @@ This repo exists to show the reuse boundary between the SDK, the HTTP client lib
 
 Runtime truth note:
 
-- The canonical runtime view for this demo is the `demo` repo plus the locally installed `dpp4fun`, `dpp-core`, and `dpp-sdk-clients` artifacts used at build/run time.
+- The canonical runtime view for this demo is the `dpp-sdk-demo` subproject plus the locally installed `dpp4fun`, `dpp-core`, and `dpp-sdk-clients` artifacts used at build/run time.
 - Treat Maven-resolved classes as the source of truth.
 
 ## Modules
@@ -209,7 +209,7 @@ After startup, you can validate the running mocks in three ways:
 - Run the Postman collections.
 - Use the repo and registry services directly as lightweight mock/test doubles for local development and manual API testing.
 
-The detailed walkthrough, what each step demonstrates, and the longer demo explanation belong in `DEMO_GUIDE.md`.
+The detailed walkthrough, what each step demonstrates, and the presenter talking points belong in `DEMO_GUIDE.md`. Keep this README as the source of truth for commands, collection names, and runtime configuration.
 
 ### Integration Demo
 
@@ -288,7 +288,7 @@ Base URLs:
 
 Postman does not read `dpp-sdk-demo/.env` automatically. If you changed ports in `.env`, update the Postman collection variables to match.
 
-For the actual request-by-request explanation and collection flow, use `DEMO_GUIDE.md`.
+For the actual request-by-request explanation and collection flow, use `DEMO_GUIDE.md`. Keep the import names and base URL values in this README as the operational reference.
 
 ### Quick Smoke Checks
 
