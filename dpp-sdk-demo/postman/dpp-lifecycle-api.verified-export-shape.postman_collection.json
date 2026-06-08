@@ -65,6 +65,7 @@
                   "const productId = '04' + Date.now().toString().slice(-12);",
                   "pm.collectionVariables.set('dppId', newDppId);",
                   "pm.collectionVariables.set('productId', productId);",
+                  "pm.collectionVariables.set('deleteDppId', newDppId);",
                   "pm.collectionVariables.set('versionDate', new Date().toISOString());"
                 ]
               }
@@ -79,6 +80,7 @@
                   "pm.test('wrapper status is SuccessCreated', function () { pm.expect(json.statusCode).to.eql('SuccessCreated'); });",
                   "pm.test('payload.dppId is present', function () { pm.expect(json.payload.dppId).to.be.a('string').and.not.empty; });",
                   "pm.collectionVariables.set('dppId', json.payload.dppId);",
+                  "pm.collectionVariables.set('deleteDppId', json.payload.dppId);",
                   "pm.collectionVariables.set('versionDate', new Date().toISOString());"
                 ]
               }
@@ -143,7 +145,7 @@
             ],
             "description": "Lightweight verification endpoint.",
             "url": {
-              "raw": "http://localhost:8080/dpps/{{dppId}}",
+              "raw": "http://localhost:8080/dpps/{{deleteDppId}}",
               "protocol": "http",
               "host": [
                 "localhost"
@@ -151,7 +153,7 @@
               "port": "8080",
               "path": [
                 "dpps",
-                "{{dppId}}"
+                "{{deleteDppId}}"
               ]
             }
           },
@@ -716,12 +718,17 @@
     },
     {
       "key": "dppId",
-      "value": "49192c87-20c8-4b6f-88de-48b56ca4c211",
+      "value": "44444444-4444-4444-4444-444444444444",
+      "type": "string"
+    },
+    {
+      "key": "deleteDppId",
+      "value": "44444444-4444-4444-4444-555555555555",
       "type": "string"
     },
     {
       "key": "productId",
-      "value": "04012345678901",
+      "value": "04012345678997",
       "type": "string"
     },
     {

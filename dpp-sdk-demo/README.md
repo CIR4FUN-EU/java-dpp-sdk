@@ -290,6 +290,8 @@ Postman does not read `dpp-sdk-demo/.env` automatically. If you changed ports in
 
 For the actual request-by-request explanation and collection flow, use `DEMO_GUIDE.md`. Keep the import names and base URL values in this README as the operational reference.
 
+The collections now use isolated default demo identifiers for ad-hoc requests, and their cleanup delete requests use separate delete-only defaults until a create request overwrites them with a fresh runtime DPP. That keeps Postman, Swagger UI, and the HTTP demo runner from deleting each other's default records.
+
 ### Quick Smoke Checks
 
 Windows:
@@ -305,6 +307,17 @@ Linux/MacOS:
 curl http://localhost:8080/health
 curl http://localhost:8081/health
 ```
+
+### Swagger UI / OpenAPI
+
+When the mock services are running, Swagger UI can be used to inspect the APIs and send test requests directly to the local mock services.
+
+- Mock repo Swagger UI: `http://localhost:8080/swagger-ui.html`
+- Mock repo OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+- Mock registry Swagger UI: `http://localhost:8081/swagger-ui.html`
+- Mock registry OpenAPI JSON: `http://localhost:8081/v3/api-docs`
+
+Swagger UI exposes the repo lifecycle, fine-granular, and event endpoints, plus the registry registration and metadata lookup endpoints.
 
 ## Runtime Notes
 

@@ -1,5 +1,6 @@
 package demo.repo;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -43,5 +44,41 @@ class MockRepoSeedDataTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value("Success"))
                 .andExpect(jsonPath("$.payload.passportMetadata.uniqueProductIdentifier").value(DemoDppFactory.BED_DPP_ID));
+
+        mockMvc.perform(head("/dpps/" + PostmanSeedData.DELETE_EXAMPLE_DPP_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().string(""));
+
+        mockMvc.perform(head("/dpps/" + PostmanSeedData.LIFECYCLE_DEFAULT_DPP_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().string(""));
+
+        mockMvc.perform(head("/dpps/" + PostmanSeedData.LIFECYCLE_DELETE_DPP_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().string(""));
+
+        mockMvc.perform(head("/dpps/" + PostmanSeedData.FINE_GRAINED_DEFAULT_DPP_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().string(""));
+
+        mockMvc.perform(head("/dpps/" + PostmanSeedData.FINE_GRAINED_DELETE_DPP_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().string(""));
+
+        mockMvc.perform(head("/dpps/" + PostmanSeedData.REGISTRY_DELETE_DPP_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().string(""));
+
+        mockMvc.perform(delete("/dpps/" + PostmanSeedData.DELETE_EXAMPLE_DPP_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusCode").value("SuccessNoContent"));
+
+        mockMvc.perform(head("/dpps/" + DemoDppFactory.BED_DPP_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().string(""));
+
+        mockMvc.perform(head("/dpps/" + PostmanSeedData.DELETE_EXAMPLE_DPP_ID))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string(""));
     }
 }

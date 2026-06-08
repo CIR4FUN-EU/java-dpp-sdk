@@ -131,6 +131,15 @@ Base URLs for the live demo:
 - Registry: `http://localhost:${DPP_REGISTRY_PORT}` or default `http://localhost:8081`
 - Repo: `http://localhost:${DPP_REPO_PORT}` or default `http://localhost:8080`
 
+Swagger UI / OpenAPI URLs:
+
+- Mock repo Swagger UI: `http://localhost:8080/swagger-ui.html`
+- Mock repo OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+- Mock registry Swagger UI: `http://localhost:8081/swagger-ui.html`
+- Mock registry OpenAPI JSON: `http://localhost:8081/v3/api-docs`
+
+Use Swagger UI when you want to test GET, POST, PATCH, DELETE, and HEAD requests directly against the local mock services without importing a Postman collection.
+
 Container networking caveat:
 
 - The registry container must reach the repo container at `http://mock-dpp-repo:${DPP_REPO_PORT}`.
@@ -236,6 +245,7 @@ The repo and registry mocks still start with default in-memory records for ad-ho
 - The fine-granular collection creates its own DPP before the element reads/updates and deletes it at the end.
 - The registry collection creates its own repo DPP before registration and deletes that repo DPP at the end.
 - The registry mock does not expose a metadata delete endpoint, so repeated registry collection runs stay independent by using fresh DPP and product identifiers each time.
+- Their default ad-hoc variables are also isolated from Swagger UI and the demo runner, and each collection cleanup delete falls back to its own delete-only seeded DPP until a create step replaces that variable with a fresh runtime ID.
 
 The collections cover the standard-style mock APIs only. No `/exists` endpoint is used; repo-backed registry verification uses `HEAD /dpps/{dppId}`.
 

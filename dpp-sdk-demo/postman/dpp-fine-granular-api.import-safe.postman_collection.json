@@ -18,7 +18,8 @@
               "const newDppId = pm.variables.replaceIn('{{$guid}}');",
               "const productId = '04' + Date.now().toString().slice(-12);",
               "pm.collectionVariables.set('dppId', newDppId);",
-              "pm.collectionVariables.set('productId', productId);"
+              "pm.collectionVariables.set('productId', productId);",
+              "pm.collectionVariables.set('deleteDppId', newDppId);"
             ]
           }
         },
@@ -37,7 +38,8 @@
               "pm.test(\"payload.dppId is present\", function () {",
               "  pm.expect(json.payload.dppId).to.be.a(\"string\").and.not.empty;",
               "});",
-              "pm.collectionVariables.set('dppId', json.payload.dppId);"
+              "pm.collectionVariables.set('dppId', json.payload.dppId);",
+              "pm.collectionVariables.set('deleteDppId', json.payload.dppId);"
             ]
           }
         }
@@ -511,13 +513,13 @@
           }
         ],
         "url": {
-          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}",
+          "raw": "{{repoBaseUrl}}/dpps/{{deleteDppId}}",
           "host": [
             "{{repoBaseUrl}}"
           ],
           "path": [
             "dpps",
-            "{{dppId}}"
+            "{{deleteDppId}}"
           ]
         },
         "description": "Deletes the DPP created by this collection so later runs do not depend on or mutate shared startup seed data."
@@ -533,12 +535,17 @@
     },
     {
       "key": "dppId",
-      "value": "49192c87-20c8-4b6f-88de-48b56ca4c211",
+      "value": "55555555-5555-5555-5555-555555555555",
+      "type": "string"
+    },
+    {
+      "key": "deleteDppId",
+      "value": "55555555-5555-5555-5555-666666666666",
       "type": "string"
     },
     {
       "key": "productId",
-      "value": "04012345678901",
+      "value": "04012345678996",
       "type": "string"
     },
     {

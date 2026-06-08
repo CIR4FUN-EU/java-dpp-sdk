@@ -597,6 +597,33 @@ class DppRepoControllerTest {
     }
 
     @Test
+    @DisplayName("GET /v3/api-docs exposes repository OpenAPI paths and tags")
+    void openApiDocsExposeRepositoryEndpoints() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.info.title").value("DPP Mock Repository API"))
+                .andExpect(jsonPath("$.paths['/dpps']").exists())
+                .andExpect(jsonPath("$.paths['/dpps/{dppId}'].get").exists())
+                .andExpect(jsonPath("$.paths['/dpps/{dppId}'].head").exists())
+                .andExpect(jsonPath("$.paths['/dppsByProductId/{productId}']").exists())
+                .andExpect(jsonPath("$.paths['/dppsByProductIdAndDate/{productId}'].get.parameters[?(@.name == 'date')]").exists())
+                .andExpect(jsonPath("$.paths['/dppsByProductIds'].post").exists())
+                .andExpect(jsonPath("$.paths['/dpps/{dppId}'].patch").exists())
+                .andExpect(jsonPath("$.paths['/dpps/{dppId}'].delete").exists())
+                .andExpect(jsonPath("$.paths['/dpps/{dppId}/elements/{elementPath}'].get").exists())
+                .andExpect(jsonPath("$.paths['/dpps/{dppId}/elements/{elementPath}'].patch").exists())
+                .andExpect(jsonPath("$.paths['/dpps/{dppId}/events'].get").exists())
+                .andExpect(jsonPath("$.tags[?(@.name == 'DPP Repository - Life Cycle API')]").exists())
+                .andExpect(jsonPath("$.paths['/dpps/{dppId}/elements/{elementPath}'].get.tags[?(@ == 'DPP Repository - Fine Granular API')]").exists())
+                .andExpect(jsonPath("$.paths['/dpps/{dppId}/events'].get.tags[?(@ == 'DPP Repository - Events')]").exists())
+                .andExpect(jsonPath("$.paths['/dpps/{dppId}'].get.parameters[?(@.name == 'dppId' && @.example == '49192c87-20c8-4b6f-88de-48b56ca4c211')]").exists())
+                .andExpect(jsonPath("$.paths['/dpps/{dppId}'].delete.parameters[?(@.name == 'dppId' && @.example == '33333333-3333-3333-3333-333333333333')]").exists())
+                .andExpect(jsonPath("$.paths['/dppsByProductId/{productId}'].get.parameters[?(@.name == 'productId' && @.example == '04012345678901')]").exists())
+                .andExpect(jsonPath("$.paths['/dpps'].post.requestBody.content['application/json'].examples['Full DPP JSON'].value.passportMetadata.uniqueProductIdentifier").value("22222222-2222-2222-2222-222222222222"))
+                .andExpect(jsonPath("$.paths['/dpps'].post.requestBody.content['application/json'].examples['Full DPP JSON'].value.nameplate.gtinCode").value("04012345678999"));
+    }
+
+    @Test
     @DisplayName("Concurrent create and update operations keep version and event history consistent enough for mock use")
     void concurrencyRobustnessCreatesAndUpdatesManyDpps() throws Exception {
         ExecutorService executorService = Executors.newFixedThreadPool(8);

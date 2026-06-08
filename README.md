@@ -268,6 +268,12 @@ docker compose -f dpp-sdk-demo/docker-compose.build.yml --env-file dpp-sdk-demo/
 - Registry service: `http://localhost:8081`
 - Repo health: `http://localhost:8080/health`
 - Registry health: `http://localhost:8081/health`
+- Repo Swagger UI: `http://localhost:8080/swagger-ui.html`
+- Repo OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+- Registry Swagger UI: `http://localhost:8081/swagger-ui.html`
+- Registry OpenAPI JSON: `http://localhost:8081/v3/api-docs`
+
+Swagger UI can be used to inspect and send test requests directly to the local mock services when they are running.
 
 ## Documentation Map
 

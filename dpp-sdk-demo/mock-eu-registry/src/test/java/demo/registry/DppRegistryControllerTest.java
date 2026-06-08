@@ -198,6 +198,22 @@ class DppRegistryControllerTest {
                 .andExpect(jsonPath("$.service").value("mock-eu-registry"));
     }
 
+    @Test
+    @DisplayName("GET /v3/api-docs exposes registry OpenAPI paths and tag")
+    void openApiDocsExposeRegistryEndpoints() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.info.title").value("DPP Mock Registry API"))
+                .andExpect(jsonPath("$.paths['/registerDPP'].post").exists())
+                .andExpect(jsonPath("$.paths['/registry/dpps/{registryId}'].get").exists())
+                .andExpect(jsonPath("$.paths['/registry/dpps/by-dpp-id/{dppId}'].get").exists())
+                .andExpect(jsonPath("$.tags[?(@.name == 'DPP Registry')]").exists())
+                .andExpect(jsonPath("$.paths['/registry/dpps/{registryId}'].get.parameters[?(@.name == 'registryId' && @.example == '8a5be5de-7c76-46ef-a1d5-4875d3f4a5dc')]").exists())
+                .andExpect(jsonPath("$.paths['/registry/dpps/by-dpp-id/{dppId}'].get.parameters[?(@.name == 'dppId' && @.example == 'e7d64b7b-18f2-4d77-9c41-2fa1d1d6b8aa')]").exists())
+                .andExpect(jsonPath("$.paths['/registerDPP'].post.requestBody.content['application/json'].examples['Register DPP metadata'].value.dppIdentifier").value("49192c87-20c8-4b6f-88de-48b56ca4c211"))
+                .andExpect(jsonPath("$.paths['/registerDPP'].post.requestBody.content['application/json'].examples['Register DPP metadata'].value.productIdentifier").value("04012345678901"));
+    }
+
     private void assertMissingRequiredFieldFails(String fieldName) throws Exception {
         String request = registrationBody("product-123", "dpp-123", "operator-123", "http://localhost:8080")
                 .replace("\"" + fieldName + "\": \"" + valueFor(fieldName) + "\"", "\"" + fieldName + "\": \" \"");

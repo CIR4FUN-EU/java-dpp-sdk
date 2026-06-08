@@ -18,7 +18,8 @@
               "const newDppId = pm.variables.replaceIn('{{$guid}}');",
               "const productId = '04' + Date.now().toString().slice(-12);",
               "pm.collectionVariables.set('dppId', newDppId);",
-              "pm.collectionVariables.set('productId', productId);"
+              "pm.collectionVariables.set('productId', productId);",
+              "pm.collectionVariables.set('deleteDppId', newDppId);"
             ]
           }
         },
@@ -31,7 +32,8 @@
               "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
               "pm.test('wrapper status is SuccessCreated', function () { pm.expect(json.statusCode).to.eql('SuccessCreated'); });",
               "pm.test('payload.dppId is present', function () { pm.expect(json.payload.dppId).to.be.a('string').and.not.empty; });",
-              "pm.collectionVariables.set('dppId', json.payload.dppId);"
+              "pm.collectionVariables.set('dppId', json.payload.dppId);",
+              "pm.collectionVariables.set('deleteDppId', json.payload.dppId);"
             ]
           }
         }
@@ -376,13 +378,13 @@
           }
         ],
         "url": {
-          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}",
+          "raw": "{{repoBaseUrl}}/dpps/{{deleteDppId}}",
           "host": [
             "{{repoBaseUrl}}"
           ],
           "path": [
             "dpps",
-            "{{dppId}}"
+            "{{deleteDppId}}"
           ]
         },
         "description": "Deletes the repo DPP created by this collection. The current mock registry API has no delete endpoint for metadata records, so registry-side isolation comes from fresh IDs per run."
@@ -409,6 +411,11 @@
     {
       "key": "dppId",
       "value": "49192c87-20c8-4b6f-88de-48b56ca4c211",
+      "type": "string"
+    },
+    {
+      "key": "deleteDppId",
+      "value": "66666666-6666-6666-6666-666666666666",
       "type": "string"
     },
     {
