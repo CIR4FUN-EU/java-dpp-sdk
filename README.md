@@ -6,13 +6,14 @@
 
 This monorepo contains:
 
-- the DPP data model and SDK modules implemented in Java
-- demo and mock services for DPP repository and DPP registry for end-to-end interaction
+- The DPP data model and SDK modules implemented in Java
+- Demo and mock services for DPP repository and DPP registry for end-to-end interaction
 - HTTP client modules for DPP-Repository and DPP-Registry
-- demo runtime
-- the implementation follows the drafted standardised API standards specified by the CEN/CENELEC JTC24 committee as of 06/2026
+- Demo runtime
+- The implementation follows the drafted standardised API standards specified by the CEN/CENELEC JTC24 committee as of 06/2026
 
 Use this root README as the quick entry point. For module-specific details, use the README and docs inside each subproject.
+
 ## Repository Structure
 
 ```text
@@ -40,7 +41,6 @@ Use this root README as the quick entry point. For module-specific details, use 
     |-- pom.xml
     |-- .env
     |-- docker-compose.yml
-    |-- docker-compose.build.yml
     |-- mvnw
     |-- mvnw.cmd
     |-- mock-dpp-repo/
@@ -178,89 +178,29 @@ Note:
 
 ## Run with Docker
 
-The committed Docker config lives under `dpp-sdk-demo` and uses `dpp-sdk-demo/.env`.
-
-### Local build and run
+The committed Docker config lives under `dpp-sdk-demo` and uses `dpp-sdk-demo/.env` for the local ports.
 
 This workflow requires source code, Java, the root Maven wrapper, and Docker.
 
 Windows:
 
 ```powershell
-.\mvnw.cmd -f dpp-sdk-demo/pom.xml clean package                                                    # Build the demo jars used by the Docker images
-
-docker compose -f dpp-sdk-demo/docker-compose.build.yml --env-file dpp-sdk-demo/.env up --build  
-  # Build the images and start the demo services
+.\mvnw.cmd -f dpp-sdk-demo/pom.xml clean package                                           # Build the demo jars used by the Docker images
+docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up --build  # Build the local images and start the demo services
 ```
 
 Linux/macOS:
 
 ```bash
-./mvnw -f dpp-sdk-demo/pom.xml clean package                                                    # Build the demo jars used by the Docker images
-
-DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose -f dpp-sdk-demo/docker-compose.build.yml --env-file dpp-sdk-demo/.env up --build
- # Build the images and start the demo services
+./mvnw -f dpp-sdk-demo/pom.xml clean package                                           # Build the demo jars used by the Docker images
+DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose -f dpp-sdk-demo/docker-compose.build.yml --env-file dpp-sdk-demo/.env up --build  # Build the local images and start the demo services
 ```
-
-### Pull-only run
-
-This workflow requires only Docker plus already-published images.
-
-Windows:
-
-```powershell
-docker login container-registry.gitlab.cc-asp.fraunhofer.de                                        # Authenticate to the image registry
-
-docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env pull               # Download the published demo images
-
-docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up -d            
-  # Start the demo services in the background
-
-docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env ps                 
-# Show the current container status
-```
-
-Linux/macOS:
-
-```bash
-docker login container-registry.gitlab.cc-asp.fraunhofer.de                                        # Authenticate to the image registry
-docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env pull               # Download the published demo images
-docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up -d              # Start the demo services in the background
-docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env ps                 # Show the current container status
-```
-
-The committed `.env` currently points at:
-
-- `container-registry.gitlab.cc-asp.fraunhofer.de/digital-product-passport-sdk/dpp-sdk-demo/mock-dpp-repo:0.1.0`
-- `container-registry.gitlab.cc-asp.fraunhofer.de/digital-product-passport-sdk/dpp-sdk-demo/mock-eu-registry:0.1.0`
 
 ### Docker networking note
 
 - From the host machine, use `localhost`.
 - From one container to another, use the service name `mock-dpp-repo`.
 - The registry container must reach the repo at `http://mock-dpp-repo:8080`, not `http://localhost:8080`.
-
-## Docker Image Publishing
-
-Maintainer-only workflow. Do not push automatically.
-
-Windows:
-
-```powershell
-.\mvnw.cmd -f dpp-sdk-demo/pom.xml clean package                                                 # Build the demo jars before creating images
-docker login container-registry.gitlab.cc-asp.fraunhofer.de                                     # Authenticate to the image registry
-docker compose -f dpp-sdk-demo/docker-compose.build.yml --env-file dpp-sdk-demo/.env build      # Build the tagged demo images locally
-docker compose -f dpp-sdk-demo/docker-compose.build.yml --env-file dpp-sdk-demo/.env push       # Push those images to the configured registry
-```
-
-Linux/macOS:
-
-```bash
-./mvnw -f dpp-sdk-demo/pom.xml clean package                                                 # Build the demo jars before creating images
-docker login container-registry.gitlab.cc-asp.fraunhofer.de                                  # Authenticate to the image registry
-docker compose -f dpp-sdk-demo/docker-compose.build.yml --env-file dpp-sdk-demo/.env build   # Build the tagged demo images locally
-docker compose -f dpp-sdk-demo/docker-compose.build.yml --env-file dpp-sdk-demo/.env push    # Push those images to the configured registry
-```
 
 ## Useful URLs
 
@@ -297,7 +237,7 @@ Swagger UI can be used to inspect and send test requests directly to the local m
 
 ## Current Limitations
 
-- This repository is still internal and pre-release.
+- This repository is a pre-release reference/demo repository.
 - `mock-dpp-repo` and `mock-eu-registry` are mock/demo services, not production services.
 - Real persistence, security, and real EU registry integration are not implemented here.
 
