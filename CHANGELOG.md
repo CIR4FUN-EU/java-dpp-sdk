@@ -1,23 +1,25 @@
 # Changelog
 
-All notable changes to this monorepo will be documented in this file.
+All notable changes to this project are documented in this file.
 
-## [Unreleased]
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.3.0] - 2026-06-12
 
 ### Added
-
-- Root `LICENSE` file using Apache-2.0 text.
-- Initial monorepo changelog for the current internal snapshot.
+- Initial public release of the DPP SDK — a Java toolkit for building and
+  validating Digital Product Passports.
+- `dpp-datamodel` — reusable DPP domain model and payload DTOs.
+- `dpp-sdk-clients` — client library for DPP services.
+- `dpp-sdk-demo` — runnable Spring Boot example showing end-to-end usage including mocked services for dpp-registry and dpp-repository conforming to the draft standardisation documents published by the JTC24 of CEN/CENELEC 
 
 ### Documentation
+- Root README describing the monorepo split across the three modules.
+    - `dpp-sdk-demo` — runnable Spring Boot example showing end-to-end usage.
 
-- Root README documents the monorepo split between `dpp-datamodel`, `dpp-sdk-clients`, and `dpp-sdk-demo`.
-- `dpp-sdk-demo/README.md` clarifies that it describes the `dpp-sdk-demo` subproject rather than a standalone demo repository.
+  ### Documentation
+    - Root README describing the monorepo split across the three modules.
+    - Architecture diagram under `docs/`.
 
-### Snapshot Notes
-
-- `dpp-datamodel` currently publishes `com.example.dppsdk` artifacts at version `0.3.0`.
-- `dpp-sdk-clients` currently publishes `dpp.client` artifacts at version `0.3.0`.
-- `dpp-sdk-demo` currently builds `demo` artifacts at version `1.0.0-SNAPSHOT`.
-- The repository remains internal and pre-release.
-- `mock-dpp-repo` and `mock-eu-registry` are mock/demo services, not production services.
+  [0.3.0]: https://github.com/CIR4FUN-EU/dpp-sdk/releases/tag/v0.3.0
