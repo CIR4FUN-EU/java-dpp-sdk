@@ -1,0 +1,101 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.17 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36" version="24.7.17">
+  <diagram id="dpp-sdk-arch" name="DPP SDK Architecture">
+    <mxGraphModel dx="3475" dy="2307" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="DPP SDK - High-Level Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1;fontColor=#1A2B45;" parent="1" vertex="1">
+          <mxGeometry x="210" y="-10" width="1574" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="dpp-datamodel · dpp-sdk-clients · dpp-sdk-demo — arrows show build/runtime dependencies" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontColor=#5A6B85;" parent="1" vertex="1">
+          <mxGeometry x="170" y="40" width="1574" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="g_model" value="dpp-datamodel&lt;br&gt;&lt;span style=&quot;font-weight: normal;&quot;&gt;Domain model · validation · mapping · JSON transport&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=4;fillColor=#E8F0FE;strokeColor=#4285F4;strokeWidth=2;verticalAlign=top;fontSize=15;fontStyle=1;fontColor=#1A4F9E;align=center;spacingTop=8;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="590" y="80" width="320" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="dpp_core" value="&lt;b&gt;dpp-core&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Generic DPP domain core&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;• model (Dpp, Organization,&lt;br&gt;Nameplate, Contact, Address…)&lt;br&gt;• payload (DTOs)&lt;br&gt;• mapper · validation · util&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFFFFF;strokeColor=#4285F4;strokeWidth=1.5;verticalAlign=top;align=center;spacingTop=6;fontSize=12;fontColor=#1A2B45;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="657" y="160" width="170" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="dpp4fun" value="&lt;b&gt;dpp4fun&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Product/BOM extension model&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;• model (Dpp4Fun, BillOfMaterials,&lt;br&gt;Component, Part, Material…)&lt;br&gt;• payload · mapper · validation&lt;br&gt;• transport (Dpp4FunJsonCodec)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFFFFF;strokeColor=#4285F4;strokeWidth=1.5;verticalAlign=top;align=center;spacingTop=6;fontSize=12;fontColor=#1A2B45;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="647" y="340" width="190" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="g_clients" value="dpp-sdk-clients&lt;br&gt;&lt;span style=&quot;font-weight: normal;&quot;&gt;Generic HTTP clients + API payload contracts&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=4;fillColor=#E6F4EA;strokeColor=#34A853;strokeWidth=2;verticalAlign=top;fontSize=15;fontStyle=1;fontColor=#1E7E34;align=center;spacingTop=8;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="930" y="80" width="370" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="repo_payloads" value="&lt;b&gt;dpp-repo-payloads&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Create/Read/Update/Delete&lt;br&gt;DPP request &amp; response DTOs,&lt;br&gt;DppApiResponse, StatusCode&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#F1FAF3;strokeColor=#34A853;strokeWidth=1.5;verticalAlign=top;align=center;spacingTop=6;fontSize=12;fontColor=#1A2B45;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="954" y="160" width="140" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="repo_client" value="&lt;b&gt;dpp-repo-client&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;DppRepoClient&lt;br&gt;HttpDppRepoClient&lt;br&gt;codec, validator, HTTP support,&lt;br&gt;typed exceptions&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFFFFF;strokeColor=#34A853;strokeWidth=1.5;verticalAlign=top;align=center;spacingTop=6;fontSize=12;fontColor=#1A2B45;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="954" y="330" width="140" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="reg_payloads" value="&lt;b&gt;dpp-registry-payloads&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;RegisterDppRequest,&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size:11px&quot;&gt;RegisterDPPResponse,&lt;br&gt;DppApiResponse, MessageType,&lt;br&gt;StatusCode&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#F1FAF3;strokeColor=#34A853;strokeWidth=1.5;verticalAlign=top;align=center;spacingTop=6;fontSize=12;fontColor=#1A2B45;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="1134" y="160" width="140" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="reg_client" value="&lt;b&gt;dpp-registry-client&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;DppRegistryClient&lt;br&gt;HttpDppRegistryClient&lt;br&gt;HTTP support,&lt;br&gt;typed exceptions&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFFFFF;strokeColor=#34A853;strokeWidth=1.5;verticalAlign=top;align=center;spacingTop=6;fontSize=12;fontColor=#1A2B45;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="1134" y="330" width="140" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="g_demo" value="dpp-sdk-demo&lt;br&gt;&lt;span style=&quot;font-weight: normal;&quot;&gt;Fully-functional mock services + end-to-end integration demo&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=4;fillColor=#FEF7E0;strokeColor=#F9AB00;strokeWidth=2;verticalAlign=bottom;fontSize=15;fontStyle=1;fontColor=#B06A00;align=center;spacingTop=8;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="590" y="560" width="710" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="integration_demo" value="&lt;b&gt;dpp-integration-demo&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;End-to-end producer demo&lt;br&gt;• DemoRunner / HttpServiceDemoRunner&lt;br&gt;• SDK capability demo&lt;br&gt;• sample DPP factory &amp; codec adapters&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFFFFF;strokeColor=#F9AB00;strokeWidth=1.5;verticalAlign=top;align=center;spacingTop=6;fontSize=12;fontColor=#1A2B45;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="647" y="592.36" width="244" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="mock_registry" value="&lt;b&gt;mock-eu-registry&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Spring Boot mock&lt;br&gt;EU registry&lt;br&gt;• REST controller&lt;br&gt;• in-memory store&lt;br&gt;• repo DPP verifier&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFFFFF;strokeColor=#A142F4;strokeWidth=1.5;verticalAlign=top;align=center;spacingTop=6;fontSize=12;fontColor=#1A2B45;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="1140" y="587" width="134" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="extends" style="endArrow=block;endFill=1;html=1;strokeColor=#4285F4;strokeWidth=2;fontSize=11;fontColor=#1A4F9E;fontStyle=1;" parent="1" source="dpp4fun" target="dpp_core" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="uses" style="endArrow=block;endFill=1;html=1;strokeColor=#34A853;strokeWidth=2;fontSize=11;fontColor=#1E7E34;fontStyle=1;" parent="1" source="repo_client" target="repo_payloads" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="uses" style="endArrow=block;endFill=1;html=1;strokeColor=#34A853;strokeWidth=2;fontSize=11;fontColor=#1E7E34;fontStyle=1;" parent="1" source="reg_client" target="reg_payloads" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="uses" style="endArrow=block;endFill=1;html=1;strokeColor=#F9AB00;strokeWidth=2;fontSize=11;fontColor=#B06A00;fontStyle=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="integration_demo" target="repo_client" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="uses" style="endArrow=block;endFill=1;html=1;strokeColor=#F9AB00;strokeWidth=2;fontSize=11;fontColor=#B06A00;fontStyle=1;exitX=0.75;exitY=0;exitDx=0;exitDy=0;" parent="1" source="integration_demo" target="reg_client" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="builds DPPs via" style="endArrow=block;endFill=1;html=1;strokeColor=#F9AB00;strokeWidth=2;dashed=1;fontSize=11;fontColor=#B06A00;fontStyle=1;" parent="1" source="integration_demo" edge="1">
+          <mxGeometry x="0.1321" y="-3" relative="1" as="geometry">
+            <mxPoint x="698.666666666667" y="502.36" as="targetPoint" />
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" value="HTTP / REST" style="endArrow=block;endFill=1;html=1;strokeColor=#A142F4;strokeWidth=2;dashed=1;fontSize=11;fontColor=#7B1FA2;fontStyle=1;" parent="1" source="repo_client" target="mock_repo" edge="1">
+          <mxGeometry x="0.4213" y="-4" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend" value="Legend" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFFFFF;strokeColor=#9AA7BD;strokeWidth=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontSize=12;fontStyle=1;fontColor=#1A2B45;" parent="1" vertex="1">
+          <mxGeometry x="540" y="800" width="820" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="lg1" value="&lt;b&gt;dpp-datamodel&lt;/b&gt; (blue) reusable library · &lt;b&gt;dpp-sdk-clients&lt;/b&gt; (green) reusable library&lt;div&gt;&lt;b&gt;mock services&lt;/b&gt; (purple) runnable Spring Boot apps · &lt;b&gt;dpp-sdk-demo&lt;/b&gt; (amber) runnable demo&lt;/div&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontColor=#1A2B45;" parent="1" vertex="1">
+          <mxGeometry x="545" y="832" width="1540" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="lg2" value="→ solid = compile-time dependency / module reuse     → dashed = runtime interaction (HTTP, demo orchestration)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontColor=#5A6B85;" parent="1" vertex="1">
+          <mxGeometry x="545" y="860" width="1540" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="lg3" value="Consumers depend on dpp-core / dpp4fun + the repo &amp; registry clients. The demo wires the SDK against the mock services for a complete, runnable end-to-end flow." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#5A6B85;fontStyle=2;" parent="1" vertex="1">
+          <mxGeometry x="545" y="886" width="1540" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="gsZWHp-3T6rjmoGLeYuP-1" value="" style="endArrow=block;endFill=1;html=1;strokeColor=#A142F4;strokeWidth=2;dashed=1;fontSize=11;fontColor=#7B1FA2;fontStyle=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="reg_client" target="mock_registry">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="970" y="423" as="sourcePoint" />
+            <mxPoint x="1404" y="503" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gsZWHp-3T6rjmoGLeYuP-2" value="&lt;span style=&quot;color: rgb(123, 31, 162); font-weight: 700;&quot;&gt;HTTP / REST&lt;/span&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="gsZWHp-3T6rjmoGLeYuP-1">
+          <mxGeometry x="-0.0273" relative="1" as="geometry">
+            <mxPoint x="-2" y="21" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="mock_repo" value="&lt;b&gt;mock-dpp-repo&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Spring Boot mock&lt;br&gt;DPP repository&lt;br&gt;• REST controller&lt;br&gt;• in-memory store&lt;br&gt;• merge-patch &amp; versioning&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFFFFF;strokeColor=#A142F4;strokeWidth=1.5;verticalAlign=top;align=center;spacingTop=6;fontSize=12;fontColor=#1A2B45;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="959" y="587.0000000000001" width="130" height="130" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
