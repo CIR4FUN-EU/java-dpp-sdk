@@ -1,0 +1,25 @@
+# Repository-wide generated output
+**/target/
+**/out/
+**/*.class
+**/*.log
+
+# Local tool caches
+.m2/
+**/.m2/
+.home/
+**/.home/
+
+# IDE files
+.idea/
+**/.idea/
+.vscode/
+**/.vscode/
+*.iml
+**/*.iml
+
+# OS files
+.DS_Store
+**/.DS_Store
+Thumbs.db
+**/Thumbs.db

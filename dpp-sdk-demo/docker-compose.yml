@@ -1,0 +1,18 @@
+services:
+  mock-dpp-repo:
+    image: ${DPP_IMAGE_REGISTRY:-ghcr.io/YOUR_ORG}/${DPP_REPO_IMAGE_NAME:-mock-dpp-repo}:${DPP_IMAGE_TAG:-0.1.0}
+    environment:
+      DPP_REPO_PORT: ${DPP_REPO_PORT:-8080}
+    ports:
+      - "${DPP_REPO_PORT:-8080}:${DPP_REPO_PORT:-8080}"
+
+  mock-eu-registry:
+    image: ${DPP_IMAGE_REGISTRY:-ghcr.io/YOUR_ORG}/${DPP_REGISTRY_IMAGE_NAME:-mock-eu-registry}:${DPP_IMAGE_TAG:-0.1.0}
+    depends_on:
+      - mock-dpp-repo
+    environment:
+      DPP_REPO_PORT: ${DPP_REPO_PORT:-8080}
+      DPP_REGISTRY_PORT: ${DPP_REGISTRY_PORT:-8081}
+      DEMO_REPO_VERIFICATION_BASE_URL: http://mock-dpp-repo:${DPP_REPO_PORT:-8080}
+    ports:
+      - "${DPP_REGISTRY_PORT:-8081}:${DPP_REGISTRY_PORT:-8081}"

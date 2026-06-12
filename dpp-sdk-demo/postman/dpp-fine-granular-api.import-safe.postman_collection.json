@@ -1,0 +1,562 @@
+{
+  "info": {
+    "_postman_id": "b1fd6598-2a8c-4987-ba55-03463d5264d6",
+    "name": "Mock DPP Repo Fine Granular API",
+    "description": "Manual smoke collection for the mock repo fine-granular API. Run requests in order. The collection creates its own DPP at the start, reuses the generated identifiers during the flow, and deletes that DPP at the end so it does not depend on shared seed state.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "id": "13b8f1f8-4c9d-4f77-b3bb-0c2d5041f7c3",
+      "name": "CreateDPP setup",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const newDppId = pm.variables.replaceIn('{{$guid}}');",
+              "const productId = '04' + Date.now().toString().slice(-12);",
+              "pm.collectionVariables.set('dppId', newDppId);",
+              "pm.collectionVariables.set('productId', productId);",
+              "pm.collectionVariables.set('deleteDppId', newDppId);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test(\"HTTP 201\", function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "pm.test(\"wrapper status is SuccessCreated\", function () {",
+              "  pm.expect(json.statusCode).to.eql(\"SuccessCreated\");",
+              "});",
+              "pm.test(\"payload.dppId is present\", function () {",
+              "  pm.expect(json.payload.dppId).to.be.a(\"string\").and.not.empty;",
+              "});",
+              "pm.collectionVariables.set('dppId', json.payload.dppId);",
+              "pm.collectionVariables.set('deleteDppId', json.payload.dppId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{repoBaseUrl}}/dpps",
+          "host": [
+            "{{repoBaseUrl}}"
+          ],
+          "path": [
+            "dpps"
+          ]
+        },
+        "description": "Creates a fresh DPP for the fine-granular flow so the remaining requests do not depend on startup seed data.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"classification\": {\n    \"sector\": \"Furniture\",\n    \"group\": \"Home and office furniture\",\n    \"category\": \"Beds\",\n    \"tags\": [\"cir4fun\", \"demo\"]\n  },\n  \"characteristics\": {\n    \"productName\": \"Cir4Fun Platform Bed\",\n    \"description\": \"Partner demo product passport\",\n    \"brand\": \"Cir4Fun\",\n    \"productType\": \"Bed\",\n    \"dimensions\": {\n      \"width\": 90.0,\n      \"height\": 80.0,\n      \"depth\": 120.0,\n      \"unit\": \"cm\"\n    },\n    \"weight\": 24.5,\n    \"color\": \"Warm oak\",\n    \"features\": [\"repairable\", \"recyclable\"]\n  },\n  \"billOfMaterials\": {\n    \"materials\": [\n      {\n        \"name\": \"FSC certified wood\",\n        \"mandatory\": true,\n        \"portion\": 72.0,\n        \"reference\": \"MAT-WOOD-001\"\n      }\n    ],\n    \"components\": [],\n    \"parts\": []\n  },\n  \"passportMetadata\": {\n    \"uniqueProductIdentifier\": \"{{dppId}}\",\n    \"passportUpdateDates\": [\"2026-04-24\"],\n    \"qrCodeOrDigitalTag\": \"https://demo.example/dpp/{{dppId}}\",\n    \"externalDocumentationLink\": \"https://demo.example/docs/furniture\"\n  },\n  \"nameplate\": {\n    \"gtinCode\": \"{{productId}}\",\n    \"internalArticleNumber\": \"C4F-DEMO-001\",\n    \"batchNumber\": \"DEMO-2026-04\",\n    \"customsTariffNumber\": \"940360\",\n    \"uriOfTheProduct\": \"https://demo.example/products/c4f-demo-001\",\n    \"manufacturer\": {\n      \"name\": \"Cir4Fun Furniture GmbH\",\n      \"gln\": \"4000001000005\",\n      \"uri\": \"https://demo.example/organizations/cir4fun-furniture-gmbh\",\n      \"contact\": {\n        \"organization\": \"Cir4Fun Furniture GmbH\",\n        \"email\": {\n          \"emailAddress\": \"contact@demo.example\",\n          \"typeOfEmail\": \"business\"\n        }\n      },\n      \"role\": \"MANUFACTURER\"\n    },\n    \"supplier\": {\n      \"name\": \"Partner Supplier GmbH\",\n      \"gln\": \"4000001000005\",\n      \"uri\": \"https://demo.example/organizations/partner-supplier-gmbh\",\n      \"contact\": {\n        \"organization\": \"Partner Supplier GmbH\",\n        \"email\": {\n          \"emailAddress\": \"contact@demo.example\",\n          \"typeOfEmail\": \"business\"\n        }\n      },\n      \"role\": \"SUPPLIER\"\n    }\n  },\n  \"documentation\": {\n    \"digitalInstructionsLink\": \"https://demo.example/docs/assembly\",\n    \"safetyInstructionsLink\": \"https://demo.example/docs/safety\",\n    \"downloadable\": true,\n    \"availableForYears\": 10,\n    \"paperCopyAvailableOnRequest\": true\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "id": "0947f212-6b0e-4fb2-8cbc-061cff7f9d02",
+      "name": "ReadDataElement productName",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test(\"HTTP 200\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"wrapper status is Success\", function () {",
+              "  pm.expect(json.statusCode).to.eql(\"Success\");",
+              "});",
+              "pm.test(\"payload is present\", function () {",
+              "  pm.expect(json).to.have.property(\"payload\");",
+              "  pm.expect(json.payload).to.not.eql(null);",
+              "  pm.expect(json.payload).to.eql(\"Cir4Fun Platform Bed\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}/elements/characteristics.productName",
+          "host": [
+            "{{repoBaseUrl}}"
+          ],
+          "path": [
+            "dpps",
+            "{{dppId}}",
+            "elements",
+            "characteristics.productName"
+          ]
+        },
+        "description": "Reads a supported simple data element from the collection-created DPP."
+      },
+      "response": []
+    },
+    {
+      "id": "ee86d07e-937d-4417-80fe-b0a511126e5d",
+      "name": "UpdateDataElement productName",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test(\"HTTP 200\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"wrapper status is Success\", function () {",
+              "  pm.expect(json.statusCode).to.eql(\"Success\");",
+              "});",
+              "pm.test(\"updated payload returned\", function () {",
+              "  pm.expect(json.payload).to.eql(\"Updated Product Name from Postman\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}/elements/characteristics.productName",
+          "host": [
+            "{{repoBaseUrl}}"
+          ],
+          "path": [
+            "dpps",
+            "{{dppId}}",
+            "elements",
+            "characteristics.productName"
+          ]
+        },
+        "description": "Updates a supported simple data element on the collection-created DPP.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"payload\": \"Updated Product Name from Postman\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "id": "7b06c0f3-7ed4-4c11-871a-09692a4c2f6e",
+      "name": "ReadDataElement coreDpp.nameplate.gtinCode",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test(\"HTTP 200\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"wrapper status is Success\", function () {",
+              "  pm.expect(json.statusCode).to.eql(\"Success\");",
+              "});",
+              "pm.test(\"GTIN payload is present\", function () {",
+              "  pm.expect(json.payload).to.be.a(\"string\").and.not.empty;",
+              "  pm.expect(json.payload).to.eql(pm.collectionVariables.get('productId'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}/elements/coreDpp.nameplate.gtinCode",
+          "host": [
+            "{{repoBaseUrl}}"
+          ],
+          "path": [
+            "dpps",
+            "{{dppId}}",
+            "elements",
+            "coreDpp.nameplate.gtinCode"
+          ]
+        },
+        "description": "Reads the supported coreDpp alias path for the GTIN/product identifier."
+      },
+      "response": []
+    },
+    {
+      "id": "9b16b047-c944-4393-9aa8-e4ba9a4f4294",
+      "name": "ReadDataElement billOfMaterials",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test(\"HTTP 200\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"wrapper status is Success\", function () {",
+              "  pm.expect(json.statusCode).to.eql(\"Success\");",
+              "});",
+              "pm.test(\"billOfMaterials object is returned\", function () {",
+              "  pm.expect(json.payload).to.be.an(\"object\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}/elements/billOfMaterials",
+          "host": [
+            "{{repoBaseUrl}}"
+          ],
+          "path": [
+            "dpps",
+            "{{dppId}}",
+            "elements",
+            "billOfMaterials"
+          ]
+        },
+        "description": "Reads a supported object/collection element from the DPP."
+      },
+      "response": []
+    },
+    {
+      "id": "e9dd1742-c751-47ab-8736-73e4f641c2aa",
+      "name": "ReadDataElement billOfMaterials.materials[0].name",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test(\"HTTP 200\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"wrapper status is Success\", function () {",
+              "  pm.expect(json.statusCode).to.eql(\"Success\");",
+              "});",
+              "pm.test(\"array-index payload is present\", function () {",
+              "  pm.expect(json.payload).to.be.a(\"string\").and.not.empty;",
+              "  pm.expect(json.payload).to.eql(\"FSC certified wood\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}/elements/billOfMaterials.materials%5B0%5D.name",
+          "host": [
+            "{{repoBaseUrl}}"
+          ],
+          "path": [
+            "dpps",
+            "{{dppId}}",
+            "elements",
+            "billOfMaterials.materials%5B0%5D.name"
+          ]
+        },
+        "description": "Reads a supported nested array-index element path."
+      },
+      "response": []
+    },
+    {
+      "id": "83373d5e-15eb-4a91-adc0-701c4634f641",
+      "name": "ReadDataElement unsupported path",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test(\"HTTP 400\", function () {",
+              "  pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"wrapper status is ClientErrorBadRequest\", function () {",
+              "  pm.expect(json.statusCode).to.eql(\"ClientErrorBadRequest\");",
+              "});",
+              "pm.test(\"messages are present\", function () {",
+              "  pm.expect(json.messages).to.be.an(\"array\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}/elements/unsupported.field",
+          "host": [
+            "{{repoBaseUrl}}"
+          ],
+          "path": [
+            "dpps",
+            "{{dppId}}",
+            "elements",
+            "unsupported.field"
+          ]
+        },
+        "description": "Attempts to read an unsupported element path."
+      },
+      "response": []
+    },
+    {
+      "id": "52e53fe1-725d-4dd9-a90a-5d24b1dbabae",
+      "name": "UpdateDataElement unsupported path",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test(\"HTTP 400\", function () {",
+              "  pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"wrapper status is ClientErrorBadRequest\", function () {",
+              "  pm.expect(json.statusCode).to.eql(\"ClientErrorBadRequest\");",
+              "});",
+              "pm.test(\"messages are present\", function () {",
+              "  pm.expect(json.messages).to.be.an(\"array\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}/elements/unsupported.field",
+          "host": [
+            "{{repoBaseUrl}}"
+          ],
+          "path": [
+            "dpps",
+            "{{dppId}}",
+            "elements",
+            "unsupported.field"
+          ]
+        },
+        "description": "Attempts to update an unsupported element path.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"payload\": \"Updated Product Name\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "id": "f471be9b-d2c3-49b7-892b-92100d81c48d",
+      "name": "ReadDataElement missing DPP",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test(\"HTTP 404\", function () {",
+              "  pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"wrapper status is ClientErrorResourceNotFound\", function () {",
+              "  pm.expect(json.statusCode).to.eql(\"ClientErrorResourceNotFound\");",
+              "});",
+              "pm.test(\"messages are present\", function () {",
+              "  pm.expect(json.messages).to.be.an(\"array\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{repoBaseUrl}}/dpps/{{missingDppId}}/elements/characteristics.productName",
+          "host": [
+            "{{repoBaseUrl}}"
+          ],
+          "path": [
+            "dpps",
+            "{{missingDppId}}",
+            "elements",
+            "characteristics.productName"
+          ]
+        },
+        "description": "Attempts to read an element from a valid UUID that should not exist."
+      },
+      "response": []
+    },
+    {
+      "id": "2a2d56d2-a7d0-4e9f-a7e5-313d0f057c7b",
+      "name": "DeleteDPP cleanup",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test(\"HTTP 200\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"wrapper status is SuccessNoContent\", function () {",
+              "  pm.expect(json.statusCode).to.eql(\"SuccessNoContent\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{repoBaseUrl}}/dpps/{{deleteDppId}}",
+          "host": [
+            "{{repoBaseUrl}}"
+          ],
+          "path": [
+            "dpps",
+            "{{deleteDppId}}"
+          ]
+        },
+        "description": "Deletes the DPP created by this collection so later runs do not depend on or mutate shared startup seed data."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "repoBaseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "dppId",
+      "value": "55555555-5555-5555-5555-555555555555",
+      "type": "string"
+    },
+    {
+      "key": "deleteDppId",
+      "value": "55555555-5555-5555-5555-666666666666",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "04012345678996",
+      "type": "string"
+    },
+    {
+      "key": "missingDppId",
+      "value": "00000000-0000-0000-0000-000000000000",
+      "type": "string"
+    },
+    {
+      "key": "elementPath",
+      "value": "characteristics.productName",
+      "type": "string"
+    }
+  ]
+}
