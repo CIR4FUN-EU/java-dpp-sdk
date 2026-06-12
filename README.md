@@ -2,7 +2,6 @@
 
 ![](docs/dpp-sdk-architecture.drawio.png)
 
-
 ## Overview
 
 This monorepo contains:
