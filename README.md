@@ -118,7 +118,52 @@ What this means in practice:
 - If you set `dpp.repo.backend=postgres`, then you must have a PostgreSQL server running and reachable with the configured datasource settings.
 - The HTTP API stays the same in both modes. Only the storage backend changes.
 
-For PostgreSQL usage examples, see [dpp-postgres/README.md](dpp-postgres/README.md).
+### Quick Run: Mock Repo With PostgreSQL
+
+Run these from the monorepo root.
+
+Use Docker Compose for PostgreSQL plus Dockerized mock services:
+
+```powershell
+.\mvnw.cmd -f dpp-sdk-demo/pom.xml clean package
+docker compose -f dpp-sdk-demo/docker-compose.build.yml -f dpp-sdk-demo/docker-compose.postgres.yml --env-file dpp-sdk-demo/.env up --build
+```
+
+Linux/macOS:
+
+```bash
+./mvnw -f dpp-sdk-demo/pom.xml clean package
+docker compose -f dpp-sdk-demo/docker-compose.build.yml -f dpp-sdk-demo/docker-compose.postgres.yml --env-file dpp-sdk-demo/.env up --build
+```
+
+Use Docker Compose for PostgreSQL only, then run the mock repo as a local JAR:
+
+```powershell
+docker compose -f dpp-sdk-demo/docker-compose.postgres.yml --env-file dpp-sdk-demo/.env up postgres
+$env:DPP_REPO_BACKEND="postgres"
+$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/dpp_repo"
+$env:SPRING_DATASOURCE_USERNAME="dpp"
+$env:SPRING_DATASOURCE_PASSWORD="dpp"
+java -jar dpp-sdk-demo\mock-dpp-repo\target\mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=false
+```
+
+Linux/macOS:
+
+```bash
+docker compose -f dpp-sdk-demo/docker-compose.postgres.yml --env-file dpp-sdk-demo/.env up postgres
+export DPP_REPO_BACKEND=postgres
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/dpp_repo
+export SPRING_DATASOURCE_USERNAME=dpp
+export SPRING_DATASOURCE_PASSWORD=dpp
+java -jar dpp-sdk-demo/mock-dpp-repo/target/mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=false
+```
+
+Connection rule:
+
+- inside Docker Compose, the repo container uses `jdbc:postgresql://postgres:5432/dpp_repo`
+- from a local JAR or IDE, use `jdbc:postgresql://localhost:5432/dpp_repo`
+
+Detailed demo runtime options are in [dpp-sdk-demo/README.md](dpp-sdk-demo/README.md). PostgreSQL module usage examples are in [dpp-postgres/README.md](dpp-postgres/README.md).
 
 ## Entry-Point Example
 
