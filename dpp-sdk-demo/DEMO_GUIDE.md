@@ -13,7 +13,7 @@ Say:
 - `dpp4fun` owns the Dpp4Fun product model/builders, mapper support, validation, and `Dpp4FunJsonCodec`.
 - `dpp-core` owns reusable core DPP model classes, validators, payload mapping, and utilities.
 - `dpp-sdk-clients` owns the split repo/registry payload contracts, HTTP clients, and client error categories for the standard-style mock APIs.
-- This demo adds only Dpp4Fun adapters, mock HTTP services, runners, Postman collections, in-memory stores, and a small mock-only registry lookup helper.
+- This demo adds only Dpp4Fun adapters, mock HTTP services, runners, Postman collections, mock backend adapters, and a small mock-only registry lookup helper.
 - Mock HTTP services simulate external repo and registry systems; they are not part of the client library.
 - The runtime truth for this repo is the demo code plus the installed `dpp4fun` / `dpp-core` / `dpp-sdk-clients` artifacts used by Maven.
 
@@ -125,6 +125,7 @@ Presenter note:
 - Use the local container build workflow from `README.md` when you want to demonstrate the current Dockerized maintainer path.
 - Use the published-image pull or push workflows from `README.md` only when that operating context matters to the audience.
 - `dpp-sdk-demo/.env` carries the current image names, tags, and default ports used by those workflows.
+- The repo service defaults to the in-memory backend. Set `DPP_REPO_BACKEND=postgres` plus the `SPRING_DATASOURCE_*` properties from `README.md` when you want the same HTTP API backed by PostgreSQL.
 
 Base URLs for the live demo:
 
@@ -181,7 +182,7 @@ Point out:
 - This helper is mock/demo-only visibility plumbing and is not part of the public `dpp-registry-client` contract.
 - The client validates before sending.
 - No additional custom helper clients are used beyond that mock/demo-only registry read-back helper.
-- The repo service receives JSON, maps it with SDK `Dpp4FunJsonCodec`, validates it with `Dpp4FunValidationService`, and stores it in memory.
+- The repo service receives JSON, maps it with SDK `Dpp4FunJsonCodec`, validates it with `Dpp4FunValidationService`, and stores it through the selected backend. The default backend is memory; PostgreSQL is optional.
 - Full DPP reads return a wrapped payload that the HTTP client maps back into an SDK domain object.
 - The registry verifies the repo reference with `HEAD /dpps/{dppId}` before storing metadata; it does not fetch the full DPP JSON.
 - Fine-granular reads and updates return wrapped raw JSON element payloads.
@@ -257,12 +258,11 @@ Mocked:
 
 - EU registry behavior
 - DPP repository behavior
-- Persistence, using in-memory stores
+- Persistence, using default in-memory storage or an optional PostgreSQL-backed repo adapter
 
 Not implemented:
 
 - Real EU registry integration
-- Real database
 - Authentication or OAuth
 - Retry framework
 - Production resilience, retries, auditing, or monitoring

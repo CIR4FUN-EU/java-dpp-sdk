@@ -13,6 +13,7 @@
 
     <modules>
         <module>dpp-datamodel</module>
+        <module>dpp-postgres</module>
         <module>dpp-sdk-clients</module>
         <module>dpp-sdk-demo</module>
     </modules>
