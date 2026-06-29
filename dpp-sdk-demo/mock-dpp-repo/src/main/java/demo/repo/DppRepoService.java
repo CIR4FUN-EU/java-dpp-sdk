@@ -31,7 +31,7 @@ import dppsdk.dpp4fun.validation.Dpp4FunValidationService;
 @Service
 class DppRepoService {
 
-    private final InMemoryDppStore store;
+    private final DppRepoBackend backend;
     private final Dpp4FunJsonCodec codec;
     private final Dpp4FunValidationService validationService;
     private final ObjectMapper objectMapper;
@@ -40,7 +40,7 @@ class DppRepoService {
     private final DppElementPathService elementPathService;
 
     DppRepoService(
-            InMemoryDppStore store,
+            DppRepoBackend backend,
             Dpp4FunJsonCodec codec,
             Dpp4FunValidationService validationService,
             ObjectMapper objectMapper,
@@ -48,7 +48,7 @@ class DppRepoService {
             DppMergePatchService mergePatchService,
             DppElementPathService elementPathService
     ) {
-        this.store = store;
+        this.backend = backend;
         this.codec = codec;
         this.validationService = validationService;
         this.objectMapper = objectMapper;
@@ -60,30 +60,27 @@ class DppRepoService {
     CreateDppResponse create(String jsonPayload) {
         Dpp4Fun dpp = parseAndValidate(jsonPayload);
         String dppId = identifierExtractor.extractDppId(dpp);
-        String productId = identifierExtractor.extractProductId(dpp);
-        String canonicalJson = codec.toJson(dpp);
         Instant now = Instant.now();
 
-        store.create(dppId, productId, canonicalJson, now);
-        store.appendEvent(dppId, "DPP_CREATED", now, objectNode(Map.of("productId", productId)));
+        backend.create(dpp, now);
         return new CreateDppResponse(dppId);
     }
 
     JsonNode readById(String dppId) {
-        StoredDppRecord record = store.findActiveByDppId(dppId)
+        Dpp4Fun dpp = backend.findCurrentByDppId(dppId)
                 .orElseThrow(() -> notFound("No DPP found for id " + dppId));
-        return readTree(record.dppJson());
+        return dppToJsonNode(dpp);
     }
 
     boolean hasActiveDpp(String dppId) {
-        return store.hasActiveDpp(dppId);
+        return backend.existsActiveByDppId(dppId);
     }
 
     JsonNode readByProductId(String productId) {
-        StoredDppRecord record = store.findActiveByProductId(productId)
+        Dpp4Fun dpp = backend.findCurrentByProductId(productId)
                 .orElseThrow(() -> new RepoApiException(DppStatusCode.ClientErrorResourceNotFound,
                         "PRODUCT_NOT_FOUND", "No active DPP found for product id " + productId));
-        return readTree(record.dppJson());
+        return dppToJsonNode(dpp);
     }
 
     JsonNode readVersionByProductIdAndDate(String productId, String timestamp) {
@@ -94,11 +91,11 @@ class DppRepoService {
             throw new RepoApiException(DppStatusCode.ClientErrorBadRequest, "INVALID_DATE",
                     "Invalid UTC timestamp " + timestamp);
         }
-        DppVersionRecord version = store.findVersionByProductIdAndDate(productId, requestedAt)
+        Dpp4Fun version = backend.findByProductIdAt(productId, requestedAt)
                 .orElseThrow(() -> new RepoApiException(DppStatusCode.ClientErrorResourceNotFound,
                         "DPP_VERSION_NOT_FOUND",
                         "No DPP version found for product id " + productId + " at " + timestamp));
-        return readTree(version.dppJson());
+        return dppToJsonNode(version);
     }
 
     ReadDppIdsResponse readIdsByProductIds(ReadDppIdsRequest request) {
@@ -117,18 +114,18 @@ class DppRepoService {
             throw new RepoApiException(DppStatusCode.ClientErrorBadRequest, "INVALID_CURSOR",
                     "cursor is outside the supplied productIdentifiers range");
         }
-        List<String> dppIds = store.findDppIdsByProductIds(request.getProductIdentifiers(), offset, limit);
+        DppIdPage page = backend.findActiveDppIdsByProductIds(request.getProductIdentifiers(), offset, limit);
         ReadDppIdsResponse response = new ReadDppIdsResponse();
-        response.setDppIdentifiers(dppIds);
-        response.setNextCursor(store.nextCursor(request.getProductIdentifiers(), offset, limit));
+        response.setDppIdentifiers(page.dppIds());
+        response.setNextCursor(page.nextCursor());
         return response;
     }
 
     JsonNode updateById(String dppId, String patchJson) {
-        StoredDppRecord current = store.findActiveByDppId(dppId)
+        Dpp4Fun current = backend.findCurrentByDppId(dppId)
                 .orElseThrow(() -> notFound("No DPP found for id " + dppId));
         // Build and validate the full merged DPP before touching stored state so failed patches stay atomic.
-        JsonNode merged = mergePatchService.merge(readTree(current.dppJson()).deepCopy(), readTree(patchJson));
+        JsonNode merged = mergePatchService.merge(dppToJsonNode(current).deepCopy(), readTree(patchJson));
         Dpp4Fun mergedDpp = parseAndValidate(writeTree(merged));
         String mergedDppId = identifierExtractor.extractDppId(mergedDpp);
         if (!dppId.equals(mergedDppId)) {
@@ -136,27 +133,24 @@ class DppRepoService {
                     "The DPP id in the patch result must remain " + dppId);
         }
         String mergedProductId = identifierExtractor.extractProductId(mergedDpp);
-        if (!current.productId().equals(mergedProductId)) {
+        if (!identifierExtractor.extractProductId(current).equals(mergedProductId)) {
             throw new RepoApiException(DppStatusCode.ClientErrorBadRequest, "PRODUCT_ID_IMMUTABLE",
-                    "The product id in the patch result must remain " + current.productId());
+                    "The product id in the patch result must remain " + identifierExtractor.extractProductId(current));
         }
 
-        String canonicalJson = codec.toJson(mergedDpp);
         Instant now = Instant.now();
-        store.update(dppId, canonicalJson, now);
-        store.appendEvent(dppId, "DPP_UPDATED", now, objectNode(Map.of("productId", mergedProductId)));
-        return readTree(canonicalJson);
+        backend.appendVersion(mergedDpp, now, "DPP_UPDATED", Map.of("productId", mergedProductId));
+        return dppToJsonNode(mergedDpp);
     }
 
     void deleteById(String dppId) {
-        StoredDppRecord deleted = store.softDelete(dppId, Instant.now());
-        store.appendEvent(dppId, "DPP_DELETED", deleted.deletedAt(), objectNode(Map.of("productId", deleted.productId())));
+        backend.softDelete(dppId, Instant.now());
     }
 
     JsonNode readDataElement(String dppId, String elementPath) {
-        StoredDppRecord record = store.findActiveByDppId(dppId)
+        Dpp4Fun dpp = backend.findCurrentByDppId(dppId)
                 .orElseThrow(() -> notFound("No DPP found for id " + dppId));
-        return elementPathService.read(readTree(record.dppJson()), elementPath);
+        return elementPathService.read(dppToJsonNode(dpp), elementPath);
     }
 
     JsonNode updateDataElement(String dppId, String elementPath, UpdateDataElementRequest request) {
@@ -168,9 +162,9 @@ class DppRepoService {
             throw new RepoApiException(DppStatusCode.ClientErrorBadRequest, "INVALID_ELEMENT_UPDATE",
                     "payload must be provided for element updates");
         }
-        StoredDppRecord current = store.findActiveByDppId(dppId)
+        Dpp4Fun current = backend.findCurrentByDppId(dppId)
                 .orElseThrow(() -> notFound("No DPP found for id " + dppId));
-        ObjectNode workingTree = (ObjectNode) readTree(current.dppJson());
+        ObjectNode workingTree = (ObjectNode) dppToJsonNode(current);
         // Fine-granular writes still validate the entire resulting DPP before persisting the change.
         JsonNode updatedElement = elementPathService.update(workingTree, elementPath, request.getPayload());
         Dpp4Fun updatedDpp = parseAndValidate(writeTree(workingTree));
@@ -178,31 +172,26 @@ class DppRepoService {
             throw new RepoApiException(DppStatusCode.ClientErrorBadRequest, "DPP_ID_IMMUTABLE",
                     "The DPP id must remain unchanged during element updates");
         }
-        if (!current.productId().equals(identifierExtractor.extractProductId(updatedDpp))) {
+        String currentProductId = identifierExtractor.extractProductId(current);
+        if (!currentProductId.equals(identifierExtractor.extractProductId(updatedDpp))) {
             throw new RepoApiException(DppStatusCode.ClientErrorBadRequest, "PRODUCT_ID_IMMUTABLE",
                     "The product id must remain unchanged during element updates");
         }
 
-        String canonicalJson = codec.toJson(updatedDpp);
         Instant now = Instant.now();
-        store.update(dppId, canonicalJson, now);
-        store.appendEvent(dppId, "DATA_ELEMENT_UPDATED", now, objectNode(Map.of("elementPath", elementPath)));
+        backend.appendVersion(updatedDpp, now, "DATA_ELEMENT_UPDATED", Map.of("elementPath", elementPath));
         return updatedElement;
     }
 
     List<LifecycleEventRecord> readEvents(String dppId) {
-        if (store.findAnyByDppId(dppId).isEmpty()) {
+        if (!backend.existsAnyByDppId(dppId)) {
             throw notFound("No DPP found for id " + dppId);
         }
-        return store.eventsFor(dppId);
-    }
-
-    List<DppVersionRecord> readVersions(String productId) {
-        return store.versionsForProduct(productId);
+        return backend.findEventsByDppId(dppId);
     }
 
     void clear() {
-        store.clear();
+        backend.clear();
     }
 
     private Dpp4Fun parseAndValidate(String jsonPayload) {
@@ -257,9 +246,7 @@ class DppRepoService {
         return new RepoApiException(DppStatusCode.ClientErrorResourceNotFound, "DPP_NOT_FOUND", message);
     }
 
-    private com.fasterxml.jackson.databind.node.ObjectNode objectNode(Map<String, String> values) {
-        com.fasterxml.jackson.databind.node.ObjectNode node = objectMapper.createObjectNode();
-        values.forEach(node::put);
-        return node;
+    private JsonNode dppToJsonNode(Dpp4Fun dpp) {
+        return readTree(codec.toJson(dpp));
     }
 }

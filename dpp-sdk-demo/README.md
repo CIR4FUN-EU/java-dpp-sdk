@@ -19,7 +19,7 @@ This `dpp-sdk-demo` subproject exists to show the reuse boundary between the SDK
 - `dpp4fun` owns the `Dpp4Fun` product aggregate, furniture-specific builders/model classes, mapper support, validation, and `Dpp4FunJsonCodec`.
 - `dpp-core` owns reusable core DPP models, validators, payload mapping, and shared utilities used transitively by `dpp4fun`.
 - `dpp-sdk-clients` owns shared repo/registry payload contracts plus the low-level HTTP clients for the standard-style DPP APIs.
-- This repo adds only Dpp4Fun demo fixtures, thin SDK adapters, mock services, runners, in-memory stores, internal mock lookup DTOs, tests, and Postman collections.
+- This repo adds only Dpp4Fun demo fixtures, thin SDK adapters, mock services, runners, mock backend adapters, internal mock lookup DTOs, tests, and Postman collections.
 
 Runtime truth note:
 
@@ -70,9 +70,21 @@ DPP_REPO_IMAGE_NAME=mock-dpp-repo
 DPP_REGISTRY_IMAGE_NAME=mock-eu-registry
 ```
 
+Optional PostgreSQL-backed repo mode for `mock-dpp-repo`:
+
+```properties
+DPP_REPO_BACKEND=memory
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/dpp
+SPRING_DATASOURCE_USERNAME=postgres
+SPRING_DATASOURCE_PASSWORD=postgres
+```
+
 - Docker Compose uses those values automatically when you pass `--env-file dpp-sdk-demo/.env` from the monorepo root or run compose inside `dpp-sdk-demo`.
 - Local JAR runs use those values when you launch from inside `dpp-sdk-demo`.
 - If `.env` is missing, the previous defaults still apply: repo `8080`, registry `8081`.
+- The default repo backend is `memory`.
+- Set `DPP_REPO_BACKEND=postgres` to make `mock-dpp-repo` use the standalone `dpp4fun-postgres` module with a relational PostgreSQL backend.
+- HTTP paths and response shapes stay the same in both modes. JSON mapping, validation, JSON Merge Patch, and fine-granular element logic remain in the mock service layer.
 
 ## Build
 
@@ -140,6 +152,8 @@ java -jar mock-dpp-repo/target/mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=fal
 ```
 
 Use this when you want the two mock services running directly on the host with the configured `.env` ports.
+
+If you want the repo service to run against PostgreSQL instead of the default in-memory backend, set `DPP_REPO_BACKEND=postgres` together with the `SPRING_DATASOURCE_*` properties before starting `mock-dpp-repo`.
 
 ### 2. Run Local Containers From Locally Built Images
 
@@ -349,7 +363,7 @@ Mocked:
 
 - EU registry behavior
 - DPP repo behavior
-- Persistence, using in-memory stores only
+- Persistence, using default in-memory storage or an optional PostgreSQL-backed repo adapter
 
 Not implemented:
 
