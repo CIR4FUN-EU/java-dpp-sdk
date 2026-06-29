@@ -20,6 +20,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * PostgreSQL repository for canonical {@link Dpp4Fun} objects.
+ *
+ * <p>The repository expects already validated domain objects. JSON handling, merge patching, and fine-granular
+ * element-path logic remain outside this module.</p>
+ */
 public final class Dpp4FunPostgresRepository {
 
     private final DataSource dataSource;

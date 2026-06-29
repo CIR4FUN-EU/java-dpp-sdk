@@ -126,6 +126,7 @@ Presenter note:
 - Use the published-image pull or push workflows from `README.md` only when that operating context matters to the audience.
 - `dpp-sdk-demo/.env` carries the current image names, tags, and default ports used by those workflows.
 - The repo service defaults to the in-memory backend. Set `DPP_REPO_BACKEND=postgres` plus the `SPRING_DATASOURCE_*` properties from `README.md` when you want the same HTTP API backed by PostgreSQL.
+- In both modes, validation, JSON Merge Patch, and fine-granular element-path handling stay in the mock service layer. PostgreSQL only changes the storage backend.
 
 Base URLs for the live demo:
 

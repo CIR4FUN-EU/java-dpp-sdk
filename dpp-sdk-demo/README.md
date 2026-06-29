@@ -85,6 +85,9 @@ SPRING_DATASOURCE_PASSWORD=postgres
 - The default repo backend is `memory`.
 - Set `DPP_REPO_BACKEND=postgres` to make `mock-dpp-repo` use the standalone `dpp4fun-postgres` module with a relational PostgreSQL backend.
 - HTTP paths and response shapes stay the same in both modes. JSON mapping, validation, JSON Merge Patch, and fine-granular element logic remain in the mock service layer.
+- Use PostgreSQL mode when you want durable demo persistence instead of process-local in-memory storage.
+- As the checked-in `.env` stands now, no backend override is set, so the demo starts in the default in-memory mode.
+- You only need to run a PostgreSQL server when you explicitly switch to `DPP_REPO_BACKEND=postgres`.
 
 ## Build
 
@@ -111,6 +114,7 @@ Common verification commands:
 .\mvnw.cmd clean test
 .\mvnw.cmd clean verify
 .\mvnw.cmd clean package
+.\mvnw.cmd -pl mock-dpp-repo -am test
 ```
 
 ```bash
@@ -118,6 +122,7 @@ Common verification commands:
 ./mvnw clean test
 ./mvnw clean verify
 ./mvnw clean package
+./mvnw -pl mock-dpp-repo -am test
 ```
 
 Wrapper note:

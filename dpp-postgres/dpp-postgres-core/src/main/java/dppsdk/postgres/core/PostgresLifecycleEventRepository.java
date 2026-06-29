@@ -16,6 +16,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Stores and reads simple append-only lifecycle events for DPP audit purposes.
+ *
+ * <p>These events are mock-compatible audit records, not full event sourcing or Track & Trace.</p>
+ */
 public final class PostgresLifecycleEventRepository {
 
     private static final TypeReference<LinkedHashMap<String, String>> MAP_TYPE = new TypeReference<>() { };

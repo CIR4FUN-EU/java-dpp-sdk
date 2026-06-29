@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Default mock repository backend that keeps the existing in-memory behavior.
+ */
 final class InMemoryDppRepoBackend implements DppRepoBackend {
 
     private final InMemoryDppStore store;

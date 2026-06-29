@@ -10,6 +10,9 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Query-oriented PostgreSQL support for batch id lookup and lightweight Dpp4Fun search projections.
+ */
 public final class Dpp4FunQueryRepository {
 
     public DppPage<String> findActiveDppIdsByProductIds(Connection connection, List<String> productIds, DppPageRequest pageRequest) throws SQLException {

@@ -3,6 +3,9 @@ package dppsdk.postgres.core;
 import java.time.Instant;
 import java.util.Map;
 
+/**
+ * Immutable lifecycle event record returned by the PostgreSQL persistence layer.
+ */
 public record DppLifecycleEventRecord(
         String eventId,
         String dppId,

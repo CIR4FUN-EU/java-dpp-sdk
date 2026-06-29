@@ -18,6 +18,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Optional mock repository backend that delegates durable storage to {@code Dpp4FunPostgresRepository}.
+ *
+ * <p>The surrounding mock service still owns validation, JSON Merge Patch, and fine-granular element-path logic.</p>
+ */
 final class PostgresDppRepoBackend implements DppRepoBackend {
 
     private final Dpp4FunPostgresRepository repository;

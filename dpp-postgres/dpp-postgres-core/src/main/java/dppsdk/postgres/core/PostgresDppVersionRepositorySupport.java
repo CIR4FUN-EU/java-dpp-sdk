@@ -13,6 +13,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Reusable PostgreSQL support for passport identity, active-version resolution, history, and soft delete.
+ *
+ * <p>This class does not know about JSON transport or Dpp4Fun-specific fields.</p>
+ */
 public final class PostgresDppVersionRepositorySupport {
 
     private final DataSource dataSource;

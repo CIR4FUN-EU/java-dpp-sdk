@@ -2,6 +2,9 @@ package dppsdk.postgres.core;
 
 import java.time.Instant;
 
+/**
+ * Small operation context passed into PostgreSQL write operations.
+ */
 public record PostgresDppOperationContext(
         String operationId,
         Instant occurredAt

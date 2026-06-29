@@ -22,6 +22,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Relational mapper for reusable {@code DppCore} data and its nested submodels.
+ *
+ * <p>This mapper is shared by PostgreSQL repositories for concrete DPP types.</p>
+ */
 public final class PostgresDppCoreMapper {
 
     public void insertVersionData(Connection connection, long versionId, DppCore coreDpp) throws SQLException {
