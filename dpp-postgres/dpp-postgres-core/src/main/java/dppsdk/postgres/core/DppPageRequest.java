@@ -1,5 +1,8 @@
 package dppsdk.postgres.core;
 
+/**
+ * Lightweight cursor-style page request used by PostgreSQL query operations.
+ */
 public record DppPageRequest(
         String cursor,
         int limit

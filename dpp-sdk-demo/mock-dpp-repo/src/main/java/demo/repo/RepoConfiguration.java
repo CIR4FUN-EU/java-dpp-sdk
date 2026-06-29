@@ -12,6 +12,11 @@ import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
 
+/**
+ * Wiring for the mock repository backend.
+ *
+ * <p>Memory remains the default backend. PostgreSQL is opt-in through {@code dpp.repo.backend=postgres}.</p>
+ */
 @Configuration
 class RepoConfiguration {
 

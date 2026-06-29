@@ -1,5 +1,8 @@
 package dppsdk.postgres.dpp4fun;
 
+/**
+ * Search filters for lightweight Dpp4Fun PostgreSQL projection queries.
+ */
 public record Dpp4FunSearchCriteria(
         String sector,
         String category,

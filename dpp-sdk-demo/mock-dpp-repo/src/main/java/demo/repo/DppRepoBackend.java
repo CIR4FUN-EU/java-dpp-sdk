@@ -7,6 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Small mock-local backend seam used to keep HTTP/service behavior stable across memory and PostgreSQL storage.
+ *
+ * <p>This is not an SDK-wide abstraction.</p>
+ */
 interface DppRepoBackend {
 
     void create(Dpp4Fun dpp, Instant occurredAt);

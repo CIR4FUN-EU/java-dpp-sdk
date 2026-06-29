@@ -19,6 +19,9 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Grouped relational mapper for Dpp4Fun-specific classification, characteristics, dimensions, and BOM data.
+ */
 public final class Dpp4FunPostgresMapper implements PostgresDppTypeMapper<Dpp4Fun> {
 
     @Override
