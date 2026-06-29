@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: dpp-mock-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dpp_repo}
+      POSTGRES_USER: ${POSTGRES_USER:-dpp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dpp}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - dpp-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dpp} -d ${POSTGRES_DB:-dpp_repo}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mock-dpp-repo:
+    image: ${DPP_IMAGE_REGISTRY:-ghcr.io/YOUR_ORG}/${DPP_REPO_IMAGE_NAME:-mock-dpp-repo}:${DPP_IMAGE_TAG:-0.1.0}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DPP_REPO_PORT: ${DPP_REPO_PORT:-8080}
+      DPP_REPO_BACKEND: postgres
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-dpp_repo}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-dpp}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-dpp}
+    ports:
+      - "${DPP_REPO_PORT:-8080}:${DPP_REPO_PORT:-8080}"
+
+volumes:
+  dpp-postgres-data:
