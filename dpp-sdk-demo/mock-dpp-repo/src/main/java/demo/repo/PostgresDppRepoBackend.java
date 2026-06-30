@@ -5,13 +5,13 @@ import dpp.repo.payloads.DppStatusCode;
 import dppsdk.postgres.core.DppLifecycleEventRecord;
 import dppsdk.postgres.core.DppLifecycleEventType;
 import dppsdk.postgres.core.DppPageRequest;
+import dppsdk.postgres.core.PostgresDppNotFoundException;
 import dppsdk.postgres.core.PostgresDppOperationContext;
+import dppsdk.postgres.core.PostgresDppVersionConflictException;
 import dppsdk.postgres.dpp4fun.Dpp4FunPostgresRepository;
-import dppsdk.postgres.dpp4fun.Dpp4FunVersionSummary;
 import dppsdk.dpp4fun.model.Dpp4Fun;
 import org.postgresql.util.PSQLException;
 
-import javax.sql.DataSource;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
@@ -27,12 +27,10 @@ final class PostgresDppRepoBackend implements DppRepoBackend {
 
     private final Dpp4FunPostgresRepository repository;
     private final ObjectMapper objectMapper;
-    private final DataSource dataSource;
 
-    PostgresDppRepoBackend(Dpp4FunPostgresRepository repository, ObjectMapper objectMapper, DataSource dataSource) {
+    PostgresDppRepoBackend(Dpp4FunPostgresRepository repository, ObjectMapper objectMapper) {
         this.repository = repository;
         this.objectMapper = objectMapper;
-        this.dataSource = dataSource;
     }
 
     @Override
@@ -56,7 +54,7 @@ final class PostgresDppRepoBackend implements DppRepoBackend {
 
     @Override
     public boolean existsAnyByDppId(String dppId) {
-        return !repository.findHistoryByDppId(dppId).isEmpty();
+        return repository.existsAnyByDppId(dppId);
     }
 
     @Override
@@ -111,44 +109,13 @@ final class PostgresDppRepoBackend implements DppRepoBackend {
 
     @Override
     public void clear() {
-        try (java.sql.Connection connection = dataSource.getConnection();
-             java.sql.Statement statement = connection.createStatement()) {
-            statement.execute("""
-                    truncate table
-                        dpp_lifecycle_events,
-                        dpp4fun_parts,
-                        dpp4fun_components,
-                        dpp4fun_materials,
-                        dpp4fun_bill_of_materials,
-                        dpp4fun_features,
-                        dpp4fun_dimensions,
-                        dpp4fun_characteristics,
-                        dpp4fun_classification_tags,
-                        dpp4fun_classifications,
-                        dpp_documentation,
-                        dpp_nameplates,
-                        dpp_organizations,
-                        dpp_contacts,
-                        dpp_addresses,
-                        dpp_emails,
-                        dpp_telephones,
-                        dpp_passport_update_dates,
-                        dpp_passport_metadata,
-                        dpp_versions,
-                        dpp_passports
-                    restart identity cascade
-                    """);
-        } catch (SQLException exception) {
-            throw new IllegalStateException("Failed to clear PostgreSQL mock repo backend", exception);
-        }
+        repository.clearAll();
     }
 
     private long currentVersionNo(String dppId) {
-        List<Dpp4FunVersionSummary> history = repository.findHistoryByDppId(dppId);
-        if (history.isEmpty()) {
-            throw new RepoApiException(DppStatusCode.ClientErrorResourceNotFound, "DPP_NOT_FOUND", "No DPP found for id " + dppId);
-        }
-        return history.get(history.size() - 1).versionNo();
+        return repository.findCurrentVersionNoByDppId(dppId)
+                .orElseThrow(() -> new RepoApiException(DppStatusCode.ClientErrorResourceNotFound,
+                        "DPP_NOT_FOUND", "No DPP found for id " + dppId));
     }
 
     private LifecycleEventRecord toLifecycleEventRecord(DppLifecycleEventRecord eventRecord) {
@@ -172,12 +139,11 @@ final class PostgresDppRepoBackend implements DppRepoBackend {
             return new RepoApiException(DppStatusCode.ClientResourceConflict, "DPP_CONFLICT",
                     "A DPP with id " + dppId + " already exists");
         }
-        String message = exception.getMessage() == null ? "" : exception.getMessage();
-        if (message.contains("Stale expected version")) {
+        if (exception instanceof PostgresDppVersionConflictException) {
             return new RepoApiException(DppStatusCode.ClientResourceConflict, "DPP_VERSION_CONFLICT",
                     "The DPP was modified concurrently and the requested change could not be applied");
         }
-        if (message.contains("No active DPP found")) {
+        if (exception instanceof PostgresDppNotFoundException) {
             return new RepoApiException(DppStatusCode.ClientErrorResourceNotFound, "DPP_NOT_FOUND",
                     "No DPP found for id " + dppId);
         }

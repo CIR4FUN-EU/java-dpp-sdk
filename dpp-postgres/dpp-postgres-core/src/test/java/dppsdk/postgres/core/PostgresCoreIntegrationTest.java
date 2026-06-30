@@ -37,7 +37,7 @@ class PostgresCoreIntegrationTest {
     @Test
     void coreMapperAndLifecycleRepositoryRoundTripNestedCoreData() throws Exception {
         DataSource dataSource = dataSource();
-        PostgresDppVersionRepositorySupport versionSupport = new PostgresDppVersionRepositorySupport(dataSource);
+        PostgresDppVersionRepositorySupport versionSupport = new PostgresDppVersionRepositorySupport();
         PostgresDppCoreMapper coreMapper = new PostgresDppCoreMapper();
         PostgresLifecycleEventRepository lifecycleRepository = new PostgresLifecycleEventRepository();
 

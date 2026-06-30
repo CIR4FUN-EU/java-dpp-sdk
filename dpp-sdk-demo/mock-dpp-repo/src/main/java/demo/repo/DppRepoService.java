@@ -1,6 +1,7 @@
 package demo.repo;
 
 import java.io.IOException;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.List;
@@ -38,6 +39,7 @@ class DppRepoService {
     private final DppIdentifierExtractor identifierExtractor;
     private final DppMergePatchService mergePatchService;
     private final DppElementPathService elementPathService;
+    private final Clock clock;
 
     DppRepoService(
             DppRepoBackend backend,
@@ -46,7 +48,8 @@ class DppRepoService {
             ObjectMapper objectMapper,
             DppIdentifierExtractor identifierExtractor,
             DppMergePatchService mergePatchService,
-            DppElementPathService elementPathService
+            DppElementPathService elementPathService,
+            Clock clock
     ) {
         this.backend = backend;
         this.codec = codec;
@@ -55,12 +58,13 @@ class DppRepoService {
         this.identifierExtractor = identifierExtractor;
         this.mergePatchService = mergePatchService;
         this.elementPathService = elementPathService;
+        this.clock = clock;
     }
 
     CreateDppResponse create(String jsonPayload) {
         Dpp4Fun dpp = parseAndValidate(jsonPayload);
         String dppId = identifierExtractor.extractDppId(dpp);
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
 
         backend.create(dpp, now);
         return new CreateDppResponse(dppId);
@@ -138,13 +142,13 @@ class DppRepoService {
                     "The product id in the patch result must remain " + identifierExtractor.extractProductId(current));
         }
 
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         backend.appendVersion(mergedDpp, now, "DPP_UPDATED", Map.of("productId", mergedProductId));
         return dppToJsonNode(mergedDpp);
     }
 
     void deleteById(String dppId) {
-        backend.softDelete(dppId, Instant.now());
+        backend.softDelete(dppId, Instant.now(clock));
     }
 
     JsonNode readDataElement(String dppId, String elementPath) {
@@ -178,7 +182,7 @@ class DppRepoService {
                     "The product id must remain unchanged during element updates");
         }
 
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         backend.appendVersion(updatedDpp, now, "DATA_ELEMENT_UPDATED", Map.of("elementPath", elementPath));
         return updatedElement;
     }

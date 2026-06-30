@@ -37,7 +37,7 @@ public final class Dpp4FunPostgresRepository {
 
     public Dpp4FunPostgresRepository(DataSource dataSource) {
         this.dataSource = dataSource;
-        this.versionSupport = new PostgresDppVersionRepositorySupport(dataSource);
+        this.versionSupport = new PostgresDppVersionRepositorySupport();
         this.coreMapper = new PostgresDppCoreMapper();
         this.dpp4FunMapper = new Dpp4FunPostgresMapper();
         this.lifecycleEventRepository = new PostgresLifecycleEventRepository();
@@ -90,6 +90,14 @@ public final class Dpp4FunPostgresRepository {
         return withConnection(connection -> versionSupport.existsActiveByDppId(connection, dppId));
     }
 
+    public boolean existsAnyByDppId(String dppId) {
+        return withConnection(connection -> versionSupport.existsAnyByDppId(connection, dppId));
+    }
+
+    public Optional<Long> findCurrentVersionNoByDppId(String dppId) {
+        return withConnection(connection -> versionSupport.findCurrentVersionNoByDppId(connection, dppId));
+    }
+
     public Optional<Dpp4Fun> findCurrentByProductId(String productId) {
         return withConnection(connection -> versionSupport.findCurrentByProductId(connection, productId)
                 .map(record -> readVersion(connection, record.versionId())));
@@ -135,6 +143,39 @@ public final class Dpp4FunPostgresRepository {
 
     public List<Dpp4FunSearchResult> search(Dpp4FunSearchCriteria criteria) {
         return withConnection(connection -> queryRepository.search(connection, criteria));
+    }
+
+    public void clearAll() {
+        withConnection(connection -> {
+            try (java.sql.Statement statement = connection.createStatement()) {
+                statement.execute("""
+                        truncate table
+                            dpp_lifecycle_events,
+                            dpp4fun_parts,
+                            dpp4fun_components,
+                            dpp4fun_materials,
+                            dpp4fun_bill_of_materials,
+                            dpp4fun_features,
+                            dpp4fun_dimensions,
+                            dpp4fun_characteristics,
+                            dpp4fun_classification_tags,
+                            dpp4fun_classifications,
+                            dpp_documentation,
+                            dpp_nameplates,
+                            dpp_organizations,
+                            dpp_contacts,
+                            dpp_addresses,
+                            dpp_emails,
+                            dpp_telephones,
+                            dpp_passport_update_dates,
+                            dpp_passport_metadata,
+                            dpp_versions,
+                            dpp_passports
+                        restart identity cascade
+                        """);
+            }
+            return null;
+        });
     }
 
     private void initializeSchema() {
