@@ -16,6 +16,8 @@ class PostgresCoreSurfaceTest {
         assertDoesNotThrow(() -> Class.forName("dppsdk.postgres.core.DppLifecycleEventRecord"));
         assertDoesNotThrow(() -> Class.forName("dppsdk.postgres.core.DppPage"));
         assertDoesNotThrow(() -> Class.forName("dppsdk.postgres.core.DppPageRequest"));
+        assertDoesNotThrow(() -> Class.forName("dppsdk.postgres.core.PostgresDppNotFoundException"));
+        assertDoesNotThrow(() -> Class.forName("dppsdk.postgres.core.PostgresDppVersionConflictException"));
         assertDoesNotThrow(() -> Class.forName("dppsdk.postgres.core.PostgresDppTypeMapper"));
         assertDoesNotThrow(() -> Class.forName("dppsdk.postgres.core.PostgresDppCoreMapper"));
         assertDoesNotThrow(() -> Class.forName("dppsdk.postgres.core.PostgresLifecycleEventRepository"));

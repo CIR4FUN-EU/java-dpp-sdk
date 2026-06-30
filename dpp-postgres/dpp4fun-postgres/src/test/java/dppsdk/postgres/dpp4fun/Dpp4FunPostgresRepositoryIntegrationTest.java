@@ -21,6 +21,7 @@ import dppsdk.postgres.core.DppLifecycleEventRecord;
 import dppsdk.postgres.core.DppLifecycleEventType;
 import dppsdk.postgres.core.DppPage;
 import dppsdk.postgres.core.DppPageRequest;
+import dppsdk.postgres.core.PostgresDppVersionConflictException;
 import dppsdk.postgres.core.PostgresDppOperationContext;
 import dppsdk.postgres.core.PostgresDppStatus;
 import dppsdk.support.TestDataFactory;
@@ -65,8 +66,12 @@ class Dpp4FunPostgresRepositoryIntegrationTest {
         assertEquals(full, repository.findCurrentByDppId(full.getDppId()).orElseThrow());
         assertEquals(full, repository.findCurrentByProductId(full.getProductId()).orElseThrow());
         assertTrue(repository.existsActiveByDppId(full.getDppId()));
+        assertTrue(repository.existsAnyByDppId(full.getDppId()));
+        assertEquals(Optional.of(1L), repository.findCurrentVersionNoByDppId(full.getDppId()));
         assertEquals(minimal, repository.findCurrentByDppId(minimal.getDppId()).orElseThrow());
         assertEquals(Optional.empty(), Optional.ofNullable(repository.findCurrentByDppId("missing").orElse(null)));
+        assertFalse(repository.existsAnyByDppId("missing"));
+        assertEquals(Optional.empty(), repository.findCurrentVersionNoByDppId("missing"));
     }
 
     @Test
@@ -87,9 +92,10 @@ class Dpp4FunPostgresRepositoryIntegrationTest {
         repository.appendVersion(updated, 1L, new PostgresDppOperationContext("append-history", v2Time));
 
         assertEquals(updated, repository.findCurrentByDppId(original.getDppId()).orElseThrow());
+        assertEquals(Optional.of(2L), repository.findCurrentVersionNoByDppId(original.getDppId()));
         assertEquals(original, repository.findByProductIdAt(original.getProductId(), Instant.parse("2026-02-05T00:00:00Z")).orElseThrow());
         assertEquals(updated, repository.findByProductIdAt(original.getProductId(), Instant.parse("2026-02-15T00:00:00Z")).orElseThrow());
-        assertThrows(IllegalStateException.class, () ->
+        assertThrows(PostgresDppVersionConflictException.class, () ->
                 repository.appendVersion(updated, 1L, new PostgresDppOperationContext("stale-history", Instant.parse("2026-02-20T09:00:00Z"))));
 
         List<Dpp4FunVersionSummary> history = repository.findHistoryByDppId(original.getDppId());
@@ -115,8 +121,10 @@ class Dpp4FunPostgresRepositoryIntegrationTest {
         repository.softDelete(dpp.getDppId(), 2L, deletedAt);
 
         assertFalse(repository.existsActiveByDppId(dpp.getDppId()));
+        assertTrue(repository.existsAnyByDppId(dpp.getDppId()));
         assertEquals(Optional.empty(), repository.findCurrentByDppId(dpp.getDppId()));
         assertEquals(Optional.empty(), repository.findCurrentByProductId(dpp.getProductId()));
+        assertEquals(Optional.empty(), repository.findCurrentVersionNoByDppId(dpp.getDppId()));
         assertEquals(updated, repository.findByProductIdAt(dpp.getProductId(), Instant.parse("2026-03-02T12:00:00Z")).orElseThrow());
         assertEquals(Optional.empty(), repository.findByProductIdAt(dpp.getProductId(), Instant.parse("2026-03-04T00:00:00Z")));
 
@@ -131,6 +139,21 @@ class Dpp4FunPostgresRepositoryIntegrationTest {
         assertEquals(DppLifecycleEventType.DATA_ELEMENT_UPDATED, events.get(2).eventType());
         assertEquals(Map.of("elementPath", "characteristics.productName"), events.get(2).data());
         assertEquals(DppLifecycleEventType.DPP_DELETED, events.get(3).eventType());
+    }
+
+    @Test
+    void clearAllRemovesPersistedRowsAcrossCoreAndDpp4FunTables() {
+        Dpp4FunPostgresRepository repository = new Dpp4FunPostgresRepository(dataSource());
+        Dpp4Fun dpp = createDpp("clear", true, true, true);
+
+        repository.create(dpp, new PostgresDppOperationContext("create-clear", Instant.parse("2026-05-01T08:00:00Z")));
+        assertTrue(repository.existsAnyByDppId(dpp.getDppId()));
+
+        repository.clearAll();
+
+        assertFalse(repository.existsAnyByDppId(dpp.getDppId()));
+        assertEquals(Optional.empty(), repository.findCurrentByDppId(dpp.getDppId()));
+        assertTrue(repository.findEventsByDppId(dpp.getDppId()).isEmpty());
     }
 
     @Test

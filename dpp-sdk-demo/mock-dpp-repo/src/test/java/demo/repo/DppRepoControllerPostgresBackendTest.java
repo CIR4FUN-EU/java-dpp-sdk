@@ -2,6 +2,8 @@ package demo.repo;
 
 import demo.repo.testsupport.DemoDppFactory;
 import demo.repo.testsupport.Dpp4FunDppCodecAdapter;
+import dppsdk.core.model.DppCore;
+import dppsdk.core.model.Nameplate;
 import dppsdk.dpp4fun.model.Dpp4Fun;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -100,9 +102,7 @@ class DppRepoControllerPostgresBackendTest {
     @DisplayName("PostgreSQL backend preserves full update history lookup and batch paging behavior")
     void postgresModePatchHistoryAndBatchPagingWork() throws Exception {
         createValidBed();
-        Thread.sleep(25L);
         Instant afterCreate = Instant.now();
-        Thread.sleep(25L);
 
         mockMvc.perform(patch("/dpps/" + DemoDppFactory.BED_DPP_ID)
                         .contentType(APPLICATION_JSON)
@@ -115,6 +115,7 @@ class DppRepoControllerPostgresBackendTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.characteristics.productName").value("Cir4Fun Platform Bed - Updated Demo"));
+        Instant afterPatch = Instant.now();
 
         mockMvc.perform(get("/dppsByProductIdAndDate/04012345678901")
                         .param("date", afterCreate.toString()))
@@ -122,7 +123,7 @@ class DppRepoControllerPostgresBackendTest {
                 .andExpect(jsonPath("$.payload.characteristics.productName").value("Cir4Fun Platform Bed"));
 
         mockMvc.perform(get("/dppsByProductIdAndDate/04012345678901")
-                        .param("date", Instant.now().toString()))
+                        .param("date", afterPatch.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.characteristics.productName").value("Cir4Fun Platform Bed - Updated Demo"));
 
@@ -143,7 +144,23 @@ class DppRepoControllerPostgresBackendTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.dppIdentifiers", hasSize(1)))
+                .andExpect(jsonPath("$.payload.dppIdentifiers[0]").value(DemoDppFactory.BED_DPP_ID))
                 .andExpect(jsonPath("$.payload.nextCursor").value("1"));
+
+        mockMvc.perform(post("/dppsByProductIds")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productIdentifiers": ["04012345678901", "04012345678901", "04012345678901"],
+                                  "limit": 2,
+                                  "cursor": "1"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.dppIdentifiers", hasSize(2)))
+                .andExpect(jsonPath("$.payload.dppIdentifiers[0]").value(DemoDppFactory.BED_DPP_ID))
+                .andExpect(jsonPath("$.payload.dppIdentifiers[1]").value(DemoDppFactory.BED_DPP_ID))
+                .andExpect(jsonPath("$.payload.nextCursor").value("3"));
     }
 
     @Test
@@ -212,10 +229,49 @@ class DppRepoControllerPostgresBackendTest {
                 .andExpect(jsonPath("$.payload[*].eventType").value(not(hasItem("DPP_UPDATED"))));
     }
 
+    @Test
+    @DisplayName("PostgreSQL backend maps duplicate DPP id to DPP_CONFLICT")
+    void postgresModeDuplicateDppIdReturnsConflict() throws Exception {
+        createValidBed();
+
+        mockMvc.perform(post("/dpps")
+                        .contentType(APPLICATION_JSON)
+                        .content(codec.toJson(factory.createValidBedDpp())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.statusCode").value("ClientResourceConflict"))
+                .andExpect(jsonPath("$.messages[0].code").value("DPP_CONFLICT"));
+    }
+
+    @Test
+    @DisplayName("PostgreSQL backend maps duplicate product id to PRODUCT_CONFLICT")
+    void postgresModeDuplicateProductIdReturnsConflict() throws Exception {
+        createValidBed();
+        Dpp4Fun conflictingChair = withProductId(factory.createValidChairDpp(), "04012345678901");
+
+        mockMvc.perform(post("/dpps")
+                        .contentType(APPLICATION_JSON)
+                        .content(codec.toJson(conflictingChair)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.statusCode").value("ClientResourceConflict"))
+                .andExpect(jsonPath("$.messages[0].code").value("PRODUCT_CONFLICT"));
+    }
+
     private void createValidBed() throws Exception {
         mockMvc.perform(post("/dpps")
                         .contentType(APPLICATION_JSON)
                         .content(codec.toJson(factory.createValidBedDpp())))
                 .andExpect(status().isCreated());
+    }
+
+    private Dpp4Fun withProductId(Dpp4Fun dpp, String productId) {
+        Nameplate nameplate = dpp.getNameplate().toBuilder()
+                .gtinCode(productId)
+                .build();
+        DppCore coreDpp = dpp.getCoreDpp().toBuilder()
+                .nameplate(nameplate)
+                .build();
+        return dpp.toBuilder()
+                .coreDpp(coreDpp)
+                .build();
     }
 }

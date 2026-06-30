@@ -20,6 +20,7 @@ import java.sql.Types;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -30,10 +31,13 @@ import java.util.UUID;
 public final class PostgresDppCoreMapper {
 
     public void insertVersionData(Connection connection, long versionId, DppCore coreDpp) throws SQLException {
-        insertPassportMetadata(connection, versionId, coreDpp.getPassportMetadata());
-        insertPassportUpdateDates(connection, versionId, coreDpp.getPassportUpdateDates());
-        insertNameplate(connection, versionId, coreDpp.getNameplate());
-        insertDocumentation(connection, versionId, coreDpp.getDocumentation());
+        DppCore requiredCoreDpp = Objects.requireNonNull(coreDpp, "coreDpp must not be null");
+        insertPassportMetadata(connection, versionId,
+                Objects.requireNonNull(requiredCoreDpp.getPassportMetadata(), "coreDpp.passportMetadata must not be null"));
+        insertPassportUpdateDates(connection, versionId, requiredCoreDpp.getPassportUpdateDates());
+        insertNameplate(connection, versionId,
+                Objects.requireNonNull(requiredCoreDpp.getNameplate(), "coreDpp.nameplate must not be null"));
+        insertDocumentation(connection, versionId, requiredCoreDpp.getDocumentation());
     }
 
     public DppCore readVersionData(Connection connection, long versionId) throws SQLException {

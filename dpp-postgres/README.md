@@ -39,6 +39,94 @@ To use this module at runtime, you need a reachable PostgreSQL database. It does
 - no full Track & Trace lifecycle
 - no JSONB full-document source of truth
 
+## How The Data Is Formatted
+
+This module stores `Dpp4Fun` in a normalized relational PostgreSQL shape, not as one big JSON document.
+
+At a high level:
+
+- `dpp_passports`
+  - one logical DPP identity (`dpp_id`, `product_id`, `passport_type`)
+- `dpp_versions`
+  - one row per stored version of that DPP
+- core tables such as `dpp_passport_metadata`, `dpp_nameplates`, `dpp_organizations`, `dpp_contacts`
+  - reusable `DppCore` content
+- `dpp4fun_*` tables
+  - `Dpp4Fun`-specific classification, characteristics, dimensions, features, and bill-of-materials content
+- `dpp_lifecycle_events`
+  - lightweight audit/lifecycle event history
+
+So the stored shape is relational:
+
+`One passport -> many versions -> one version joins to many core rows and many dpp4fun rows`
+
+If you want the exact table layout, see:
+
+- `dpp-postgres-core/src/main/resources/postgres/core-schema.sql`
+- `dpp4fun-postgres/src/main/resources/postgres/dpp4fun-schema.sql`
+
+## Schema Map
+
+This section links the main PostgreSQL tables to the Java classes that write or read them.
+
+Core/versioning tables:
+
+- `dpp_passports`
+  - used by `PostgresDppVersionRepositorySupport`
+- `dpp_versions`
+  - used by `PostgresDppVersionRepositorySupport`
+- `dpp_lifecycle_events`
+  - used by `PostgresLifecycleEventRepository`
+
+Reusable `DppCore` tables:
+
+- `dpp_passport_metadata`
+  - used by `PostgresDppCoreMapper`
+- `dpp_passport_update_dates`
+  - used by `PostgresDppCoreMapper`
+- `dpp_nameplates`
+  - used by `PostgresDppCoreMapper`
+- `dpp_organizations`
+  - used by `PostgresDppCoreMapper`
+- `dpp_contacts`
+  - used by `PostgresDppCoreMapper`
+- `dpp_addresses`
+  - used by `PostgresDppCoreMapper`
+- `dpp_emails`
+  - used by `PostgresDppCoreMapper`
+- `dpp_telephones`
+  - used by `PostgresDppCoreMapper`
+- `dpp_documentation`
+  - used by `PostgresDppCoreMapper`
+
+`Dpp4Fun`-specific tables:
+
+- `dpp4fun_classifications`
+  - used by `Dpp4FunPostgresMapper`
+- `dpp4fun_classification_tags`
+  - used by `Dpp4FunPostgresMapper`
+- `dpp4fun_characteristics`
+  - used by `Dpp4FunPostgresMapper`
+- `dpp4fun_dimensions`
+  - used by `Dpp4FunPostgresMapper`
+- `dpp4fun_features`
+  - used by `Dpp4FunPostgresMapper`
+- `dpp4fun_bill_of_materials`
+  - used by `Dpp4FunPostgresMapper`
+- `dpp4fun_materials`
+  - used by `Dpp4FunPostgresMapper`
+- `dpp4fun_components`
+  - used by `Dpp4FunPostgresMapper`
+- `dpp4fun_parts`
+  - used by `Dpp4FunPostgresMapper`
+
+Query-oriented code:
+
+- `Dpp4FunQueryRepository`
+  - reads from `dpp_passports`, `dpp_versions`, `dpp4fun_classifications`, `dpp4fun_characteristics`, `dpp4fun_materials`, `dpp4fun_components`, and `dpp4fun_parts`
+- `Dpp4FunPostgresRepository`
+  - is the main orchestration/facade; it delegates actual table reads/writes to `PostgresDppVersionRepositorySupport`, `PostgresDppCoreMapper`, `Dpp4FunPostgresMapper`, `PostgresLifecycleEventRepository`, and `Dpp4FunQueryRepository`
+
 ## Build A `Dpp4Fun`
 
 ```java
@@ -192,6 +280,59 @@ java.util.List<DppLifecycleEventRecord> events = repository.findEventsByDppId(dp
 ```
 
 The event model is simple mock-compatible audit history, not full Track & Trace.
+
+## Query Support
+
+This module currently supports simple repository-style queries, not a general complex-query engine.
+
+Supported query patterns:
+
+- current lookup by `dppId`
+- current lookup by `productId`
+- historical lookup by `productId` and timestamp
+- version history by `dppId`
+- lifecycle events by `dppId`
+- batch lookup of active `dppId`s by product-id list
+- simple filtered `Dpp4Fun` search projections
+
+The current `Dpp4Fun` search supports exact-match filters for:
+
+- `sector`
+- `category`
+- `brand`
+- `productType`
+- `materialName`
+- `componentName`
+- `partName`
+
+with `limit` and `offset` paging.
+
+Example:
+
+```java
+List<Dpp4FunSearchResult> results = repository.search(
+        new Dpp4FunSearchCriteria(
+                "Furniture",
+                "Beds",
+                null,
+                null,
+                null,
+                null,
+                null,
+                10,
+                0
+        )
+);
+```
+
+What it does not currently provide:
+
+- arbitrary boolean query composition
+- range queries
+- fuzzy/full-text search
+- dynamic sorting
+- analytics/aggregation query APIs
+- JSON-path querying
 
 ## Build And Test
 

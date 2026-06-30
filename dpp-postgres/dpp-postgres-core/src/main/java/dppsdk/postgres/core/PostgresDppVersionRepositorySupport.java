@@ -2,7 +2,6 @@ package dppsdk.postgres.core;
 
 import dppsdk.core.model.Dpp;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -20,11 +19,7 @@ import java.util.Optional;
  */
 public final class PostgresDppVersionRepositorySupport {
 
-    private final DataSource dataSource;
-
-    public PostgresDppVersionRepositorySupport(DataSource dataSource) {
-        this.dataSource = dataSource;
-        PostgresJdbcSupport.initializeSchema(dataSource, "/postgres/core-schema.sql");
+    public PostgresDppVersionRepositorySupport() {
     }
 
     public void initializeSchema(Connection connection) {
@@ -89,6 +84,36 @@ public final class PostgresDppVersionRepositorySupport {
         }
     }
 
+    public boolean existsAnyByDppId(Connection connection, String dppId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                select 1
+                from dpp_passports
+                where dpp_id = ?
+                """)) {
+            statement.setString(1, dppId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next();
+            }
+        }
+    }
+
+    public Optional<Long> findCurrentVersionNoByDppId(Connection connection, String dppId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                select v.version_no
+                from dpp_passports p
+                join dpp_versions v on v.passport_id = p.id
+                where p.dpp_id = ? and v.status = 'ACTIVE'
+                """)) {
+            statement.setString(1, dppId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return Optional.empty();
+                }
+                return Optional.of(resultSet.getLong("version_no"));
+            }
+        }
+    }
+
     public List<VersionRecord> findHistoryByDppId(Connection connection, String dppId) throws SQLException {
         List<VersionRecord> history = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement("""
@@ -126,11 +151,15 @@ public final class PostgresDppVersionRepositorySupport {
     ) throws SQLException {
         Optional<VersionRecord> current = findCurrentByDppIdForUpdate(connection, dpp.getDppId());
         if (current.isEmpty()) {
-            throw new IllegalStateException("No active DPP found for " + dpp.getDppId());
+            throw new PostgresDppNotFoundException(dpp.getDppId());
         }
         VersionRecord currentRecord = current.get();
         if (currentRecord.versionNo() != expectedCurrentVersion) {
-            throw new IllegalStateException("Stale expected version " + expectedCurrentVersion + " for " + dpp.getDppId());
+            throw new PostgresDppVersionConflictException(
+                    dpp.getDppId(),
+                    expectedCurrentVersion,
+                    currentRecord.versionNo()
+            );
         }
         if (!currentRecord.productId().equals(dpp.getProductId())) {
             throw new IllegalArgumentException("productId is immutable for " + dpp.getDppId());
@@ -162,11 +191,15 @@ public final class PostgresDppVersionRepositorySupport {
     public VersionRecord softDelete(Connection connection, String dppId, long expectedCurrentVersion, Instant deletedAt) throws SQLException {
         Optional<VersionRecord> current = findCurrentByDppIdForUpdate(connection, dppId);
         if (current.isEmpty()) {
-            throw new IllegalStateException("No active DPP found for " + dppId);
+            throw new PostgresDppNotFoundException(dppId);
         }
         VersionRecord currentRecord = current.get();
         if (currentRecord.versionNo() != expectedCurrentVersion) {
-            throw new IllegalStateException("Stale expected version " + expectedCurrentVersion + " for " + dppId);
+            throw new PostgresDppVersionConflictException(
+                    dppId,
+                    expectedCurrentVersion,
+                    currentRecord.versionNo()
+            );
         }
         updateVersionStatus(connection, currentRecord.versionId(), PostgresDppStatus.DELETED, deletedAt);
         try (PreparedStatement statement = connection.prepareStatement("""

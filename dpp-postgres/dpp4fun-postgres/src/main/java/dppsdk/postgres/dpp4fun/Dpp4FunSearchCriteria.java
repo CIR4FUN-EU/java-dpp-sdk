@@ -14,6 +14,15 @@ public record Dpp4FunSearchCriteria(
         Integer limit,
         Integer offset
 ) {
+    public Dpp4FunSearchCriteria {
+        if (limit != null && limit <= 0) {
+            throw new IllegalArgumentException("limit must be greater than zero");
+        }
+        if (offset != null && offset < 0) {
+            throw new IllegalArgumentException("offset must be zero or greater");
+        }
+    }
+
     public int limitOrDefault() {
         return limit == null ? 50 : limit;
     }

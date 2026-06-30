@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
+import java.time.Clock;
 
 /**
  * Wiring for the mock repository backend.
@@ -19,6 +20,11 @@ import javax.sql.DataSource;
  */
 @Configuration
 class RepoConfiguration {
+
+    @Bean
+    Clock systemClock() {
+        return Clock.systemUTC();
+    }
 
     @Bean
     Dpp4FunJsonCodec dppJsonCodec() {
@@ -60,9 +66,8 @@ class RepoConfiguration {
     @Bean
     @ConditionalOnProperty(name = "dpp.repo.backend", havingValue = "postgres")
     DppRepoBackend postgresRepoBackend(Dpp4FunPostgresRepository repository,
-                                       com.fasterxml.jackson.databind.ObjectMapper objectMapper,
-                                       DataSource dataSource) {
-        return new PostgresDppRepoBackend(repository, objectMapper, dataSource);
+                                       com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
+        return new PostgresDppRepoBackend(repository, objectMapper);
     }
 
     @Bean
