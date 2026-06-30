@@ -124,17 +124,31 @@ What this means in practice:
 
 Run these from the monorepo root.
 
-Use Docker Compose for both PostgreSQL servers plus Dockerized mock services:
+Use Docker Compose for both PostgreSQL servers plus Dockerized mock services. For PostgreSQL-enabled mock services, build from the root reactor so `dpp-postgres` is included.
 
 ```powershell
-.\mvnw.cmd -f dpp-sdk-demo/pom.xml clean package
+.\mvnw.cmd clean package
+docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up --build
+```
+
+Focused faster option:
+
+```powershell
+.\mvnw.cmd -pl dpp-postgres/dpp4fun-postgres,dpp-sdk-demo/mock-dpp-repo,dpp-sdk-demo/mock-eu-registry -am clean package
 docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up --build
 ```
 
 Linux/macOS:
 
 ```bash
-./mvnw -f dpp-sdk-demo/pom.xml clean package
+./mvnw clean package
+docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up --build
+```
+
+Focused faster option:
+
+```bash
+./mvnw -pl dpp-postgres/dpp4fun-postgres,dpp-sdk-demo/mock-dpp-repo,dpp-sdk-demo/mock-eu-registry -am clean package
 docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up --build
 ```
 
@@ -146,12 +160,12 @@ $env:DPP_REPO_BACKEND="postgres"
 $env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5433/dpp_repo"
 $env:SPRING_DATASOURCE_USERNAME="dpp_repo"
 $env:SPRING_DATASOURCE_PASSWORD="dpp_repo"
-java -jar dpp-sdk-demo\mock-dpp-repo\target\mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=false
+java -jar dpp-sdk-demo\mock-dpp-repo\target\mock-dpp-repo-*-exec.jar --debug=false
 $env:DPP_REGISTRY_BACKEND="postgres"
 $env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5434/dpp_registry"
 $env:SPRING_DATASOURCE_USERNAME="dpp_registry"
 $env:SPRING_DATASOURCE_PASSWORD="dpp_registry"
-java -jar dpp-sdk-demo\mock-eu-registry\target\mock-eu-registry-1.0.0-SNAPSHOT-exec.jar --debug=false
+java -jar dpp-sdk-demo\mock-eu-registry\target\mock-eu-registry-*-exec.jar --debug=false
 ```
 
 Linux/macOS:
@@ -162,12 +176,12 @@ export DPP_REPO_BACKEND=postgres
 export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5433/dpp_repo
 export SPRING_DATASOURCE_USERNAME=dpp_repo
 export SPRING_DATASOURCE_PASSWORD=dpp_repo
-java -jar dpp-sdk-demo/mock-dpp-repo/target/mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=false
+java -jar dpp-sdk-demo/mock-dpp-repo/target/mock-dpp-repo-*-exec.jar --debug=false
 export DPP_REGISTRY_BACKEND=postgres
 export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5434/dpp_registry
 export SPRING_DATASOURCE_USERNAME=dpp_registry
 export SPRING_DATASOURCE_PASSWORD=dpp_registry
-java -jar dpp-sdk-demo/mock-eu-registry/target/mock-eu-registry-1.0.0-SNAPSHOT-exec.jar --debug=false
+java -jar dpp-sdk-demo/mock-eu-registry/target/mock-eu-registry-*-exec.jar --debug=false
 ```
 
 Connection rule:
@@ -177,6 +191,7 @@ Connection rule:
 - from a local JAR or IDE, use `jdbc:postgresql://localhost:5433/dpp_repo` for the repo and `jdbc:postgresql://localhost:5434/dpp_registry` for the registry
 
 Detailed demo runtime options are in [dpp-sdk-demo/README.md](dpp-sdk-demo/README.md). PostgreSQL module usage examples are in [dpp-postgres/README.md](dpp-postgres/README.md).
+Docker Compose keeps the mock repo and mock registry PostgreSQL data in separate named volumes. `docker compose down` keeps that data; `docker compose down -v` removes it.
 
 ## Entry-Point Example
 
@@ -388,6 +403,18 @@ Linux/macOS:
 ./mvnw -f dpp-sdk-demo/pom.xml clean package    # Build the demo modules and create the runnable jars
 ```
 
+For PostgreSQL-enabled mock services, build from the root reactor so `dpp-postgres` is included:
+
+```powershell
+.\mvnw.cmd clean package
+.\mvnw.cmd -pl dpp-postgres/dpp4fun-postgres,dpp-sdk-demo/mock-dpp-repo,dpp-sdk-demo/mock-eu-registry -am clean package
+```
+
+```bash
+./mvnw clean package
+./mvnw -pl dpp-postgres/dpp4fun-postgres,dpp-sdk-demo/mock-dpp-repo,dpp-sdk-demo/mock-eu-registry -am clean package
+```
+
 Reactor build order is:
 
 1. `dpp-datamodel`
@@ -399,22 +426,22 @@ Subproject wrappers still exist, but the root wrapper is now the canonical entry
 
 ## Run Demo Services as JARs
 
-Package the repo first with the root wrapper or `-f dpp-sdk-demo/pom.xml clean package`.
+Package the repo first with the root wrapper. If you want the PostgreSQL-enabled mock services, use a root-reactor build so `dpp-postgres` is included.
 
 Windows:
 
 ```powershell
-java -jar dpp-sdk-demo\mock-eu-registry\target\mock-eu-registry-1.0.0-SNAPSHOT-exec.jar --debug=false     # Start the mock registry service
-java -jar dpp-sdk-demo\mock-dpp-repo\target\mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=false           # Start the mock repo service
-java -jar dpp-sdk-demo\dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar http --debug=false # Run the HTTP integration demo flow
+java -jar dpp-sdk-demo\mock-eu-registry\target\mock-eu-registry-*-exec.jar --debug=false     # Start the mock registry service
+java -jar dpp-sdk-demo\mock-dpp-repo\target\mock-dpp-repo-*-exec.jar --debug=false           # Start the mock repo service
+java -jar dpp-sdk-demo\dpp-integration-demo\target\dpp-integration-demo-*.jar http --debug=false # Run the HTTP integration demo flow
 ```
 
 Linux/macOS:
 
 ```bash
-java -jar dpp-sdk-demo/mock-eu-registry/target/mock-eu-registry-1.0.0-SNAPSHOT-exec.jar --debug=false     # Start the mock registry service
-java -jar dpp-sdk-demo/mock-dpp-repo/target/mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=false           # Start the mock repo service
-java -jar dpp-sdk-demo/dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar http --debug=false # Run the HTTP integration demo flow
+java -jar dpp-sdk-demo/mock-eu-registry/target/mock-eu-registry-*-exec.jar --debug=false     # Start the mock registry service
+java -jar dpp-sdk-demo/mock-dpp-repo/target/mock-dpp-repo-*-exec.jar --debug=false           # Start the mock repo service
+java -jar dpp-sdk-demo/dpp-integration-demo/target/dpp-integration-demo-*.jar http --debug=false # Run the HTTP integration demo flow
 ```
 
 Additional integration demo modes:
@@ -439,15 +466,29 @@ This workflow requires source code, Java, the root Maven wrapper, and Docker.
 Windows:
 
 ```powershell
-.\mvnw.cmd -f dpp-sdk-demo/pom.xml clean package                                           # Build the demo jars used by the Docker images
+.\mvnw.cmd clean package                                                                   # Preferred full root-reactor build for Docker and PostgreSQL workflows
+docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up --build  # Build the local images and start the demo services plus both PostgreSQL containers
+```
+
+Focused faster option:
+
+```powershell
+.\mvnw.cmd -pl dpp-postgres/dpp4fun-postgres,dpp-sdk-demo/mock-dpp-repo,dpp-sdk-demo/mock-eu-registry -am clean package
 docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up --build  # Build the local images and start the demo services plus both PostgreSQL containers
 ```
 
 Linux/macOS:
 
 ```bash
-./mvnw -f dpp-sdk-demo/pom.xml clean package                                           # Build the demo jars used by the Docker images
-DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up --build  # Build the local images and start the demo services plus both PostgreSQL containers
+./mvnw clean package                                                                   # Preferred full root-reactor build for Docker and PostgreSQL workflows
+docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up --build  # Build the local images and start the demo services plus both PostgreSQL containers
+```
+
+Focused faster option:
+
+```bash
+./mvnw -pl dpp-postgres/dpp4fun-postgres,dpp-sdk-demo/mock-dpp-repo,dpp-sdk-demo/mock-eu-registry -am clean package
+docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up --build  # Build the local images and start the demo services plus both PostgreSQL containers
 ```
 
 ### Docker networking note
@@ -455,6 +496,7 @@ DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose -f dpp-sdk-demo/docker-compos
 - From the host machine, use `localhost`.
 - From one container to another, use the service name `mock-dpp-repo`.
 - The registry container must reach the repo at `http://mock-dpp-repo:8080`, not `http://localhost:8080`.
+- Docker Compose starts separate PostgreSQL services and named volumes for the repo and registry. `docker compose down` keeps the demo data; `docker compose down -v` removes it.
 
 ## Useful URLs
 

@@ -38,9 +38,16 @@ class MockRegistrySeedDataPostgresBackendTest {
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
+        startPostgresIfNeeded();
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+    }
+
+    private static void startPostgresIfNeeded() {
+        if (!POSTGRES.isRunning()) {
+            POSTGRES.start();
+        }
     }
 
     @Autowired
