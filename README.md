@@ -91,77 +91,90 @@ The root-level `dpp-postgres` module is optional.
 - `mock-dpp-repo` can run with either backend:
   - `dpp.repo.backend=memory`
   - `dpp.repo.backend=postgres`
+- `mock-eu-registry` can run with either backend:
+  - `dpp.registry.backend=memory`
+  - `dpp.registry.backend=postgres`
 - Memory remains the default mock backend.
-- As the repository is configured right now, the default startup mode is still memory mode unless you explicitly set the PostgreSQL backend property.
+- As the repository is configured right now, both mock services still default to memory mode unless you explicitly set the PostgreSQL backend property.
 - You only need to run a PostgreSQL server if you choose PostgreSQL persistence. For the default memory mode, you do not need PostgreSQL running.
 
-### Backend choice for `mock-dpp-repo`
+### Backend choice for the mock services
 
-Use the in-memory backend explicitly:
+Use the in-memory backends explicitly:
 
 ```properties
 dpp.repo.backend=memory
+dpp.registry.backend=memory
 ```
 
-Use the PostgreSQL backend explicitly:
+Use the PostgreSQL backends explicitly:
 
 ```properties
 dpp.repo.backend=postgres
-spring.datasource.url=jdbc:postgresql://localhost:5432/dpp
-spring.datasource.username=postgres
-spring.datasource.password=postgres
+dpp.registry.backend=postgres
 ```
 
 What this means in practice:
 
-- If you do nothing, `mock-dpp-repo` starts in memory mode.
-- If you set `dpp.repo.backend=postgres`, then you must have a PostgreSQL server running and reachable with the configured datasource settings.
-- The HTTP API stays the same in both modes. Only the storage backend changes.
+- If you do nothing, both `mock-dpp-repo` and `mock-eu-registry` start in memory mode.
+- If you set either PostgreSQL backend property, that service must have a reachable PostgreSQL datasource.
+- The HTTP APIs stay the same in both modes. Only the storage backend changes.
 
-### Quick Run: Mock Repo With PostgreSQL
+### Quick Run: Mock Repo And Mock Registry With PostgreSQL
 
 Run these from the monorepo root.
 
-Use Docker Compose for PostgreSQL plus Dockerized mock services:
+Use Docker Compose for both PostgreSQL servers plus Dockerized mock services:
 
 ```powershell
 .\mvnw.cmd -f dpp-sdk-demo/pom.xml clean package
-docker compose -f dpp-sdk-demo/docker-compose.build.yml -f dpp-sdk-demo/docker-compose.postgres.yml --env-file dpp-sdk-demo/.env up --build
+docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up --build
 ```
 
 Linux/macOS:
 
 ```bash
 ./mvnw -f dpp-sdk-demo/pom.xml clean package
-docker compose -f dpp-sdk-demo/docker-compose.build.yml -f dpp-sdk-demo/docker-compose.postgres.yml --env-file dpp-sdk-demo/.env up --build
+docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up --build
 ```
 
-Use Docker Compose for PostgreSQL only, then run the mock repo as a local JAR:
+Use Docker Compose for the PostgreSQL containers only, then run the mock services as local JARs:
 
 ```powershell
-docker compose -f dpp-sdk-demo/docker-compose.postgres.yml --env-file dpp-sdk-demo/.env up postgres
+docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up mock-repo-postgres mock-registry-postgres
 $env:DPP_REPO_BACKEND="postgres"
-$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/dpp_repo"
-$env:SPRING_DATASOURCE_USERNAME="dpp"
-$env:SPRING_DATASOURCE_PASSWORD="dpp"
+$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5433/dpp_repo"
+$env:SPRING_DATASOURCE_USERNAME="dpp_repo"
+$env:SPRING_DATASOURCE_PASSWORD="dpp_repo"
 java -jar dpp-sdk-demo\mock-dpp-repo\target\mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=false
+$env:DPP_REGISTRY_BACKEND="postgres"
+$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5434/dpp_registry"
+$env:SPRING_DATASOURCE_USERNAME="dpp_registry"
+$env:SPRING_DATASOURCE_PASSWORD="dpp_registry"
+java -jar dpp-sdk-demo\mock-eu-registry\target\mock-eu-registry-1.0.0-SNAPSHOT-exec.jar --debug=false
 ```
 
 Linux/macOS:
 
 ```bash
-docker compose -f dpp-sdk-demo/docker-compose.postgres.yml --env-file dpp-sdk-demo/.env up postgres
+docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up mock-repo-postgres mock-registry-postgres
 export DPP_REPO_BACKEND=postgres
-export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/dpp_repo
-export SPRING_DATASOURCE_USERNAME=dpp
-export SPRING_DATASOURCE_PASSWORD=dpp
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5433/dpp_repo
+export SPRING_DATASOURCE_USERNAME=dpp_repo
+export SPRING_DATASOURCE_PASSWORD=dpp_repo
 java -jar dpp-sdk-demo/mock-dpp-repo/target/mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=false
+export DPP_REGISTRY_BACKEND=postgres
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5434/dpp_registry
+export SPRING_DATASOURCE_USERNAME=dpp_registry
+export SPRING_DATASOURCE_PASSWORD=dpp_registry
+java -jar dpp-sdk-demo/mock-eu-registry/target/mock-eu-registry-1.0.0-SNAPSHOT-exec.jar --debug=false
 ```
 
 Connection rule:
 
-- inside Docker Compose, the repo container uses `jdbc:postgresql://postgres:5432/dpp_repo`
-- from a local JAR or IDE, use `jdbc:postgresql://localhost:5432/dpp_repo`
+- inside Docker Compose, the repo container uses `jdbc:postgresql://mock-repo-postgres:5432/dpp_repo`
+- inside Docker Compose, the registry container uses `jdbc:postgresql://mock-registry-postgres:5432/dpp_registry`
+- from a local JAR or IDE, use `jdbc:postgresql://localhost:5433/dpp_repo` for the repo and `jdbc:postgresql://localhost:5434/dpp_registry` for the registry
 
 Detailed demo runtime options are in [dpp-sdk-demo/README.md](dpp-sdk-demo/README.md). PostgreSQL module usage examples are in [dpp-postgres/README.md](dpp-postgres/README.md).
 
@@ -342,7 +355,7 @@ Windows:
 .\mvnw.cmd clean test     # Rebuild and run the full reactor test suite
 .\mvnw.cmd clean package  # Build all modules and create the packaged artifacts
 .\mvnw.cmd clean verify   # Run the full verification lifecycle across the reactor
-.\mvnw.cmd -pl dpp-postgres/dpp4fun-postgres,dpp-sdk-demo/mock-dpp-repo -am test  # Focused PostgreSQL + mock backend validation
+.\mvnw.cmd -pl dpp-postgres/dpp4fun-postgres,dpp-sdk-demo/mock-dpp-repo,dpp-sdk-demo/mock-eu-registry -am test  # Focused PostgreSQL + mock backend validation
 ```
 
 Linux/macOS:
@@ -352,7 +365,7 @@ Linux/macOS:
 ./mvnw clean test     # Rebuild and run the full reactor test suite
 ./mvnw clean package  # Build all modules and create the packaged artifacts
 ./mvnw clean verify   # Run the full verification lifecycle across the reactor
-./mvnw -pl dpp-postgres/dpp4fun-postgres,dpp-sdk-demo/mock-dpp-repo -am test  # Focused PostgreSQL + mock backend validation
+./mvnw -pl dpp-postgres/dpp4fun-postgres,dpp-sdk-demo/mock-dpp-repo,dpp-sdk-demo/mock-eu-registry -am test  # Focused PostgreSQL + mock backend validation
 ```
 
 ## Build Individual Projects
@@ -415,7 +428,7 @@ Note:
 
 - The commands above work from the repo root with the default ports `8080` and `8081`.
 - If you want `dpp-sdk-demo/.env` to override ports for direct JAR runs, start those processes from inside `dpp-sdk-demo`.
-- With the current checked-in configuration, `mock-dpp-repo` starts in memory mode unless you add `DPP_REPO_BACKEND=postgres` and datasource settings.
+- With the current checked-in application configuration, both mock services start in memory mode unless you add `DPP_REPO_BACKEND=postgres` or `DPP_REGISTRY_BACKEND=postgres` plus datasource settings.
 
 ## Run with Docker
 
@@ -427,14 +440,14 @@ Windows:
 
 ```powershell
 .\mvnw.cmd -f dpp-sdk-demo/pom.xml clean package                                           # Build the demo jars used by the Docker images
-docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up --build  # Build the local images and start the demo services
+docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up --build  # Build the local images and start the demo services plus both PostgreSQL containers
 ```
 
 Linux/macOS:
 
 ```bash
 ./mvnw -f dpp-sdk-demo/pom.xml clean package                                           # Build the demo jars used by the Docker images
-DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose -f dpp-sdk-demo/docker-compose.build.yml --env-file dpp-sdk-demo/.env up --build  # Build the local images and start the demo services
+DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose -f dpp-sdk-demo/docker-compose.yml --env-file dpp-sdk-demo/.env up --build  # Build the local images and start the demo services plus both PostgreSQL containers
 ```
 
 ### Docker networking note

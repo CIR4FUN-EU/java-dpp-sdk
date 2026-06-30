@@ -1,13 +1,53 @@
 services:
+  mock-repo-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${MOCK_REPO_POSTGRES_DB:-dpp_repo}
+      POSTGRES_USER: ${MOCK_REPO_POSTGRES_USER:-dpp_repo}
+      POSTGRES_PASSWORD: ${MOCK_REPO_POSTGRES_PASSWORD:-dpp_repo}
+    ports:
+      - "${MOCK_REPO_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - mock-repo-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MOCK_REPO_POSTGRES_USER:-dpp_repo} -d ${MOCK_REPO_POSTGRES_DB:-dpp_repo}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mock-registry-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${MOCK_REGISTRY_POSTGRES_DB:-dpp_registry}
+      POSTGRES_USER: ${MOCK_REGISTRY_POSTGRES_USER:-dpp_registry}
+      POSTGRES_PASSWORD: ${MOCK_REGISTRY_POSTGRES_PASSWORD:-dpp_registry}
+    ports:
+      - "${MOCK_REGISTRY_POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - mock-registry-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MOCK_REGISTRY_POSTGRES_USER:-dpp_registry} -d ${MOCK_REGISTRY_POSTGRES_DB:-dpp_registry}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   mock-dpp-repo:
     image: ${DPP_IMAGE_REGISTRY:-ghcr.io/YOUR_ORG}/${DPP_REPO_IMAGE_NAME:-mock-dpp-repo}:${DPP_IMAGE_TAG:-0.1.0}
     build:
       context: .
       dockerfile: mock-dpp-repo/Dockerfile
+    depends_on:
+      mock-repo-postgres:
+        condition: service_healthy
     environment:
+      MOCK_REPO_PORT: ${MOCK_REPO_PORT:-8080}
       DPP_REPO_PORT: ${DPP_REPO_PORT:-8080}
+      DPP_REPO_BACKEND: postgres
+      SPRING_DATASOURCE_URL: jdbc:postgresql://mock-repo-postgres:5432/${MOCK_REPO_POSTGRES_DB:-dpp_repo}
+      SPRING_DATASOURCE_USERNAME: ${MOCK_REPO_POSTGRES_USER:-dpp_repo}
+      SPRING_DATASOURCE_PASSWORD: ${MOCK_REPO_POSTGRES_PASSWORD:-dpp_repo}
     ports:
-      - "${DPP_REPO_PORT:-8080}:${DPP_REPO_PORT:-8080}"
+      - "${MOCK_REPO_PORT:-8080}:${MOCK_REPO_PORT:-8080}"
 
   mock-eu-registry:
     image: ${DPP_IMAGE_REGISTRY:-ghcr.io/YOUR_ORG}/${DPP_REGISTRY_IMAGE_NAME:-mock-eu-registry}:${DPP_IMAGE_TAG:-0.1.0}
@@ -15,10 +55,23 @@ services:
       context: .
       dockerfile: mock-eu-registry/Dockerfile
     depends_on:
-      - mock-dpp-repo
+      mock-dpp-repo:
+        condition: service_started
+      mock-registry-postgres:
+        condition: service_healthy
     environment:
+      MOCK_REPO_PORT: ${MOCK_REPO_PORT:-8080}
       DPP_REPO_PORT: ${DPP_REPO_PORT:-8080}
+      MOCK_REGISTRY_PORT: ${MOCK_REGISTRY_PORT:-8081}
       DPP_REGISTRY_PORT: ${DPP_REGISTRY_PORT:-8081}
-      DEMO_REPO_VERIFICATION_BASE_URL: http://mock-dpp-repo:${DPP_REPO_PORT:-8080}
+      DPP_REGISTRY_BACKEND: postgres
+      DEMO_REPO_VERIFICATION_BASE_URL: http://mock-dpp-repo:${MOCK_REPO_PORT:-8080}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://mock-registry-postgres:5432/${MOCK_REGISTRY_POSTGRES_DB:-dpp_registry}
+      SPRING_DATASOURCE_USERNAME: ${MOCK_REGISTRY_POSTGRES_USER:-dpp_registry}
+      SPRING_DATASOURCE_PASSWORD: ${MOCK_REGISTRY_POSTGRES_PASSWORD:-dpp_registry}
     ports:
-      - "${DPP_REGISTRY_PORT:-8081}:${DPP_REGISTRY_PORT:-8081}"
+      - "${MOCK_REGISTRY_PORT:-8081}:${MOCK_REGISTRY_PORT:-8081}"
+
+volumes:
+  mock-repo-postgres-data:
+  mock-registry-postgres-data:

@@ -16,18 +16,18 @@ import org.springframework.stereotype.Service;
 @Service
 class DppRegistryService {
 
-    private final InMemoryRegistryStore store;
+    private final RegistryBackend backend;
     private final RepositoryDppVerifier repositoryDppVerifier;
     private final String publicRepoBaseUrl;
     private final String verificationRepoBaseUrl;
 
     DppRegistryService(
-            InMemoryRegistryStore store,
+            RegistryBackend backend,
             RepositoryDppVerifier repositoryDppVerifier,
-            @Value("${demo.repo.public-base-url:http://localhost:${DPP_REPO_PORT:8080}}") String publicRepoBaseUrl,
-            @Value("${demo.repo.verification-base-url:http://localhost:${DPP_REPO_PORT:8080}}") String verificationRepoBaseUrl
+            @Value("${demo.repo.public-base-url:http://localhost:${MOCK_REPO_PORT:${DPP_REPO_PORT:8080}}}") String publicRepoBaseUrl,
+            @Value("${demo.repo.verification-base-url:http://localhost:${MOCK_REPO_PORT:${DPP_REPO_PORT:8080}}}") String verificationRepoBaseUrl
     ) {
-        this.store = store;
+        this.backend = backend;
         this.repositoryDppVerifier = repositoryDppVerifier;
         this.publicRepoBaseUrl = publicRepoBaseUrl;
         this.verificationRepoBaseUrl = verificationRepoBaseUrl;
@@ -42,14 +42,14 @@ class DppRegistryService {
         String dppIdentifier = requireNonBlank(request.getDppIdentifier(), "dppIdentifier");
         String operatorIdentifier = requireNonBlank(request.getOperatorIdentifier(), "operatorIdentifier");
         String repoUrl = requireNonBlank(request.getRepoUrl(), "repoUrl");
-        if (store.existsByDppId(dppIdentifier)) {
+        if (backend.existsByDppId(dppIdentifier)) {
             throw new RegistryApiException(DppStatusCode.ClientResourceConflict, "REGISTRY_CONFLICT",
                     "A registry record already exists for dpp id " + dppIdentifier);
         }
 
         repositoryDppVerifier.verifyActiveDpp(repoUrl, verificationRepoUrl(repoUrl), dppIdentifier);
 
-        RegistryRecord record = store.create(
+        RegistryRecord record = backend.create(
                 productIdentifier,
                 dppIdentifier,
                 operatorIdentifier,
@@ -62,21 +62,21 @@ class DppRegistryService {
     }
 
     RegistryRecordPayload readByRegistryId(String registryId) {
-        RegistryRecord record = store.findByRegistryId(registryId)
+        RegistryRecord record = backend.findByRegistryId(registryId)
                 .orElseThrow(() -> new RegistryApiException(DppStatusCode.ClientErrorResourceNotFound,
                         "REGISTRY_NOT_FOUND", "No registry record found for id " + registryId));
         return toPayload(record);
     }
 
     RegistryRecordPayload readByDppId(String dppId) {
-        RegistryRecord record = store.findByDppId(dppId)
+        RegistryRecord record = backend.findByDppId(dppId)
                 .orElseThrow(() -> new RegistryApiException(DppStatusCode.ClientErrorResourceNotFound,
                         "REGISTRY_NOT_FOUND", "No registry record found for dpp id " + dppId));
         return toPayload(record);
     }
 
     void clear() {
-        store.clear();
+        backend.clear();
     }
 
     private String requireNonBlank(String value, String fieldName) {
