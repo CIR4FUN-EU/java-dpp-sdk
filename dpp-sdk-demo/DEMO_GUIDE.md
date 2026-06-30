@@ -125,8 +125,8 @@ Presenter note:
 - Use the local container build workflow from `README.md` when you want to demonstrate the current Dockerized maintainer path.
 - Use the published-image pull or push workflows from `README.md` only when that operating context matters to the audience.
 - `dpp-sdk-demo/.env` carries the current image names, tags, and default ports used by those workflows.
-- The repo service defaults to the in-memory backend, which needs no PostgreSQL server. Use the PostgreSQL run options in `README.md` when you want the same HTTP API backed by PostgreSQL, either with only the database in Docker and the app local or with both running through Docker Compose.
-- In both modes, validation, JSON Merge Patch, and fine-granular element-path handling stay in the mock service layer. PostgreSQL only changes the storage backend.
+- Both services default to the in-memory backend, which needs no PostgreSQL server. Use the PostgreSQL run options in `README.md` when you want the same HTTP APIs backed by PostgreSQL, either with only the databases in Docker and the apps local or with all four containers running through Docker Compose.
+- In both modes, the repo keeps validation, JSON Merge Patch, and fine-granular element-path handling in the mock service layer, and the registry keeps request validation, duplicate checks, repo `HEAD` verification, and response mapping there. PostgreSQL only changes persistence.
 
 Base URLs for the live demo:
 
@@ -147,6 +147,7 @@ Container networking caveat:
 - The registry container must reach the repo container at `http://mock-dpp-repo:${DPP_REPO_PORT}`.
 - `localhost` inside the registry container points back to the registry container itself.
 - The registry handles that internal container-to-container hop automatically when the submitted public repo URL matches the configured public repo base URL.
+- In PostgreSQL Docker mode, the repo and registry also talk to separate database containers: `mock-repo-postgres` and `mock-registry-postgres`.
 
 Registry verification config note:
 
@@ -212,7 +213,7 @@ Say:
 - The registry stores only registration metadata, not the full DPP JSON.
 - The registry trusts the repo as the validated DPP store and does not run SDK validation itself.
 - The repo service does not automatically call the registry in this demo.
-- For this phase the registry is purely in-memory and does not call a real EU service.
+- The registry can use memory or a local PostgreSQL backend in this demo, but it still does not call a real EU service.
 - The two `GET /registry/dpps/...` endpoints are mock/internal convenience helpers for tests and debugging.
 
 ## 6. Show Invalid And Malformed Input
@@ -259,7 +260,7 @@ Mocked:
 
 - EU registry behavior
 - DPP repository behavior
-- Persistence, using default in-memory storage or an optional PostgreSQL-backed repo adapter
+- Persistence, using default in-memory storage or optional PostgreSQL-backed repo and registry adapters
 
 Not implemented:
 

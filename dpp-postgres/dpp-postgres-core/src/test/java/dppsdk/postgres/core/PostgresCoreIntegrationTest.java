@@ -90,6 +90,7 @@ class PostgresCoreIntegrationTest {
 
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
+            versionSupport.initializeSchema(connection);
             PostgresDppVersionRepositorySupport.VersionRecord version = versionSupport.create(
                     connection,
                     dpp,

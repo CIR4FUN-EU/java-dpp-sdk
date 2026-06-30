@@ -2,6 +2,8 @@
 
 Optional PostgreSQL-first persistence support for canonical `Dpp4Fun` objects.
 
+This module does not own the mock EU registry PostgreSQL backend. The registry's optional PostgreSQL mode is a demo-local persistence seam inside `dpp-sdk-demo/mock-eu-registry`.
+
 This top-level module is useful when an application wants durable relational persistence. It is not required if you only need:
 
 - models/builders
@@ -342,14 +344,14 @@ Windows:
 
 ```powershell
 .\mvnw.cmd test
-.\mvnw.cmd -pl dpp-postgres/dpp4fun-postgres,dpp-sdk-demo/mock-dpp-repo -am test
+.\mvnw.cmd -pl dpp-postgres/dpp4fun-postgres,dpp-sdk-demo/mock-dpp-repo,dpp-sdk-demo/mock-eu-registry -am test
 ```
 
 Linux/macOS:
 
 ```bash
 ./mvnw test
-./mvnw -pl dpp-postgres/dpp4fun-postgres,dpp-sdk-demo/mock-dpp-repo -am test
+./mvnw -pl dpp-postgres/dpp4fun-postgres,dpp-sdk-demo/mock-dpp-repo,dpp-sdk-demo/mock-eu-registry -am test
 ```
 
 ## Docker / Testcontainers Note
