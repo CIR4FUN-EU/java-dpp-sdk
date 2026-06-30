@@ -52,9 +52,16 @@ class DppRepoControllerPostgresBackendTest {
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
+        startPostgresIfNeeded();
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+    }
+
+    private static void startPostgresIfNeeded() {
+        if (!POSTGRES.isRunning()) {
+            POSTGRES.start();
+        }
     }
 
     @Autowired
@@ -127,7 +134,7 @@ class DppRepoControllerPostgresBackendTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.characteristics.productName").value("Cir4Fun Platform Bed - Updated Demo"));
 
-        Dpp4Fun chair = factory.createValidChairDpp();
+        Dpp4Fun chair = withProductId(factory.createValidChairDpp(), "04012345678902");
         mockMvc.perform(post("/dpps")
                         .contentType(APPLICATION_JSON)
                         .content(codec.toJson(chair)))
