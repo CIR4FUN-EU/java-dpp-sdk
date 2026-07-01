@@ -13,9 +13,9 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.example.dppsdk</groupId>
+            <groupId>dpp.datamodel</groupId>
             <artifactId>dpp4fun</artifactId>
-            <version>${dpp.sdk.version}</version>
+            <version>0.3.0</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

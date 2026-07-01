@@ -4,7 +4,7 @@ This project is a v1 reference Java SDK for a Dpp4Fun furniture Digital Product 
 
 The repository is organized as a multi-module Maven build:
 
-- parent/aggregator artifact: `com.example.dppsdk:dpp-datamodel:0.3.0`
+- parent/aggregator artifact: `dpp.datamodel:dpp-datamodel:0.3.0`
 - reusable core module: `dpp-core`
 - furniture-specific module: `dpp4fun`
 
