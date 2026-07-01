@@ -31,9 +31,9 @@ This compiles the reactor, runs tests, packages both modules, and installs them 
 
 Installed artifacts:
 
-- parent/aggregator: `com.example.dppsdk:dpp-datamodel:0.3.0`
-- reusable core module: `com.example.dppsdk:dpp-core:0.3.0`
-- furniture-specific module: `com.example.dppsdk:dpp4fun:0.3.0`
+- parent/aggregator: `dpp.datamodel:dpp-datamodel:0.3.0`
+- reusable core module: `dpp.datamodel:dpp-core:0.3.0`
+- furniture-specific module: `dpp.datamodel:dpp4fun:0.3.0`
 
 On Windows, the local Maven repository is usually:
 
@@ -54,7 +54,7 @@ Most consumers should depend on `dpp4fun`, which already pulls in `dpp-core`:
 
 ```xml
 <dependency>
-    <groupId>com.example.dppsdk</groupId>
+    <groupId>dpp-datamodel</groupId>
     <artifactId>dpp4fun</artifactId>
     <version>0.3.0</version>
 </dependency>
@@ -64,7 +64,7 @@ If a project only needs the reusable core types, it can depend on `dpp-core` dir
 
 ```xml
 <dependency>
-    <groupId>com.example.dppsdk</groupId>
+    <groupId>dpp-datamodel</groupId>
     <artifactId>dpp-core</artifactId>
     <version>0.3.0</version>
 </dependency>
@@ -78,7 +78,7 @@ For `dpp4fun` fixtures:
 
 ```xml
 <dependency>
-    <groupId>com.example.dppsdk</groupId>
+    <groupId>dpp-datamodel</groupId>
     <artifactId>dpp4fun</artifactId>
     <version>0.3.0</version>
     <classifier>tests</classifier>
@@ -90,7 +90,7 @@ For `dpp-core` fixtures:
 
 ```xml
 <dependency>
-    <groupId>com.example.dppsdk</groupId>
+    <groupId>dpp-datamodel</groupId>
     <artifactId>dpp-core</artifactId>
     <version>0.3.0</version>
     <classifier>tests</classifier>

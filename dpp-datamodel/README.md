@@ -5,7 +5,7 @@ Java reference SDK for a Digital Product Passport (DPP) data model split into tw
 - `dpp-core`
 - `dpp4fun`
 
-The root project is the parent/aggregator artifact `com.example.dppsdk:dpp-datamodel:0.3.0`.
+The root project is the parent/aggregator artifact `dpp.datamodel:dpp-datamodel:0.3.0`.
 
 ## Modules
 
