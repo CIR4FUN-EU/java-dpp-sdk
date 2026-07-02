@@ -1,471 +1,255 @@
 # DPP SDK Demo
 
-Partner-facing Java backend demo showing how `com.example.dppsdk:dpp4fun:0.3.0` and the split `dpp-sdk-clients` modules work together.
-
-This phase is draft-prEN-18222-aligned. It is not a claim of final EN 18222 compliance or production readiness.
-
-Use this file as the single setup and operations reference for building and running the demo. Use `DEMO_GUIDE.md` only as the live-demo script, walkthrough, and talking-points guide.
-
-Monorepo note:
-
-- If you are starting from the `Dpp-SDK` monorepo root, use the root `README.md` first for the full repository structure and top-level build commands.
-- If you are starting from the `Dpp-SDK` monorepo root, prefer the root `mvnw` or `mvnw.cmd` as the canonical wrapper.
-- The commands below are scoped to the `dpp-sdk-demo` subproject unless noted otherwise.
-
 ## Purpose
 
-This `dpp-sdk-demo` subproject exists to show the reuse boundary between the SDK, the HTTP client library, and a small partner-facing backend demo:
+`dpp-sdk-demo` is the runnable demo area of the monorepo. It shows how the datamodel, PostgreSQL module, and HTTP clients work together through:
 
-- `dpp4fun` owns the `Dpp4Fun` product aggregate, furniture-specific builders/model classes, mapper support, validation, and `Dpp4FunJsonCodec`.
-- `dpp-core` owns reusable core DPP models, validators, payload mapping, and shared utilities used transitively by `dpp4fun`.
-- `dpp-sdk-clients` owns shared repo/registry payload contracts plus the low-level HTTP clients for the standard-style DPP APIs.
-- This repo adds only Dpp4Fun demo fixtures, thin SDK adapters, mock services, runners, mock backend adapters, internal mock lookup DTOs, tests, and Postman collections.
+- a mock DPP repository service
+- a mock registry service
+- a command-line integration demo runner
+- Postman collections and OpenAPI endpoints for manual testing
 
-Runtime truth note:
+This module is demo/runtime code. It is not a reusable SDK library.
 
-- The canonical runtime view for this demo is the `dpp-sdk-demo` subproject plus the locally installed `dpp4fun`, `dpp-core`, and `dpp-sdk-clients` artifacts used at build/run time.
-- Treat Maven-resolved classes as the source of truth.
+Parent coordinates from `dpp-sdk-demo/pom.xml`:
 
-## Modules
+- `groupId`: `demo`
+- `artifactId`: `dpp-sdk-demo`
+- `version`: `0.4.0`
 
-- `mock-eu-registry`: mock registry HTTP service, default host URL `http://localhost:8081`.
-- `mock-dpp-repo`: mock repo HTTP service, default host URL `http://localhost:8080`.
-- `dpp-integration-demo`: command-line SDK and HTTP demo runner, including the demo DPP factory, thin SDK-to-client adapters, and the mock-only registry read-back helper used for internal visibility.
+## Module Map
 
-The integration demo is the piece that connects the other two parts of the project. It creates and validates demo DPPs, talks to the repo and registry mock APIs, and gives you one repeatable flow for local validation, Docker validation, and partner demos.
+| Module | What it provides | Default local URL |
+| --- | --- | --- |
+| `mock-dpp-repo` | Mock repository lifecycle, fine-granular, events, and health endpoints | `http://localhost:8080` |
+| `mock-eu-registry` | Mock registry metadata registration and lookup endpoints | `http://localhost:8081` |
+| `dpp-integration-demo` | CLI runner for SDK-only and HTTP demo flows | n/a |
 
 ## Prerequisites
 
-- Recommended JDK: Java 17.
-- The demo build targets Java 17. Newer JDKs may work, but Java 17 is the supported baseline for development and validation.
+- Java 17
+- local Maven wrapper use from this repo
+- upstream artifacts installed when building this subproject in isolation
 
-If you are working inside this monorepo, build from the repo root first so the reactor installs the upstream SDK and client artifacts in the correct order.
+If you build from the monorepo root, the reactor order already installs what the demo consumes.
 
-Windows:
+If you build `dpp-sdk-demo` on its own, install these upstream artifacts first:
 
 ```powershell
-.\mvnw.cmd -f dpp-datamodel/pom.xml clean install
-.\mvnw.cmd -f dpp-sdk-clients/pom.xml clean install
+.\mvnw.cmd -f dpp-datamodel\pom.xml clean install
+.\mvnw.cmd -f dpp-postgres\pom.xml clean install
+.\mvnw.cmd -f dpp-sdk-clients\pom.xml clean install
 ```
 
-Linux/MacOS:
-
-```bash
-./mvnw -f dpp-datamodel/pom.xml clean install
-./mvnw -f dpp-sdk-clients/pom.xml clean install
-```
-
-If you are using `dpp-sdk-demo` outside this monorepo, you still need compatible `dpp-datamodel` and `dpp-sdk-clients` artifacts installed in your local Maven repository first.
-
-## Configuration
-
-Optional `dpp-sdk-demo/.env`:
-
-```properties
-MOCK_REPO_PORT=8080
-MOCK_REGISTRY_PORT=8081
-DPP_REPO_PORT=8080
-DPP_REGISTRY_PORT=8081
-DPP_IMAGE_REGISTRY=container-registry.gitlab.cc-asp.fraunhofer.de/digital-product-passport-sdk/dpp-sdk-demo
-DPP_IMAGE_TAG=0.1.0
-DPP_REPO_IMAGE_NAME=mock-dpp-repo
-DPP_REGISTRY_IMAGE_NAME=mock-eu-registry
-
-# Default mock-service backends. Memory remains the default for local app runs.
-DPP_REPO_BACKEND=memory
-DPP_REGISTRY_BACKEND=memory
-
-# Mock repo PostgreSQL settings.
-MOCK_REPO_POSTGRES_PORT=5433
-MOCK_REPO_POSTGRES_DB=dpp_repo
-MOCK_REPO_POSTGRES_USER=dpp_repo
-MOCK_REPO_POSTGRES_PASSWORD=dpp_repo
-
-# Mock registry PostgreSQL settings.
-MOCK_REGISTRY_POSTGRES_PORT=5434
-MOCK_REGISTRY_POSTGRES_DB=dpp_registry
-MOCK_REGISTRY_POSTGRES_USER=dpp_registry
-MOCK_REGISTRY_POSTGRES_PASSWORD=dpp_registry
-```
-
-Current default:
-
-- The application defaults remain memory mode for both `mock-dpp-repo` and `mock-eu-registry`.
-- Memory mode does not need PostgreSQL configuration.
-- PostgreSQL is used only when `DPP_REPO_BACKEND=postgres` or `DPP_REGISTRY_BACKEND=postgres` is set for the relevant service.
-
-Backend behavior:
-
-- `DPP_REPO_BACKEND=memory`: process-local in-memory storage, simplest demo and development mode.
-- `DPP_REPO_BACKEND=postgres`: durable PostgreSQL-backed storage through the standalone `dpp4fun-postgres` module.
-- `DPP_REGISTRY_BACKEND=memory`: process-local in-memory registry metadata, default demo mode.
-- `DPP_REGISTRY_BACKEND=postgres`: durable PostgreSQL-backed registry metadata using the local mock-registry backend seam.
-- HTTP paths and response shapes stay the same in both modes.
-- The repo service keeps JSON mapping, validation, JSON Merge Patch, and fine-granular element logic in the mock service layer.
-- The registry service keeps request validation, duplicate checks, repo `HEAD` verification, and response mapping in the mock service layer.
-
-Environment loading:
-
-- Docker Compose reads `dpp-sdk-demo/.env` automatically when you run Compose from `dpp-sdk-demo`, or when you pass `--env-file dpp-sdk-demo/.env` from the monorepo root.
-- `mock-dpp-repo` and `mock-eu-registry` both import `optional:file:.env[.properties]`, so local JAR runs read `dpp-sdk-demo/.env` when you start them from inside `dpp-sdk-demo`.
-- For IDE or Maven runs, either run from `dpp-sdk-demo`, configure the same environment variables in the IDE, or pass equivalent Spring properties.
-- `.env.example` shows a Docker/PostgreSQL-oriented sample configuration with separate repo and registry database settings.
+The demo repo module depends on `dpp4fun`, `dpp4fun-postgres`, and the client payload/client artifacts.
 
 ## Build
 
-Change into `dpp-sdk-demo` before running the wrapper commands below:
+Run from `dpp-sdk-demo`.
 
-Windows:
+Build the whole demo:
 
 ```powershell
-# Run from dpp-sdk-demo
 .\mvnw.cmd clean package
 ```
 
-Linux/MacOS:
-
-```bash
-# Run from dpp-sdk-demo
-./mvnw clean package
-```
-
-Common verification commands:
+Build only the mock repository:
 
 ```powershell
-# Windows
-.\mvnw.cmd clean test
-.\mvnw.cmd clean verify
-.\mvnw.cmd clean package
-.\mvnw.cmd -pl mock-dpp-repo -am test
-.\mvnw.cmd -pl mock-eu-registry -am test
+.\mvnw.cmd -pl "mock-dpp-repo" -am test
 ```
 
-```bash
-# Linux/MacOS
-./mvnw clean test
-./mvnw clean verify
-./mvnw clean package
-./mvnw -pl mock-dpp-repo -am test
-./mvnw -pl mock-eu-registry -am test
-```
-
-Wrapper note:
-
-- The Maven wrapper jar is committed in this repo.
-- On a machine that does not already have the Maven 3.9.11 distribution cached, the first wrapper run may download it from Maven Central.
-- The PostgreSQL integration tests use Testcontainers, so Docker must be available for the Docker-backed registry and repo tests to execute instead of being skipped by `@Testcontainers(disabledWithoutDocker = true)`.
-
-## Run Options
-
-Both mock services have two storage modes:
-
-- Memory mode: no PostgreSQL server is needed. This is the default and the simplest mode for demos and development.
-- PostgreSQL mode: each service connects to its own PostgreSQL server/database. This is demo persistence only, not production compliance or security.
-
-Use these quick choices:
-
-- Mode 1, memory-only demo: run the JARs normally with `DPP_REPO_BACKEND=memory` and `DPP_REGISTRY_BACKEND=memory`, or omit both settings.
-- Mode 2, full Docker Compose with PostgreSQL: run `docker compose up --build` from `dpp-sdk-demo`; Compose starts `mock-dpp-repo`, `mock-eu-registry`, `mock-repo-postgres`, and `mock-registry-postgres`.
-- Mode 3, PostgreSQL containers only: start only `mock-repo-postgres` and `mock-registry-postgres`, then run the app JARs locally against `localhost`.
-
-Connection names:
-
-- From inside Docker Compose, use `jdbc:postgresql://mock-repo-postgres:5432/dpp_repo` for the repo and `jdbc:postgresql://mock-registry-postgres:5432/dpp_registry` for the registry.
-- From a local JAR, IDE, Postman helper, or host-side tool, use `jdbc:postgresql://localhost:5433/dpp_repo` for the repo and `jdbc:postgresql://localhost:5434/dpp_registry` for the registry.
-
-### 1. Run Locally With Java
-
-Build first, then start the services in this order before the default standards demo flow. Run these commands from `dpp-sdk-demo` so the optional subproject `.env` is picked up.
-
-Start the registry:
+Build only the mock registry:
 
 ```powershell
-java -jar mock-eu-registry\target\mock-eu-registry-1.0.0-SNAPSHOT-exec.jar --debug=false # Windows
+.\mvnw.cmd -pl "mock-eu-registry" -am test
 ```
 
-```bash
-java -jar mock-eu-registry/target/mock-eu-registry-1.0.0-SNAPSHOT-exec.jar --debug=false # Linux/MacOS
-```
-
-Start the repo:
+Build only the integration demo runner:
 
 ```powershell
-java -jar mock-dpp-repo\target\mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=false # Windows
+.\mvnw.cmd -pl "dpp-integration-demo" -am test
 ```
 
-```bash
-java -jar mock-dpp-repo/target/mock-dpp-repo-1.0.0-SNAPSHOT-exec.jar --debug=false # Linux/MacOS
+## Run The Mock Services
+
+### Mock Registry
+
+```powershell
+java -jar mock-eu-registry\target\mock-eu-registry-0.4.0-exec.jar --debug=false
 ```
 
-Use this when you want the two mock services running directly on the host with the configured `.env` ports.
+### Mock Repository
 
-Memory mode is the default:
+```powershell
+java -jar mock-dpp-repo\target\mock-dpp-repo-0.4.0-exec.jar --debug=false
+```
+
+Both services import `optional:file:.env[.properties]`, so starting them from `dpp-sdk-demo` lets them read an optional local `.env` file if present. Use `dpp-sdk-demo/.env.example` as the tracked template when you want overrides. If you do not create `.env`, the built-in defaults still apply.
+
+## Run The Integration Demo
+
+### SDK-Only Mode
+
+Does not require the mock services.
+
+```powershell
+java -jar dpp-integration-demo\target\dpp-integration-demo-0.4.0.jar sdk --debug=false
+```
+
+### HTTP / Default Mode
+
+Uses the HTTP clients against the running mock services.
+
+```powershell
+java -jar dpp-integration-demo\target\dpp-integration-demo-0.4.0.jar http --debug=false
+```
+
+Running with no explicit mode also falls back to the HTTP standards flow:
+
+```powershell
+java -jar dpp-integration-demo\target\dpp-integration-demo-0.4.0.jar --debug=false
+```
+
+### Full / All Mode
+
+Runs the SDK capability checks first, then reuses that flow for the HTTP demo.
+
+```powershell
+java -jar dpp-integration-demo\target\dpp-integration-demo-0.4.0.jar all --debug=false
+```
+
+### Explicit Base URL Overrides
+
+```powershell
+java -jar dpp-integration-demo\target\dpp-integration-demo-0.4.0.jar http http://localhost:8091 http://localhost:8090 --debug=false
+```
+
+The argument order is `registryUrl` then `repoUrl`.
+
+## Ports And Base URLs
+
+From `application.properties`:
+
+- `mock-dpp-repo` listens on `MOCK_REPO_PORT`, falling back to `DPP_REPO_PORT`, then `8080`
+- `mock-eu-registry` listens on `MOCK_REGISTRY_PORT`, falling back to `DPP_REGISTRY_PORT`, then `8081`
+
+Default local URLs:
+
+- Repo: `http://localhost:8080`
+- Registry: `http://localhost:8081`
+- Repo health: `http://localhost:8080/health`
+- Registry health: `http://localhost:8081/health`
+- Repo Swagger UI: `http://localhost:8080/swagger-ui.html`
+- Repo OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+- Registry Swagger UI: `http://localhost:8081/swagger-ui.html`
+- Registry OpenAPI JSON: `http://localhost:8081/v3/api-docs`
+
+Docker-style service-name resolution is also implemented in `HttpServiceDemoRunner`:
+
+- Registry: `http://mock-eu-registry:${DPP_REGISTRY_PORT}`
+- Repo: `http://mock-dpp-repo:${DPP_REPO_PORT}`
+
+## Postman Collections
+
+Import these files from `dpp-sdk-demo/postman`:
+
+- `dpp-lifecycle-api.verified-export-shape.postman_collection.json`
+- `dpp-registry-api.verified-export-shape.postman_collection.json`
+- `dpp-fine-granular-api.import-safe.postman_collection.json`
+
+Default base URLs:
+
+- repo: `http://localhost:8080`
+- registry: `http://localhost:8081`
+
+Postman does not read your optional local `.env` automatically. Update collection variables yourself if you change ports from the defaults or from values copied from `.env.example`.
+
+## Signs Of Success
+
+Successful service startup:
+
+- `GET /health` returns `UP`
+- Swagger UI loads on ports `8080` and `8081`
+
+Successful integration demo:
+
+- the runner prints `DPP4Fun SDK + dpp-sdk-clients Standards Demo`
+- create, read, update, fine-granular, registry registration, and delete steps complete without an uncaught exception
+- the runner ends with `HTTP services demo complete`
+
+## Demo Use Cases
+
+### SDK-Only Walkthrough
+
+`SdkCapabilityDemoRunner` demonstrates:
+
+- building demo `Dpp4Fun` objects
+- validating them through `Dpp4FunValidationService`
+- mapping through `Dpp4FunMapper`
+- serializing and deserializing through `Dpp4FunJsonCodec`
+
+### Repository Storage Flow
+
+`HttpServiceDemoRunner` demonstrates these repository client calls against `mock-dpp-repo`:
+
+- `createDpp`
+- `readDppById`
+- `readDppByProductId`
+- `updateDppById`
+- `readDppVersionByProductIdAndDate`
+- `readDppIdsByProductIds`
+- `deleteDppById`
+
+### Registry Registration Flow
+
+The HTTP demo then registers the stored DPP metadata through `POST /registerDPP` using `HttpDppRegistryClient`.
+
+The registry verifies that the referenced DPP exists in the repository before accepting the registration.
+
+### Fine-Grained Read And Update
+
+The HTTP demo also calls:
+
+- `readDataElement(dppId, "characteristics.productName")`
+- `updateDataElement(dppId, "characteristics.productName", ...)`
+
+The repo controller documents these as a curated supported subset of element paths, not arbitrary JSONPath.
+
+### Error Handling Examples
+
+The integration demo intentionally exercises:
+
+- registry rejection for a missing repository DPP
+- client-side validation failure before sending an invalid DPP
+- repository 404 handling for a missing DPP id
+- network failure handling for an unreachable registry URL
+
+## Storage Modes
+
+Default mode is memory:
 
 ```properties
 DPP_REPO_BACKEND=memory
 DPP_REGISTRY_BACKEND=memory
-MOCK_REPO_PORT=8080
-MOCK_REGISTRY_PORT=8081
 ```
 
-You can omit both backend variables and get the same memory-mode behavior.
-
-For PostgreSQL mode with the apps running locally, start both PostgreSQL containers first:
-
-```powershell
-docker compose up mock-repo-postgres mock-registry-postgres
-```
-
-Then run `mock-dpp-repo` locally with host-side datasource values:
+The mock repository can also use PostgreSQL through `dpp4fun-postgres`:
 
 ```properties
 DPP_REPO_BACKEND=postgres
-MOCK_REPO_PORT=8080
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5433/dpp_repo
-SPRING_DATASOURCE_USERNAME=dpp_repo
-SPRING_DATASOURCE_PASSWORD=dpp_repo
 ```
 
-Run `mock-eu-registry` locally with its own datasource values:
+The mock registry also has a PostgreSQL-backed demo seam, but that persistence implementation lives inside `mock-eu-registry`, not in the standalone `dpp-postgres` module.
 
-```properties
-DPP_REGISTRY_BACKEND=postgres
-MOCK_REGISTRY_PORT=8081
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5434/dpp_registry
-SPRING_DATASOURCE_USERNAME=dpp_registry
-SPRING_DATASOURCE_PASSWORD=dpp_registry
-```
+## Boundaries
 
-### 2. Run Local Containers From Locally Built Images
+- `mock-dpp-repo` and `mock-eu-registry` are mock/demo services, not production services.
+- In-memory storage is not durable persistence.
+- The registry stores metadata only, not full DPP JSON.
+- `dpp-integration-demo` is a runnable walkthrough, not reusable SDK logic.
+- This module does not prove production security, operational readiness, or real EU registry integration.
 
-This is the maintainer workflow when you want Dockerized services built from the current checkout.
+## Related Docs
 
-```powershell
-.\mvnw.cmd clean package
-docker compose up --build
-```
-
-What this does:
-
-- Builds the executable service JARs locally with Maven.
-- Builds the registry-qualified repo and registry images from those packaged JARs.
-- Starts `mock-dpp-repo`, `mock-eu-registry`, `mock-repo-postgres`, and `mock-registry-postgres`.
-- Connects each mock service to its own PostgreSQL server/database.
-
-Important:
-
-- `docker compose build` builds images only.
-- `docker compose up` or `up -d` runs containers.
-- `up --build` does both.
-
-### 3. Publish Images
-
-Use this when you want to push the current repo and registry images to the GitLab project container registry.
-
-```powershell
-.\mvnw.cmd clean package
-docker compose -f docker-compose.build.yml build
-docker login container-registry.gitlab.cc-asp.fraunhofer.de
-docker compose -f docker-compose.build.yml push
-```
-
-With the committed `.env`, the pushed image names are:
-
-- `container-registry.gitlab.cc-asp.fraunhofer.de/digital-product-passport-sdk/dpp-sdk-demo/mock-dpp-repo:0.1.0`
-- `container-registry.gitlab.cc-asp.fraunhofer.de/digital-product-passport-sdk/dpp-sdk-demo/mock-eu-registry:0.1.0`
-
-If you want to test a different tag, override `DPP_IMAGE_TAG` before both push and pull. The pushed tag and pulled tag must match.
-
-### 4. Run Containers From Already Published Images
-
-Use this when the images already exist in the GitLab registry and you want a pull-only workflow.
-
-```powershell
-docker login container-registry.gitlab.cc-asp.fraunhofer.de
-docker compose pull
-docker compose up -d
-docker compose ps
-```
-
-If you want to run a different published tag without editing `.env`, override it for the current shell first:
-
-```powershell
-$env:DPP_IMAGE_TAG="test-1"
-docker compose pull
-docker compose up -d
-```
-
-This is also how you pull an already existing image tag for a clean retest on another machine.
-
-Published-image PostgreSQL mode uses the default Compose file:
-
-```powershell
-docker login container-registry.gitlab.cc-asp.fraunhofer.de
-docker compose pull
-docker compose up -d
-docker compose ps
-```
-
-This starts the published mock repo and registry images plus both PostgreSQL containers.
-
-## Validate / Test
-
-After startup, you can validate the running mocks in three ways:
-
-- Run the integration demo.
-- Run the Postman collections.
-- Use the repo and registry services directly as lightweight mock/test doubles for local development and manual API testing.
-
-The detailed walkthrough, what each step demonstrates, and the presenter talking points belong in `DEMO_GUIDE.md`. Keep this README as the source of truth for commands, collection names, and runtime configuration.
-
-### Integration Demo
-
-With registry and repo already running:
-
-```powershell
-java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar --debug=false # Windows
-```
-
-```bash
-java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar --debug=false # Linux/MacOS
-```
-
-The default run is the standards end-to-end flow. For a fuller stakeholder demo, run SDK capability checks first and then reuse those same SDK-built DPPs in the HTTP flow:
-
-```powershell
-java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar all --debug=false # Windows
-```
-
-```bash
-java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar all --debug=false # Linux/MacOS
-```
-
-SDK-only mode does not require the backend services:
-
-```powershell
-java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar sdk --debug=false # Windows
-```
-
-```bash
-java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar sdk --debug=false # Linux/MacOS
-```
-
-Explicit HTTP-only mode:
-
-```powershell
-java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar http --debug=false # Windows
-```
-
-```bash
-java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar http --debug=false # Linux/MacOS
-```
-
-Optional base URL overrides:
-
-```powershell
-java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar http http://localhost:8091 http://localhost:8090 --debug=false # Windows
-```
-
-```bash
-java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar http http://localhost:8091 http://localhost:8090 --debug=false # Linux/MacOS
-```
-
-Default URL resolution for the HTTP demo runner:
-
-- If you do not pass explicit service URLs, the runner checks Docker-style service names first:
-  - Registry: `http://mock-eu-registry:${DPP_REGISTRY_PORT}`
-  - Repo: `http://mock-dpp-repo:${DPP_REPO_PORT}`
-- If those health checks fail, it falls back to:
-  - Registry: `http://localhost:${DPP_REGISTRY_PORT}`
-  - Repo: `http://localhost:${DPP_REPO_PORT}`
-- If neither candidate is reachable for a service, the runner throws an exception and exits before the demo flow starts.
-
-### Postman
-
-Import:
-
-- `postman/dpp-lifecycle-api.verified-export-shape.postman_collection.json`
-- `postman/dpp-registry-api.verified-export-shape.postman_collection.json`
-- `postman/dpp-fine-granular-api.import-safe.postman_collection.json`
-
-Base URLs:
-
-- Registry: `http://localhost:${DPP_REGISTRY_PORT}` or default `http://localhost:8081`
-- Repo: `http://localhost:${DPP_REPO_PORT}` or default `http://localhost:8080`
-
-Postman does not read `dpp-sdk-demo/.env` automatically. If you changed ports in `.env`, update the Postman collection variables to match.
-
-For the actual request-by-request explanation and collection flow, use `DEMO_GUIDE.md`. Keep the import names and base URL values in this README as the operational reference.
-
-The collections now use isolated default demo identifiers for ad-hoc requests, and their cleanup delete requests use separate delete-only defaults until a create request overwrites them with a fresh runtime DPP. That keeps Postman, Swagger UI, and the HTTP demo runner from deleting each other's default records.
-
-### Quick Smoke Checks
-
-Windows:
-
-```powershell
-curl.exe http://localhost:8080/health
-curl.exe http://localhost:8081/health
-```
-
-Linux/MacOS:
-
-```bash
-curl http://localhost:8080/health
-curl http://localhost:8081/health
-```
-
-### Swagger UI / OpenAPI
-
-When the mock services are running, Swagger UI can be used to inspect the APIs and send test requests directly to the local mock services.
-
-- Mock repo Swagger UI: `http://localhost:8080/swagger-ui.html`
-- Mock repo OpenAPI JSON: `http://localhost:8080/v3/api-docs`
-- Mock registry Swagger UI: `http://localhost:8081/swagger-ui.html`
-- Mock registry OpenAPI JSON: `http://localhost:8081/v3/api-docs`
-
-Swagger UI exposes the repo lifecycle, fine-granular, and event endpoints, plus the registry registration and metadata lookup endpoints.
-
-## Runtime Notes
-
-From the host machine, Postman, or a browser:
-
-- Repo: `http://localhost:${DPP_REPO_PORT}`
-- Registry: `http://localhost:${DPP_REGISTRY_PORT}`
-
-From the registry container to the repo container:
-
-- Use `http://mock-dpp-repo:${DPP_REPO_PORT}`
-- Do not use `http://localhost:${DPP_REPO_PORT}`
-
-Why:
-
-- `localhost` inside the `mock-eu-registry` container means the registry container itself, not the host and not the repo container.
-- The registry handles that internally for the standard public repo URL path, but the network distinction still matters when you debug requests manually.
-
-Compose file roles:
-
-- `docker-compose.yml`: default build/pull/run workflow for the demo services plus `mock-repo-postgres` and `mock-registry-postgres`.
-- `docker-compose.build.yml`: compatibility copy for existing local image build/push workflows.
-- `docker-compose.postgres.yml`: compatibility override that still exposes the dedicated PostgreSQL service names and app wiring.
-
-## Mock Boundary
-
-This repo provides demo-focused mock services and a producer/demo runner. It is intentionally not production-ready.
-
-Mocked:
-
-- EU registry behavior
-- DPP repo behavior
-- Persistence, using default in-memory storage or optional PostgreSQL-backed repo and registry adapters
-
-Not implemented:
-
-- Real EU registry integration
-- Production-grade database hardening or compliance persistence
-- Authentication or OAuth
-- Event streaming
-- Production resilience, retries, auditing, or monitoring
-- AAS adapter
-- Backup identifier/operator/provider placeholders
-- Full official draft data-model field coverage
+- [`DEMO_GUIDE.md`](DEMO_GUIDE.md)

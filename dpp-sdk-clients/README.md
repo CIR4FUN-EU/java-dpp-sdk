@@ -1,239 +1,365 @@
 # DPP SDK Clients
 
-Internal pre-release Java HTTP client modules for DPP repository and registry APIs.
+## Purpose
 
-This project is **draft-prEN-18222-aligned**. It does not claim final EN compliance.
+`dpp-sdk-clients` provides generic Java HTTP clients and payload contracts for repository and registry APIs. The client modules stay model-independent: callers provide their own DPP type plus codec and validation hooks where needed.
 
-The project intentionally contains only API communication contracts and low-level HTTP client behavior. It does not contain DPP domain models, builders, SDK validators, SDK mappers, persistence, mock service implementations, authentication, retries, async clients, caching, endpoint templating, or pagination frameworks.
+The implementation follows the drafted standardised API standards specified by the CEN/CENELEC JTC24 committee as of 06/2026.
 
-## Modules
+Parent coordinates from `dpp-sdk-clients/pom.xml`:
 
-| Module | Responsibility |
-| --- | --- |
-| `dpp-repo-payloads` | Repository API wrapper, message, status, request, and response DTOs. |
-| `dpp-repo-client` | Repository HTTP client behavior, `DppRepoClient<T>`, `HttpDppRepoClient<T>`, `DppCodec<T>`, `DppValidator<T>`, repo exceptions, and repo HTTP support. |
-| `dpp-registry-payloads` | Registry API wrapper, message, status, registration request, and registration response DTOs. |
-| `dpp-registry-client` | Registry HTTP client behavior, `DppRegistryClient`, `HttpDppRegistryClient`, registry exceptions, and registry HTTP support. |
+- `groupId`: `dpp.client`
+- `artifactId`: `dpp-sdk-clients`
+- `version`: `0.4.0`
+- packaging: `pom`
 
-Payload modules are API contracts. Client modules are HTTP behavior.
+## Module Map
 
-Dependency direction:
+| Module | Coordinates | What it provides |
+| --- | --- | --- |
+| `dpp-repo-payloads` | `dpp.client:dpp-repo-payloads:0.4.0` | Repository wrapper DTOs and request/response contracts |
+| `dpp-repo-client` | `dpp.client:dpp-repo-client:0.4.0` | `DppRepoClient<T>`, `HttpDppRepoClient<T>`, `DppCodec<T>`, `DppValidator<T>`, repo exceptions |
+| `dpp-registry-payloads` | `dpp.client:dpp-registry-payloads:0.4.0` | Registry wrapper DTOs and registration request/response contracts |
+| `dpp-registry-client` | `dpp.client:dpp-registry-client:0.4.0` | `DppRegistryClient`, `HttpDppRegistryClient`, registry exceptions |
 
-- `dpp-repo-client` depends on `dpp-repo-payloads`.
-- `dpp-registry-client` depends on `dpp-registry-payloads`.
-- Repo modules do not depend on registry modules.
-- Registry modules do not depend on repo modules.
-- Payload modules do not depend on client modules.
+## Build And Install
 
-## Local Maven Usage
+Run from `dpp-sdk-clients`.
 
-Monorepo note:
-
-- If you are working from the `Dpp-SDK` monorepo root, use the root `README.md` for the full cross-project build order.
-- If you are working from the `Dpp-SDK` monorepo root, prefer the root `mvnw` or `mvnw.cmd` as the canonical wrapper.
-- The commands below are for building this subproject in isolation.
-
-Install all modules into the local Maven repository:
+Build all client modules:
 
 ```powershell
-# Windows
-cd dpp-sdk-clients
+.\mvnw.cmd test
 .\mvnw.cmd clean install
 ```
-```bash
-# Linux/MacOS
-cd dpp-sdk-clients
-./mvnw clean install
+
+Build only the repository client:
+
+```powershell
+.\mvnw.cmd -pl "dpp-repo-client" -am test
 ```
 
+Build only the registry client:
 
+```powershell
+.\mvnw.cmd -pl "dpp-registry-client" -am test
+```
 
-Use only the artifacts needed by the consuming project:
+Build only the payload modules:
+
+```powershell
+.\mvnw.cmd -pl "dpp-repo-payloads" -am test
+.\mvnw.cmd -pl "dpp-registry-payloads" -am test
+```
+
+## Maven Consumption
+
+Repository client:
 
 ```xml
 <dependency>
     <groupId>dpp.client</groupId>
     <artifactId>dpp-repo-client</artifactId>
-    <version>0.3.0</version>
-</dependency>
-
-<dependency>
-    <groupId>dpp.client</groupId>
-    <artifactId>dpp-registry-client</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
 </dependency>
 ```
 
-Payload artifacts can be used directly when a service or test only needs the API contracts:
+Registry client:
+
+```xml
+<dependency>
+    <groupId>dpp.client</groupId>
+    <artifactId>dpp-registry-client</artifactId>
+    <version>0.4.0</version>
+</dependency>
+```
+
+Payload-only usage:
 
 ```xml
 <dependency>
     <groupId>dpp.client</groupId>
     <artifactId>dpp-repo-payloads</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
 </dependency>
 
 <dependency>
     <groupId>dpp.client</groupId>
     <artifactId>dpp-registry-payloads</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
 </dependency>
 ```
 
-Module-specific documentation:
+## Public Entry Points
 
-- [docs/prEN 18222 API alignment](docs/pren-18222-api-alignment.md)
-- [dpp-repo-payloads](dpp-repo-payloads/README.md)
-- [dpp-repo-client](dpp-repo-client/README.md)
-- [dpp-registry-payloads](dpp-registry-payloads/README.md)
-- [dpp-registry-client](dpp-registry-client/README.md)
+Repository client surface:
 
-## Repository Client
+- `dpp.repo.client.DppRepoClient<T>`
+- `dpp.repo.client.HttpDppRepoClient<T>`
+- `dpp.repo.client.core.DppCodec<T>`
+- `dpp.repo.client.core.DppValidator<T>`
+- `dpp.repo.client.exception.DppClientException`
+- `dpp.repo.client.exception.DppHttpClientException`
+- `dpp.repo.client.exception.DppApiClientException`
+- `dpp.repo.client.exception.DppNetworkClientException`
+- `dpp.repo.client.exception.DppMappingClientException`
+- `dpp.repo.client.exception.DppValidationClientException`
 
-Packages:
+Registry client surface:
 
-- `dpp.repo.payloads`
-- `dpp.repo.client`
-- `dpp.repo.client.core`
-- `dpp.repo.client.exception`
+- `dpp.registry.client.DppRegistryClient`
+- `dpp.registry.client.HttpDppRegistryClient`
+- `dpp.registry.client.exception.DppClientException`
+- `dpp.registry.client.exception.DppHttpClientException`
+- `dpp.registry.client.exception.DppApiClientException`
+- `dpp.registry.client.exception.DppNetworkClientException`
+- `dpp.registry.client.exception.DppMappingClientException`
 
-Consumers provide:
+Payload contract surface:
 
-- `DppCodec<T>` for full-DPP JSON serialization/deserialization
-- `DppValidator<T>` for full-DPP validation before create requests
-- a concrete DPP type owned outside this project
+- `dpp.repo.payloads.DppApiResponse`
+- `dpp.repo.payloads.DppApiMessage`
+- `dpp.repo.payloads.DppStatusCode`
+- `dpp.repo.payloads.CreateDppResponse`
+- `dpp.repo.payloads.DeleteDppResponse`
+- `dpp.repo.payloads.ReadDppIdsRequest`
+- `dpp.repo.payloads.ReadDppIdsResponse`
+- `dpp.repo.payloads.UpdateDataElementRequest`
+- `dpp.registry.payloads.DppApiResponse`
+- `dpp.registry.payloads.DppApiMessage`
+- `dpp.registry.payloads.DppStatusCode`
+- `dpp.registry.payloads.RegisterDppRequest`
+- `dpp.registry.payloads.RegisterDppResponse`
+
+## Module Responsibilities
+
+### Payload Modules
+
+`dpp-repo-payloads` and `dpp-registry-payloads` contain DTOs only.
+
+Repository payload examples:
+
+- wrapper DTOs: `DppApiResponse`, `DppApiMessage`, `DppStatusCode`, `MessageType`
+- request/response DTOs: `CreateDppResponse`, `DeleteDppResponse`, `ReadDppIdsRequest`, `ReadDppIdsResponse`, `UpdateDataElementRequest`
+
+Registry payload examples:
+
+- wrapper DTOs: `DppApiResponse`, `DppApiMessage`, `DppStatusCode`, `MessageType`
+- request/response DTOs: `RegisterDppRequest`, `RegisterDppResponse`
+
+Payload modules do not contain:
+
+- HTTP clients or transport behavior
+- SDK model classes
+- validators or mappers
+- persistence or mock-service logic
+
+Use the payload artifacts directly when a contract test, backend adapter, or integration layer only needs request/response DTOs and not the client implementations.
+
+### Client Modules
+
+`dpp-repo-client` and `dpp-registry-client` contain low-level HTTP behavior only.
+
+They depend on their matching payload modules and stay model-independent.
+
+Client modules do not contain:
+
+- SDK model classes
+- business/domain validation beyond `DppValidator<T>` integration
+- mappers
+- persistence or mock-service logic
+- orchestration between repo and registry flows
+
+## Usage
+
+### Provide `DppCodec<T>` And `DppValidator<T>`
+
+The repository client expects full-DPP JSON serialization and pre-create validation to be supplied by the caller.
+
+```java
+import dpp.repo.client.core.DppCodec;
+import dpp.repo.client.core.DppValidator;
+import dppsdk.dpp4fun.model.Dpp4Fun;
+import dppsdk.dpp4fun.transport.Dpp4FunJsonCodec;
+import dppsdk.dpp4fun.validation.Dpp4FunValidationService;
+
+Dpp4FunJsonCodec sdkCodec = new Dpp4FunJsonCodec();
+Dpp4FunValidationService sdkValidator = new Dpp4FunValidationService();
+
+DppCodec<Dpp4Fun> codec = new DppCodec<>() {
+    @Override
+    public String toJson(Dpp4Fun dpp) {
+        return sdkCodec.toJson(dpp);
+    }
+
+    @Override
+    public Dpp4Fun fromJson(String json) {
+        return sdkCodec.fromJson(json);
+    }
+};
+
+DppValidator<Dpp4Fun> validator = sdkValidator::validate;
+```
+
+### Create A Repository Client
 
 ```java
 import dpp.repo.client.DppRepoClient;
 import dpp.repo.client.HttpDppRepoClient;
 
-DppRepoClient<MyDpp> repoClient = new HttpDppRepoClient<>(
-    "http://localhost:8080",
-    myCodec,
-    myValidator
+DppRepoClient<Dpp4Fun> repoClient = new HttpDppRepoClient<>(
+        "http://localhost:8080",
+        codec,
+        validator
 );
 ```
 
-Supported repository lifecycle methods:
+### Create A Registry Client
 
-- `createDpp`
-- `readDppById`
-- `readDppByProductId`
-- `readDppVersionByProductIdAndDate`
-- `readDppIdsByProductIds`
-- `updateDppById`
-- `deleteDppById`
+```java
+import dpp.registry.client.DppRegistryClient;
+import dpp.registry.client.HttpDppRegistryClient;
 
-Supported fine-granular lifecycle methods:
+DppRegistryClient registryClient = new HttpDppRegistryClient("http://localhost:8081");
+```
 
-- `readDataElement`
-- `updateDataElement`
+### Repository Lifecycle And Fine-Grained Operations
 
-Supported repository paths:
+Supported `DppRepoClient<T>` methods from `dpp-repo-client/src/main/java/dpp/repo/client/DppRepoClient.java`:
 
+- `createDpp(T dpp)`
+- `readDppById(String dppId)`
+- `readDppByProductId(String productId)`
+- `readDppVersionByProductIdAndDate(String productId, Instant date)`
+- `readDppIdsByProductIds(List<String> productIds, Integer limit, String cursor)`
+- `updateDppById(String dppId, JsonNode partialDpp)`
+- `deleteDppById(String dppId)`
+- `readDataElement(String dppId, String elementPath)`
+- `updateDataElement(String dppId, String elementPath, JsonNode payload)`
+
+Example:
+
+```java
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import dpp.repo.payloads.CreateDppResponse;
+import dpp.repo.payloads.DeleteDppResponse;
+
+CreateDppResponse created = repoClient.createDpp(dpp);
+Dpp4Fun stored = repoClient.readDppById(created.getDppId());
+
+ObjectNode patch = new ObjectMapper()
+        .createObjectNode()
+        .putObject("characteristics")
+        .put("productName", "Updated via client");
+
+Dpp4Fun updated = repoClient.updateDppById(stored.getDppId(), patch);
+DeleteDppResponse deleted = repoClient.deleteDppById(updated.getDppId());
+```
+
+Fine-granular element access:
+
+```java
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+
+JsonNode productName = repoClient.readDataElement(dpp.getDppId(), "characteristics.productName");
+JsonNode changed = repoClient.updateDataElement(
+        dpp.getDppId(),
+        "characteristics.productName",
+        JsonNodeFactory.instance.textNode("Updated element value")
+);
+```
+
+### Register DPP Metadata
+
+The registry client currently exposes registration only.
+
+```java
+import dpp.registry.payloads.RegisterDppRequest;
+import dpp.registry.payloads.RegisterDppResponse;
+
+RegisterDppResponse registered = registryClient.postNewDppToRegistry(
+        new RegisterDppRequest(
+                dpp.getProductId(),
+                dpp.getDppId(),
+                "operator-123",
+                "http://localhost:8080"
+        )
+);
+```
+
+`RegisterDppRequest` currently contains four active fields:
+
+- `productIdentifier`
+- `dppIdentifier`
+- `operatorIdentifier`
+- `repoUrl`
+
+`productIdentifier` and `operatorIdentifier` are the current registry identifiers in this contract. `dppIdentifier` and `repoUrl` are project/system/demo integration fields used by the current repo-backed registration flow.
+
+## Payload Notes
+
+`ReadDppIdsRequest` uses:
+
+- `productIdentifiers`
+- optional `limit`
+- optional `cursor`
+
+`ReadDppIdsResponse` returns:
+
+- `dppIdentifiers`
+- optional `nextCursor`
+
+`UpdateDataElementRequest` wraps the fine-granular patch payload in one field:
+
+- `payload`
+
+## Endpoint Coverage
+
+Repository client coverage:
+
+- `POST /dpps`
 - `GET /dpps/{dppId}`
 - `GET /dppsByProductId/{productId}`
-- `GET /dppsByProductIdAndDate/{productId}?date={timestamp}`
+- `GET /dppsByProductIdAndDate/{productId}?date={instant}`
 - `POST /dppsByProductIds`
-- `POST /dpps`
 - `PATCH /dpps/{dppId}`
 - `DELETE /dpps/{dppId}`
 - `GET /dpps/{dppId}/elements/{elementPath}`
 - `PATCH /dpps/{dppId}/elements/{elementPath}`
 
-Full DPP content stays generic at the client boundary. Reads and full updates deserialize through `DppCodec<T>`. Partial DPP and data-element operations use `JsonNode`.
-
-## Registry Client
-
-Packages:
-
-- `dpp.registry.payloads`
-- `dpp.registry.client`
-- `dpp.registry.client.exception`
-
-```java
-import dpp.registry.client.DppRegistryClient;
-import dpp.registry.client.HttpDppRegistryClient;
-import dpp.registry.payloads.RegisterDppRequest;
-import dpp.registry.payloads.RegisterDppResponse;
-
-DppRegistryClient registryClient = new HttpDppRegistryClient(
-    "http://localhost:8081"
-);
-
-RegisterDppResponse registered = registryClient.postNewDppToRegistry(
-    new RegisterDppRequest(
-        productIdentifier,
-        dppIdentifier,
-        operatorIdentifier,
-        repoUrl
-    )
-);
-```
-
-Supported registry method:
-
-- `postNewDppToRegistry`
-
-Supported registry path:
+Registry client coverage:
 
 - `POST /registerDPP`
 
-`RegisterDppRequest.productIdentifier` and `operatorIdentifier` are the draft-aligned registration identifiers used by the client contract.
+The mock registry in `dpp-sdk-demo` also exposes metadata lookup endpoints, but those lookup endpoints are demo-local and are not part of `dpp-sdk-clients`.
 
-`RegisterDppRequest.dppIdentifier` and `repoUrl` are intentional system/demo integration fields. The current demo/system flow creates and stores a DPP in the repository first, then registers that stored DPP with the registry. The registry-side system can use these fields to verify that the referenced DPP is present in the repo before accepting registration. This is not documented as a pure prEN 18222 requirement. The actual verification behavior must be checked in the demo/backend repository that owns orchestration and mock service logic.
+## Exception Handling
 
-Backup-related draft registry concepts are intentionally out of scope for the current client contract. This repository does not add `backupIdentifier` or other backup placeholders unless a concrete system/API requirement exists.
+Catch the client-specific base exception when you want one boundary for API, HTTP, mapping, validation, and network failures.
 
-## API Wrapper
+```java
+try {
+    repoClient.createDpp(dpp);
+} catch (dpp.repo.client.exception.DppClientException exception) {
+    System.err.println(exception.getMessage());
+}
 
-Repository and registry endpoints use wrapper DTOs in their own payload modules:
-
-```json
-{
-  "statusCode": "Success",
-  "payload": {},
-  "messages": []
+try {
+    registryClient.postNewDppToRegistry(request);
+} catch (dpp.registry.client.exception.DppClientException exception) {
+    System.err.println(exception.getMessage());
 }
 ```
 
-Wrapper parsing is handled by each client module. Concrete DPP payload parsing remains delegated to consumer-provided `DppCodec<T>`.
+## Boundaries
 
+- The client modules are generic and model-independent.
+- They do not own SDK model classes, validators, payload mappers, or JSON codecs for concrete DPP types.
+- They do not own persistence logic, mock-service behavior, or demo orchestration.
+- They do not document or guarantee production auth, retries, pagination, caching, or async behavior.
 
+## Related Docs
 
-## Validation
-
-Common local validation commands:
-
-```powershell
-# Windows
-cd dpp-sdk-clients
-.\mvnw.cmd validate
-.\mvnw.cmd test
-.\mvnw.cmd clean test
-.\mvnw.cmd clean verify
-```
-```bash
-# Linux/MacOS
-cd dpp-sdk-clients
-./mvnw validate
-./mvnw test
-./mvnw clean test
-./mvnw clean verify
-```
-
-
-Targeted module validation examples:
-
-```powershell
-# Windows
-cd dpp-sdk-clients
-.\mvnw.cmd -pl dpp-repo-client -am test
-.\mvnw.cmd -pl dpp-registry-client -am test
-```
-```bash
-# Linux/MacOS
-cd dpp-sdk-clients
-./mvnw -pl dpp-repo-client -am test
-./mvnw -pl dpp-registry-client -am test
-```
+- [`docs/pren-18222-api-alignment.md`](docs/pren-18222-api-alignment.md)

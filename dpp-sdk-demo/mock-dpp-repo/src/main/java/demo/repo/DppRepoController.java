@@ -156,7 +156,7 @@ class DppRepoController {
             {
               "statusCode": "SuccessCreated",
               "payload": {
-                "dppIdentifier": "22222222-2222-2222-2222-222222222222"
+                "dppId": "22222222-2222-2222-2222-222222222222"
               },
               "messages": []
             }

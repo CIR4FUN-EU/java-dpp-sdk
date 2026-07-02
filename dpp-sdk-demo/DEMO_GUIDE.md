@@ -49,12 +49,12 @@ Run without backend services:
 
 ```Powershell
 # Windows
-java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar sdk --debug=false
+java -jar dpp-integration-demo\target\dpp-integration-demo-0.4.0.jar sdk --debug=false
 ```
 
 ```bash
 # Linux/MacOS
-java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar sdk --debug=false
+java -jar dpp-integration-demo/target/dpp-integration-demo-0.4.0.jar sdk --debug=false
 ```
 
 Point out:
@@ -123,8 +123,6 @@ Presenter note:
 
 - Use the local JAR workflow from `README.md` when you want the services visible on the host without Docker.
 - Use the local container build workflow from `README.md` when you want to demonstrate the current Dockerized maintainer path.
-- Use the published-image pull or push workflows from `README.md` only when that operating context matters to the audience.
-- `dpp-sdk-demo/.env` carries the current image names, tags, and default ports used by those workflows.
 - Both services default to the in-memory backend, which needs no PostgreSQL server. Use the PostgreSQL run options in `README.md` when you want the same HTTP APIs backed by PostgreSQL, either with only the databases in Docker and the apps local or with all four containers running through Docker Compose.
 - In both modes, the repo keeps validation, JSON Merge Patch, and fine-granular element-path handling in the mock service layer, and the registry keeps request validation, duplicate checks, repo `HEAD` verification, and response mapping there. PostgreSQL only changes persistence.
 
