@@ -1,13 +1,13 @@
 # draft-prEN-18222 API Alignment
 
-This repository is **draft-prEN-18222-aligned**. It does not claim final EN compliance, certification, or legal conformity.
+These client modules are **draft-prEN-18222-aligned**. They do not claim final EN compliance, certification, or legal conformity.
 
 The current implementation follows the draft-aligned API boundaries that were used for the four-module refactor:
 
 - payload modules contain reusable API communication contracts only
 - client modules contain low-level HTTP behavior only
-- no SDK or Cir4Fun domain model belongs in this repository
-- no business validation, mappers, persistence, mock services, or orchestration belong in this repository
+- no SDK or Dpp4Fun domain model belongs in these client modules
+- no business validation, mappers, persistence, mock services, or orchestration belong in these client modules
 
 ## Repository API Alignment
 
@@ -51,9 +51,9 @@ Implemented registry path:
 
 `RegisterDppRequest.dppIdentifier` and `repoUrl` are **project/system/demo integration fields**, not pure draft-prEN-18222 registry fields. They exist because the current system flow can create and store a DPP in the repository first and then register that stored DPP with the registry.
 
-The draft may describe backup-related registration information, but this client repository does **not** currently implement `backupIdentifier`, backup-operator fields, backup-provider fields, backup endpoints, or placeholder DTO members for future backup support.
+The draft may describe backup-related registration information, but these client modules do **not** currently implement `backupIdentifier`, backup-operator fields, backup-provider fields, backup endpoints, or placeholder DTO members for future backup support.
 
-Backup-related support is intentionally out of scope at this stage because there is no current client/system contract in this repository that uses it. Do not add empty placeholders or future-facing backup fields just to mirror draft wording. The active request contract remains limited to the fields that are implemented and covered by tests today:
+Backup-related support is intentionally out of scope at this stage because there is no current client/system contract in these modules that uses it. Do not add empty placeholders or future-facing backup fields just to mirror draft wording. The active request contract remains limited to the fields that are implemented and covered by tests today:
 
 - `productIdentifier`
 - `dppIdentifier`
@@ -76,6 +76,6 @@ Removed from the low-level client contract:
 
 ## Demo/System Verification Note
 
-The low-level registry client in this repository does not perform repo-backed orchestration or repository verification. That behavior belongs in the demo/backend repository that owns mock services, storage, and end-to-end registration verification.
+The low-level registry client in these client modules does not perform repo-backed orchestration or repository verification. That behavior belongs in the demo/backend repository that owns mock services, storage, and end-to-end registration verification.
 
-When checking whether repo-backed registry verification is preserved, inspect the demo/backend repository rather than this low-level client/payload repository.
+When checking whether repo-backed registry verification is preserved, inspect the demo/backend repository rather than these low-level client/payload modules.

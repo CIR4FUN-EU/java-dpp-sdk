@@ -5,7 +5,7 @@
 
     <groupId>com.example.dppsdk</groupId>
     <artifactId>dpp-postgres</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
     <packaging>pom</packaging>
 
     <name>DPP PostgreSQL Parent</name>
