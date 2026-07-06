@@ -6,7 +6,7 @@
 
 Parent coordinates from `dpp-datamodel/pom.xml`:
 
-- `groupId`: `com.example.dppsdk`
+- `groupId`: `dpp.datamodel`
 - `artifactId`: `dpp-datamodel`
 - `version`: `0.4.0`
 - packaging: `pom`
@@ -15,8 +15,8 @@ Parent coordinates from `dpp-datamodel/pom.xml`:
 
 | Module | Coordinates | What it provides |
 | --- | --- | --- |
-| `dpp-core` | `com.example.dppsdk:dpp-core:0.4.0` | Reusable core models, validators, payload DTOs, mappers, identifier helpers |
-| `dpp4fun` | `com.example.dppsdk:dpp4fun:0.4.0` | Furniture-specific models, validators, payload DTOs, mappers, JSON codec |
+| `dpp-core` | `dpp.datamodel:dpp-core:0.4.0` | Reusable core models, validators, payload DTOs, mappers, identifier helpers |
+| `dpp4fun` | `dpp.datamodel:dpp4fun:0.4.0` | Furniture-specific models, validators, payload DTOs, mappers, JSON codec |
 
 ## Build And Install
 
@@ -40,10 +40,18 @@ Build only `dpp-core`:
 .\mvnw.cmd -pl "dpp-core" -am test
 ```
 
+```bash
+./mvnw -pl "dpp-core" -am test
+```
+
 Build only `dpp4fun`:
 
 ```powershell
 .\mvnw.cmd -pl "dpp4fun" -am test
+```
+
+```bash
+./mvnw -pl "dpp4fun" -am test
 ```
 
 ## Maven Consumption
@@ -52,7 +60,7 @@ Consume `dpp-core` when you only need the reusable core layer:
 
 ```xml
 <dependency>
-    <groupId>com.example.dppsdk</groupId>
+    <groupId>dpp.datamodel</groupId>
     <artifactId>dpp-core</artifactId>
     <version>0.4.0</version>
 </dependency>
@@ -62,7 +70,7 @@ Consume `dpp4fun` when you need the furniture-specific aggregate on top of `dpp-
 
 ```xml
 <dependency>
-    <groupId>com.example.dppsdk</groupId>
+    <groupId>dpp.datamodel</groupId>
     <artifactId>dpp4fun</artifactId>
     <version>0.4.0</version>
 </dependency>

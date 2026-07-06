@@ -33,10 +33,19 @@ Build all client modules:
 .\mvnw.cmd clean install
 ```
 
+```bash
+./mvnw test
+./mvnw clean install
+```
+
 Build only the repository client:
 
 ```powershell
 .\mvnw.cmd -pl "dpp-repo-client" -am test
+```
+
+```bash
+./mvnw -pl "dpp-repo-client" -am test
 ```
 
 Build only the registry client:
@@ -45,11 +54,20 @@ Build only the registry client:
 .\mvnw.cmd -pl "dpp-registry-client" -am test
 ```
 
+```bash
+./mvnw -pl "dpp-registry-client" -am test
+```
+
 Build only the payload modules:
 
 ```powershell
 .\mvnw.cmd -pl "dpp-repo-payloads" -am test
 .\mvnw.cmd -pl "dpp-registry-payloads" -am test
+```
+
+```bash
+./mvnw -pl "dpp-repo-payloads" -am test
+./mvnw -pl "dpp-registry-payloads" -am test
 ```
 
 ## Maven Consumption

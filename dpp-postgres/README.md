@@ -20,9 +20,31 @@ This module does not own the mock registry's PostgreSQL seam. That registry-spec
 | `dpp-postgres-core` | `com.example.dppsdk:dpp-postgres-core:0.4.0` | Reusable PostgreSQL support for versioning, core mapping, lifecycle events, paging |
 | `dpp4fun-postgres` | `com.example.dppsdk:dpp4fun-postgres:0.4.0` | `Dpp4Fun` repository, relational mapping, history lookup, search support |
 
+## Prerequisites
+
+- Java 17
+- local Maven wrapper use from this repo
+- upstream datamodel artifacts installed when building this subproject in isolation
+
+If you build from the monorepo root, the reactor order already provides what this module needs.
+
+If you build `dpp-postgres` on its own, install the upstream datamodel artifacts first:
+
+```powershell
+..\mvnw.cmd -f ..\dpp-datamodel\pom.xml clean install
+```
+
+```bash
+# Ensure the root wrapper is executable:
+chmod +x ../mvnw
+../mvnw -f ../dpp-datamodel/pom.xml clean install
+```
+
 ## Build And Install
 
 Run from `dpp-postgres`.
+
+These commands work directly when invoked through the root reactor, or from this subproject after the prerequisite install above.
 
 Build all PostgreSQL modules:
 
@@ -32,6 +54,8 @@ Build all PostgreSQL modules:
 ```
 
 ```bash
+# Ensure the root wrapper is executable:
+chmod +x ../mvnw
 ../mvnw test
 ../mvnw clean install
 ```
@@ -43,6 +67,8 @@ Build only `dpp-postgres-core`:
 ```
 
 ```bash
+# Ensure the root wrapper is executable:
+chmod +x ../mvnw
 ../mvnw -pl "dpp-postgres-core" -am test
 ```
 
@@ -53,6 +79,8 @@ Build only `dpp4fun-postgres`:
 ```
 
 ```bash
+# Ensure the root wrapper is executable:
+chmod +x ../mvnw
 ../mvnw -pl "dpp4fun-postgres" -am test
 ```
 

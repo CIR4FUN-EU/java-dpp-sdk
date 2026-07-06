@@ -13,7 +13,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.example.dppsdk</groupId>
+            <groupId>dpp.datamodel</groupId>
             <artifactId>dpp4fun</artifactId>
             <version>${dpp.sdk.version}</version>
         </dependency>

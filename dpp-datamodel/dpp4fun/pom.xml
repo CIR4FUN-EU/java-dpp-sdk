@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.example.dppsdk</groupId>
+        <groupId>dpp.datamodel</groupId>
         <artifactId>dpp-datamodel</artifactId>
         <version>0.4.0</version>
     </parent>
@@ -17,7 +17,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.example.dppsdk</groupId>
+            <groupId>dpp.datamodel</groupId>
             <artifactId>dpp-core</artifactId>
             <version>${project.version}</version>
         </dependency>
