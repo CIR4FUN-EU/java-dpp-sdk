@@ -195,7 +195,7 @@ class DppRegistryControllerTest {
         mockMvc.perform(get("/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
-                .andExpect(jsonPath("$.service").value("mock-eu-registry"));
+                .andExpect(jsonPath("$.service").value("dpp-registry-api"));
     }
 
     @Test

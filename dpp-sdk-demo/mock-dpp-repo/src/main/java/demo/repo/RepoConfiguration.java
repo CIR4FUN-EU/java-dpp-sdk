@@ -84,7 +84,7 @@ class RepoConfiguration {
     }
 
     private static void seedIfMissing(DppRepoService repoService, Dpp4FunJsonCodec dppJsonCodec, String dppId, Dpp4Fun dpp) {
-        if (!repoService.hasActiveDpp(dppId)) {
+        if (!repoService.hasAnyDpp(dppId)) {
             repoService.create(dppJsonCodec.toJson(dpp));
         }
     }

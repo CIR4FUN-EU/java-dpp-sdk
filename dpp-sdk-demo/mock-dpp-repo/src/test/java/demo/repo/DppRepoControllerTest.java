@@ -593,7 +593,7 @@ class DppRepoControllerTest {
         mockMvc.perform(get("/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
-                .andExpect(jsonPath("$.service").value("mock-dpp-repo"));
+                .andExpect(jsonPath("$.service").value("dpp-repo-api"));
     }
 
     @Test

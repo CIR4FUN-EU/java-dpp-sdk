@@ -142,10 +142,10 @@ Use Swagger UI when you want to test GET, POST, PATCH, DELETE, and HEAD requests
 
 Container networking caveat:
 
-- The registry container must reach the repo container at `http://mock-dpp-repo:${DPP_REPO_PORT}`.
+- The registry container must reach the repo API container at `http://dpp-repo-api:${DPP_REPO_PORT}`.
 - `localhost` inside the registry container points back to the registry container itself.
 - The registry handles that internal container-to-container hop automatically when the submitted public repo URL matches the configured public repo base URL.
-- In PostgreSQL Docker mode, the repo and registry also talk to separate database containers: `mock-repo-postgres` and `mock-registry-postgres`.
+- In PostgreSQL Docker mode, the repo and registry also talk to separate database containers: `dpp-repo-db` and `dpp-registry-db`.
 
 Registry verification config note:
 
@@ -159,8 +159,8 @@ Registry verification config note:
 Runner URL resolution behavior:
 
 - Without explicit URL arguments, the HTTP demo runner checks Docker-style service names first:
-  - Registry: `http://mock-eu-registry:${DPP_REGISTRY_PORT}`
-  - Repo: `http://mock-dpp-repo:${DPP_REPO_PORT}`
+  - Registry: `http://dpp-registry-api:${DPP_REGISTRY_PORT}`
+  - Repo: `http://dpp-repo-api:${DPP_REPO_PORT}`
 - If those checks fail, it falls back to `http://localhost:${DPP_REGISTRY_PORT}` and `http://localhost:${DPP_REPO_PORT}`.
 - If both the Docker-style and localhost health checks fail for a service, the runner throws an exception and quits before the demo flow continues.
 - `dpp-sdk-demo/.env` controls those ports when present; if `.env` is missing, the old `8081` and `8080` defaults still apply.

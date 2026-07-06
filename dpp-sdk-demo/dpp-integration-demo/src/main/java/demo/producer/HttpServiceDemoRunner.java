@@ -44,9 +44,9 @@ class HttpServiceDemoRunner {
     }
 
     void run(DemoDppSamples samples, String... args) {
-        String registryUrl = resolveServiceUrl(args, 0, "Registry", "mock-eu-registry",
+        String registryUrl = resolveServiceUrl(args, 0, "Registry", "dpp-registry-api",
                 defaultRegistryDockerUrl(), defaultRegistryLocalUrl());
-        String repoUrl = resolveServiceUrl(args, 1, "Repo", "mock-dpp-repo",
+        String repoUrl = resolveServiceUrl(args, 1, "Repo", "dpp-repo-api",
                 defaultRepoDockerUrl(), defaultRepoLocalUrl());
 
         HttpDppRepoClient<Dpp4Fun> repoClient = new HttpDppRepoClient<>(repoUrl, codec, validator);
@@ -158,7 +158,7 @@ class HttpServiceDemoRunner {
     }
 
     String defaultRegistryDockerUrl() {
-        return "http://mock-eu-registry:" + registryPort;
+        return "http://dpp-registry-api:" + registryPort;
     }
 
     String defaultRegistryLocalUrl() {
@@ -166,7 +166,7 @@ class HttpServiceDemoRunner {
     }
 
     String defaultRepoDockerUrl() {
-        return "http://mock-dpp-repo:" + repoPort;
+        return "http://dpp-repo-api:" + repoPort;
     }
 
     String defaultRepoLocalUrl() {

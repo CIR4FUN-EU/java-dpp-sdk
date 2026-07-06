@@ -36,9 +36,15 @@ If you build from the monorepo root, the reactor order already installs what the
 If you build `dpp-sdk-demo` on its own, install these upstream artifacts first:
 
 ```powershell
-.\mvnw.cmd -f dpp-datamodel\pom.xml clean install
-.\mvnw.cmd -f dpp-postgres\pom.xml clean install
-.\mvnw.cmd -f dpp-sdk-clients\pom.xml clean install
+.\mvnw.cmd -f ..\dpp-datamodel\pom.xml clean install
+.\mvnw.cmd -f ..\dpp-postgres\pom.xml clean install
+.\mvnw.cmd -f ..\dpp-sdk-clients\pom.xml clean install
+```
+
+```bash
+./mvnw -f ../dpp-datamodel/pom.xml clean install
+./mvnw -f ../dpp-postgres/pom.xml clean install
+./mvnw -f ../dpp-sdk-clients/pom.xml clean install
 ```
 
 The demo repo module depends on `dpp4fun`, `dpp4fun-postgres`, and the client payload/client artifacts.
@@ -53,10 +59,18 @@ Build the whole demo:
 .\mvnw.cmd clean package
 ```
 
+```bash
+./mvnw clean package
+```
+
 Build only the mock repository:
 
 ```powershell
 .\mvnw.cmd -pl "mock-dpp-repo" -am test
+```
+
+```bash
+./mvnw -pl "mock-dpp-repo" -am test
 ```
 
 Build only the mock registry:
@@ -65,10 +79,18 @@ Build only the mock registry:
 .\mvnw.cmd -pl "mock-eu-registry" -am test
 ```
 
+```bash
+./mvnw -pl "mock-eu-registry" -am test
+```
+
 Build only the integration demo runner:
 
 ```powershell
 .\mvnw.cmd -pl "dpp-integration-demo" -am test
+```
+
+```bash
+./mvnw -pl "dpp-integration-demo" -am test
 ```
 
 ## Run The Mock Services
@@ -79,10 +101,18 @@ Build only the integration demo runner:
 java -jar mock-eu-registry\target\mock-eu-registry-0.4.0-exec.jar --debug=false
 ```
 
+```bash
+java -jar mock-eu-registry/target/mock-eu-registry-0.4.0-exec.jar --debug=false
+```
+
 ### Mock Repository
 
 ```powershell
 java -jar mock-dpp-repo\target\mock-dpp-repo-0.4.0-exec.jar --debug=false
+```
+
+```bash
+java -jar mock-dpp-repo/target/mock-dpp-repo-0.4.0-exec.jar --debug=false
 ```
 
 Both services import `optional:file:.env[.properties]`, so starting them from `dpp-sdk-demo` lets them read an optional local `.env` file if present. Use `dpp-sdk-demo/.env.example` as the tracked template when you want overrides. If you do not create `.env`, the built-in defaults still apply.
@@ -97,6 +127,10 @@ Does not require the mock services.
 java -jar dpp-integration-demo\target\dpp-integration-demo-0.4.0.jar sdk --debug=false
 ```
 
+```bash
+java -jar dpp-integration-demo/target/dpp-integration-demo-0.4.0.jar sdk --debug=false
+```
+
 ### HTTP / Default Mode
 
 Uses the HTTP clients against the running mock services.
@@ -105,10 +139,18 @@ Uses the HTTP clients against the running mock services.
 java -jar dpp-integration-demo\target\dpp-integration-demo-0.4.0.jar http --debug=false
 ```
 
+```bash
+java -jar dpp-integration-demo/target/dpp-integration-demo-0.4.0.jar http --debug=false
+```
+
 Running with no explicit mode also falls back to the HTTP standards flow:
 
 ```powershell
 java -jar dpp-integration-demo\target\dpp-integration-demo-0.4.0.jar --debug=false
+```
+
+```bash
+java -jar dpp-integration-demo/target/dpp-integration-demo-0.4.0.jar --debug=false
 ```
 
 ### Full / All Mode
@@ -119,10 +161,18 @@ Runs the SDK capability checks first, then reuses that flow for the HTTP demo.
 java -jar dpp-integration-demo\target\dpp-integration-demo-0.4.0.jar all --debug=false
 ```
 
+```bash
+java -jar dpp-integration-demo/target/dpp-integration-demo-0.4.0.jar all --debug=false
+```
+
 ### Explicit Base URL Overrides
 
 ```powershell
 java -jar dpp-integration-demo\target\dpp-integration-demo-0.4.0.jar http http://localhost:8091 http://localhost:8090 --debug=false
+```
+
+```bash
+java -jar dpp-integration-demo/target/dpp-integration-demo-0.4.0.jar http http://localhost:8091 http://localhost:8090 --debug=false
 ```
 
 The argument order is `registryUrl` then `repoUrl`.
@@ -147,8 +197,8 @@ Default local URLs:
 
 Docker-style service-name resolution is also implemented in `HttpServiceDemoRunner`:
 
-- Registry: `http://mock-eu-registry:${DPP_REGISTRY_PORT}`
-- Repo: `http://mock-dpp-repo:${DPP_REPO_PORT}`
+- Registry: `http://dpp-registry-api:${DPP_REGISTRY_PORT}`
+- Repo: `http://dpp-repo-api:${DPP_REPO_PORT}`
 
 ## Postman Collections
 

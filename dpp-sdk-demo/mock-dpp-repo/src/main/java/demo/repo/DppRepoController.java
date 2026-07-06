@@ -479,6 +479,6 @@ class DppRepoController {
             tags = "DPP Repository - Life Cycle API")
     @GetMapping("/health")
     HealthPayload health() {
-        return new HealthPayload("UP", "mock-dpp-repo");
+        return new HealthPayload("UP", "dpp-repo-api");
     }
 }

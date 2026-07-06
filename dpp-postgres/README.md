@@ -31,16 +31,29 @@ Build all PostgreSQL modules:
 ..\mvnw.cmd clean install
 ```
 
+```bash
+../mvnw test
+../mvnw clean install
+```
+
 Build only `dpp-postgres-core`:
 
 ```powershell
 ..\mvnw.cmd -pl "dpp-postgres-core" -am test
 ```
 
+```bash
+../mvnw -pl "dpp-postgres-core" -am test
+```
+
 Build only `dpp4fun-postgres`:
 
 ```powershell
 ..\mvnw.cmd -pl "dpp4fun-postgres" -am test
+```
+
+```bash
+../mvnw -pl "dpp4fun-postgres" -am test
 ```
 
 ## Maven Consumption
