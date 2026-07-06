@@ -80,6 +80,10 @@ class DppRepoService {
         return backend.existsActiveByDppId(dppId);
     }
 
+    boolean hasAnyDpp(String dppId) {
+        return backend.existsAnyByDppId(dppId);
+    }
+
     JsonNode readByProductId(String productId) {
         Dpp4Fun dpp = backend.findCurrentByProductId(productId)
                 .orElseThrow(() -> new RepoApiException(DppStatusCode.ClientErrorResourceNotFound,

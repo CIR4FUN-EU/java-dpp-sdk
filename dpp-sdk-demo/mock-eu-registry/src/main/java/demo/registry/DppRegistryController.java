@@ -177,6 +177,6 @@ class DppRegistryController {
             tags = "DPP Registry")
     @GetMapping("/health")
     HealthPayload health() {
-        return new HealthPayload("UP", "mock-eu-registry");
+        return new HealthPayload("UP", "dpp-registry-api");
     }
 }
