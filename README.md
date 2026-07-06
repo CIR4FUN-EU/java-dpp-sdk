@@ -60,6 +60,7 @@ Use this root README as the quick entry point. For module-specific details, use 
 | Goal | Go to | Relevant module |
 | --- | --- | --- |
 | Build DPP objects, validate, map, or serialize JSON | [`dpp-datamodel/README.md`](dpp-datamodel/README.md) | `dpp-core`, `dpp4fun` |
+| Understand the SDK model structure and validation rules | [`dpp-datamodel/MODEL_GUIDE.md`](dpp-datamodel/MODEL_GUIDE.md) | `dpp-core`, `dpp4fun` |
 | Use repository or registry HTTP clients | [`dpp-sdk-clients/README.md`](dpp-sdk-clients/README.md) | `dpp-repo-*`, `dpp-registry-*` |
 | Run mock repo, mock registry, or the integration demo | [`dpp-sdk-demo/README.md`](dpp-sdk-demo/README.md) | `mock-dpp-repo`, `mock-eu-registry`, `dpp-integration-demo` |
 | Use PostgreSQL storage for `Dpp4Fun` | [`dpp-postgres/README.md`](dpp-postgres/README.md) | `dpp-postgres-core`, `dpp4fun-postgres` |
@@ -95,6 +96,7 @@ The root-level `dpp-postgres` module is optional.
 - It contains:
   - `dpp-postgres-core`
   - `dpp4fun-postgres`
+- It stores one stable passport identity plus append-only version history and lightweight lifecycle-event records.
 - It is not required for users who only need models, validation, and JSON handling from `dpp-datamodel`.
 - `mock-dpp-repo` can run with either backend:
   - `dpp.repo.backend=memory`
@@ -172,7 +174,7 @@ Connection rule:
 - inside Docker Compose, the registry API container uses `jdbc:postgresql://dpp-registry-db:5432/dpp_registry`
 - from a local JAR or IDE, use `jdbc:postgresql://localhost:5433/dpp_repo` for the repo and `jdbc:postgresql://localhost:5434/dpp_registry` for the registry
 
-Detailed non-Docker demo runtime options are in [`dpp-sdk-demo/README.md`](dpp-sdk-demo/README.md). PostgreSQL module usage examples are in [`dpp-postgres/README.md`](dpp-postgres/README.md).
+Detailed non-Docker demo runtime options are in [`dpp-sdk-demo/README.md`](dpp-sdk-demo/README.md). PostgreSQL module usage, storage layout, and lifecycle-event details are in [`dpp-postgres/README.md`](dpp-postgres/README.md).
 Docker Compose keeps the mock repo and mock registry PostgreSQL data in separate named volumes. `docker compose down` keeps that data; `docker compose down -v` removes it.
 
 ## Entry-Point Example
@@ -430,8 +432,8 @@ For the presenter-oriented walkthrough of those flows, use [`dpp-sdk-demo/DEMO_G
 - `CHANGELOG.md`: release-oriented summary of notable repository changes
 - `LICENSE`: project license
 - [`dpp-datamodel/README.md`](dpp-datamodel/README.md): datamodel build, consumption, and usage guidance
-- [`dpp-datamodel/MODEL_GUIDE.md`](dpp-datamodel/MODEL_GUIDE.md): consolidated model structure and validation reference
-- [`dpp-postgres/README.md`](dpp-postgres/README.md): PostgreSQL module structure and repository usage
+- [`dpp-datamodel/MODEL_GUIDE.md`](dpp-datamodel/MODEL_GUIDE.md): consolidated SDK model structure and validation reference
+- [`dpp-postgres/README.md`](dpp-postgres/README.md): PostgreSQL module structure, storage layout, lifecycle events, and repository usage
 - [`dpp-sdk-clients/README.md`](dpp-sdk-clients/README.md): generic client modules, payload contracts, and endpoint coverage
 - [`dpp-sdk-clients/docs/pren-18222-api-alignment.md`](dpp-sdk-clients/docs/pren-18222-api-alignment.md): API-alignment notes for the current client surface
 - [`dpp-sdk-demo/README.md`](dpp-sdk-demo/README.md): build and run the mock services and integration demo

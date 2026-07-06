@@ -88,6 +88,57 @@ Core PostgreSQL support:
 - `dppsdk.postgres.dpp4fun.Dpp4FunSearchResult`
 - `dppsdk.postgres.dpp4fun.Dpp4FunVersionSummary`
 
+## How Data Is Stored
+
+The PostgreSQL storage model is append-only and version-oriented.
+
+- `dpp_passports` stores the stable DPP identity (`dpp_id`, `product_id`, passport type, timestamps, soft-delete marker)
+- `dpp_versions` stores immutable version rows per passport with `ACTIVE`, `SUPERSEDED`, and `DELETED` status values
+- core reusable fields are normalized into dedicated tables such as:
+  - `dpp_passport_metadata`
+  - `dpp_passport_update_dates`
+  - `dpp_nameplates`
+  - `dpp_documentation`
+  - `dpp_organizations`, `dpp_contacts`, `dpp_addresses`, `dpp_emails`, `dpp_telephones`
+- `Dpp4Fun`-specific fields are stored in dedicated tables such as:
+  - `dpp4fun_classifications`
+  - `dpp4fun_classification_tags`
+  - `dpp4fun_characteristics`
+  - `dpp4fun_dimensions`
+  - `dpp4fun_features`
+  - `dpp4fun_bill_of_materials`
+  - `dpp4fun_materials`
+  - `dpp4fun_components`
+  - `dpp4fun_parts`
+
+This means the PostgreSQL layer keeps one stable passport identity plus an append-only history of versions, rather than overwriting the same row in place.
+
+## Lifecycle Events
+
+The reusable PostgreSQL core also stores audit-oriented lifecycle events in `dpp_lifecycle_events`.
+
+Each lifecycle event row stores:
+
+- a unique `event_id`
+- the related `dpp_id`
+- the `event_type`
+- `occurred_at`
+- a small `jsonb` `data` payload
+
+Current supported event types are:
+
+- `DPP_CREATED`
+- `DPP_UPDATED`
+- `DATA_ELEMENT_UPDATED`
+- `DPP_DELETED`
+
+In Java, these events are exposed through:
+
+- `dppsdk.postgres.core.DppLifecycleEventType`
+- `dppsdk.postgres.core.DppLifecycleEventRecord`
+
+The lifecycle-event table is intentionally lightweight and audit-oriented. It is not the canonical source of full DPP content; the full DPP state comes from the normalized passport/version tables.
+
 ## Usage
 
 ### Create The Repository
