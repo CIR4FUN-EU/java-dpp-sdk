@@ -17,12 +17,12 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.example.dppsdk</groupId>
+            <groupId>dpp.datamodel</groupId>
             <artifactId>dpp-core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.example.dppsdk</groupId>
+            <groupId>dpp.datamodel</groupId>
             <artifactId>dpp4fun</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -56,14 +56,14 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.example.dppsdk</groupId>
+            <groupId>dpp.datamodel</groupId>
             <artifactId>dpp-core</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.example.dppsdk</groupId>
+            <groupId>dpp.datamodel</groupId>
             <artifactId>dpp4fun</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>

@@ -71,8 +71,8 @@ Consumer-facing artifacts are built in this monorepo and can then be consumed fr
 
 After building and installing the relevant subprojects locally, use these modules when consuming the monorepo from another project:
 
-- `com.example.dppsdk:dpp-core:0.4.0`
-- `com.example.dppsdk:dpp4fun:0.4.0`
+- `dpp.datamodel:dpp-core:0.4.0`
+- `dpp.datamodel:dpp4fun:0.4.0`
 - `com.example.dppsdk:dpp-postgres-core:0.4.0`
 - `com.example.dppsdk:dpp4fun-postgres:0.4.0`
 - `dpp.client:dpp-repo-payloads:0.4.0`
