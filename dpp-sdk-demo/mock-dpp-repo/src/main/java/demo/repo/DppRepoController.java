@@ -24,6 +24,7 @@ import dpp.repo.payloads.DppStatusCode;
 import dpp.repo.payloads.ReadDppIdsRequest;
 import dpp.repo.payloads.ReadDppIdsResponse;
 import dpp.repo.payloads.UpdateDataElementRequest;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -44,6 +45,21 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @Tag(name = "DPP Repository - Life Cycle API",
         description = "Mock lifecycle endpoints for full DPP create, read, update, delete, and existence checks.")
 class DppRepoController {
+
+    private static final String LANDING_PAGE = """
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <title>DPP Repository API</title>
+            </head>
+            <body>
+              <h1>DPP Repository API</h1>
+              <p>Service is running.</p>
+              <p><a href="/swagger-ui/index.html">Open Swagger UI</a></p>
+            </body>
+            </html>
+            """;
 
     private static final String SEEDED_DPP_ID = "49192c87-20c8-4b6f-88de-48b56ca4c211";
     private static final String SEEDED_PRODUCT_ID = "04012345678901";
@@ -173,6 +189,12 @@ class DppRepoController {
     DppRepoController(DppRepoService repoService, ApiResponseFactory responseFactory) {
         this.repoService = repoService;
         this.responseFactory = responseFactory;
+    }
+
+    @Hidden
+    @GetMapping(value = "/", produces = MediaType.TEXT_HTML_VALUE)
+    ResponseEntity<String> landingPage() {
+        return ResponseEntity.ok(LANDING_PAGE);
     }
 
     @Operation(

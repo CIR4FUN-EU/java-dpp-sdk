@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -35,6 +36,21 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @Tag(name = "DPP Registry",
         description = "Mock registry metadata endpoints. The service stores metadata only and verifies DPP existence in the mock repository.")
 class DppRegistryController {
+
+    private static final String LANDING_PAGE = """
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <title>DPP Registry API</title>
+            </head>
+            <body>
+              <h1>DPP Registry API</h1>
+              <p>Service is running.</p>
+              <p><a href="/swagger-ui/index.html">Open Swagger UI</a></p>
+            </body>
+            </html>
+            """;
 
     private static final String SEEDED_REGISTRY_ID = "8a5be5de-7c76-46ef-a1d5-4875d3f4a5dc";
     private static final String SEEDED_REGISTRY_DPP_ID = "e7d64b7b-18f2-4d77-9c41-2fa1d1d6b8aa";
@@ -81,6 +97,12 @@ class DppRegistryController {
     DppRegistryController(DppRegistryService registryService, ApiResponseFactory responseFactory) {
         this.registryService = registryService;
         this.responseFactory = responseFactory;
+    }
+
+    @Hidden
+    @GetMapping(value = "/", produces = MediaType.TEXT_HTML_VALUE)
+    ResponseEntity<String> landingPage() {
+        return ResponseEntity.ok(LANDING_PAGE);
     }
 
     @Operation(
