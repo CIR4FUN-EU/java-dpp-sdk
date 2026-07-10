@@ -15,7 +15,7 @@
         <dependency>
             <groupId>dpp.datamodel</groupId>
             <artifactId>dpp4fun</artifactId>
-            <version>${dpp.sdk.version}</version>
+            <version>0.4.0</version>
         </dependency>
         <dependency>
             <groupId>dpp.client</groupId>
