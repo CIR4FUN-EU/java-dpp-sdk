@@ -22,9 +22,9 @@ class HttpServiceDemoRunnerTest {
 
         HttpServiceDemoRunner configuredRunner = new HttpServiceDemoRunner();
 
-        assertEquals("http://mock-eu-registry:18081", configuredRunner.defaultRegistryDockerUrl());
+        assertEquals("http://dpp-registry-api:18081", configuredRunner.defaultRegistryDockerUrl());
         assertEquals("http://localhost:18081", configuredRunner.defaultRegistryLocalUrl());
-        assertEquals("http://mock-dpp-repo:18080", configuredRunner.defaultRepoDockerUrl());
+        assertEquals("http://dpp-repo-api:18080", configuredRunner.defaultRepoDockerUrl());
         assertEquals("http://localhost:18080", configuredRunner.defaultRepoLocalUrl());
     }
 }

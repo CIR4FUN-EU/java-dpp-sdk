@@ -13,7 +13,7 @@ Say:
 - `dpp4fun` owns the Dpp4Fun product model/builders, mapper support, validation, and `Dpp4FunJsonCodec`.
 - `dpp-core` owns reusable core DPP model classes, validators, payload mapping, and utilities.
 - `dpp-sdk-clients` owns the split repo/registry payload contracts, HTTP clients, and client error categories for the standard-style mock APIs.
-- This demo adds only Dpp4Fun adapters, mock HTTP services, runners, Postman collections, in-memory stores, and a small mock-only registry lookup helper.
+- This demo adds only Dpp4Fun adapters, mock HTTP services, runners, Postman collections, mock backend adapters, and a small mock-only registry lookup helper.
 - Mock HTTP services simulate external repo and registry systems; they are not part of the client library.
 - The runtime truth for this repo is the demo code plus the installed `dpp4fun` / `dpp-core` / `dpp-sdk-clients` artifacts used by Maven.
 
@@ -49,12 +49,12 @@ Run without backend services:
 
 ```Powershell
 # Windows
-java -jar dpp-integration-demo\target\dpp-integration-demo-1.0.0-SNAPSHOT.jar sdk --debug=false
+java -jar dpp-integration-demo\target\dpp-integration-demo-0.4.0.jar sdk --debug=false
 ```
 
 ```bash
 # Linux/MacOS
-java -jar dpp-integration-demo/target/dpp-integration-demo-1.0.0-SNAPSHOT.jar sdk --debug=false
+java -jar dpp-integration-demo/target/dpp-integration-demo-0.4.0.jar sdk --debug=false
 ```
 
 Point out:
@@ -123,8 +123,8 @@ Presenter note:
 
 - Use the local JAR workflow from `README.md` when you want the services visible on the host without Docker.
 - Use the local container build workflow from `README.md` when you want to demonstrate the current Dockerized maintainer path.
-- Use the published-image pull or push workflows from `README.md` only when that operating context matters to the audience.
-- `dpp-sdk-demo/.env` carries the current image names, tags, and default ports used by those workflows.
+- Both services default to the in-memory backend, which needs no PostgreSQL server. Use the PostgreSQL run options in `README.md` when you want the same HTTP APIs backed by PostgreSQL, either with only the databases in Docker and the apps local or with all four containers running through Docker Compose.
+- In both modes, the repo keeps validation, JSON Merge Patch, and fine-granular element-path handling in the mock service layer, and the registry keeps request validation, duplicate checks, repo `HEAD` verification, and response mapping there. PostgreSQL only changes persistence.
 
 Base URLs for the live demo:
 
@@ -142,9 +142,10 @@ Use Swagger UI when you want to test GET, POST, PATCH, DELETE, and HEAD requests
 
 Container networking caveat:
 
-- The registry container must reach the repo container at `http://mock-dpp-repo:${DPP_REPO_PORT}`.
+- The registry container must reach the repo API container at `http://dpp-repo-api:${DPP_REPO_PORT}`.
 - `localhost` inside the registry container points back to the registry container itself.
 - The registry handles that internal container-to-container hop automatically when the submitted public repo URL matches the configured public repo base URL.
+- In PostgreSQL Docker mode, the repo and registry also talk to separate database containers: `dpp-repo-db` and `dpp-registry-db`.
 
 Registry verification config note:
 
@@ -158,8 +159,8 @@ Registry verification config note:
 Runner URL resolution behavior:
 
 - Without explicit URL arguments, the HTTP demo runner checks Docker-style service names first:
-  - Registry: `http://mock-eu-registry:${DPP_REGISTRY_PORT}`
-  - Repo: `http://mock-dpp-repo:${DPP_REPO_PORT}`
+  - Registry: `http://dpp-registry-api:${DPP_REGISTRY_PORT}`
+  - Repo: `http://dpp-repo-api:${DPP_REPO_PORT}`
 - If those checks fail, it falls back to `http://localhost:${DPP_REGISTRY_PORT}` and `http://localhost:${DPP_REPO_PORT}`.
 - If both the Docker-style and localhost health checks fail for a service, the runner throws an exception and quits before the demo flow continues.
 - `dpp-sdk-demo/.env` controls those ports when present; if `.env` is missing, the old `8081` and `8080` defaults still apply.
@@ -181,7 +182,7 @@ Point out:
 - This helper is mock/demo-only visibility plumbing and is not part of the public `dpp-registry-client` contract.
 - The client validates before sending.
 - No additional custom helper clients are used beyond that mock/demo-only registry read-back helper.
-- The repo service receives JSON, maps it with SDK `Dpp4FunJsonCodec`, validates it with `Dpp4FunValidationService`, and stores it in memory.
+- The repo service receives JSON, maps it with SDK `Dpp4FunJsonCodec`, validates it with `Dpp4FunValidationService`, and stores it through the selected backend. The default backend is memory; PostgreSQL is optional.
 - Full DPP reads return a wrapped payload that the HTTP client maps back into an SDK domain object.
 - The registry verifies the repo reference with `HEAD /dpps/{dppId}` before storing metadata; it does not fetch the full DPP JSON.
 - Fine-granular reads and updates return wrapped raw JSON element payloads.
@@ -210,7 +211,7 @@ Say:
 - The registry stores only registration metadata, not the full DPP JSON.
 - The registry trusts the repo as the validated DPP store and does not run SDK validation itself.
 - The repo service does not automatically call the registry in this demo.
-- For this phase the registry is purely in-memory and does not call a real EU service.
+- The registry can use memory or a local PostgreSQL backend in this demo, but it still does not call a real EU service.
 - The two `GET /registry/dpps/...` endpoints are mock/internal convenience helpers for tests and debugging.
 
 ## 6. Show Invalid And Malformed Input
@@ -257,12 +258,11 @@ Mocked:
 
 - EU registry behavior
 - DPP repository behavior
-- Persistence, using in-memory stores
+- Persistence, using default in-memory storage or optional PostgreSQL-backed repo and registry adapters
 
 Not implemented:
 
 - Real EU registry integration
-- Real database
 - Authentication or OAuth
 - Retry framework
 - Production resilience, retries, auditing, or monitoring

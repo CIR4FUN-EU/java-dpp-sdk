@@ -143,7 +143,7 @@ class MapperEdgeCasesTest {
     }
 
     @Test
-    void cir4FunFurnitureDppMapperPreservesTopLevelGraph() {
+    void dpp4FunFurnitureDppMapperPreservesTopLevelGraph() {
         Dpp4Fun domain = TestDataFactory.validDpp();
         Dpp4FunMapper mapper = new Dpp4FunMapper();
 
@@ -174,7 +174,7 @@ class MapperEdgeCasesTest {
     }
 
     @Test
-    void cir4FunFurnitureDppMapperRejectsMissingRequiredTopLevelData() {
+    void dpp4FunFurnitureDppMapperRejectsMissingRequiredTopLevelData() {
         Dpp4FunPayload payload = new Dpp4FunPayload();
         payload.setPassportMetadata(new PassportMetadataMapper().toPayload(TestDataFactory.validPassportMetadata()));
         payload.setClassification(new ProductClassificationMapper().toPayload(TestDataFactory.validProductClassification()));

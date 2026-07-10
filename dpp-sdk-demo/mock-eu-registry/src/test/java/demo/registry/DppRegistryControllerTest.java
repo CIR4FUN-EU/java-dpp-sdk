@@ -190,12 +190,27 @@ class DppRegistryControllerTest {
     }
 
     @Test
+    @DisplayName("GET / returns a simple registry landing page")
+    void rootReturnsRegistryLandingPage() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .contentTypeCompatibleWith(MediaType.TEXT_HTML))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("DPP Registry API")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("Service is running.")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("/swagger-ui/index.html")));
+    }
+
+    @Test
     @DisplayName("GET /health reports the registry mock as UP")
     void healthEndpointReturnsUp() throws Exception {
         mockMvc.perform(get("/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
-                .andExpect(jsonPath("$.service").value("mock-eu-registry"));
+                .andExpect(jsonPath("$.service").value("dpp-registry-api"));
     }
 
     @Test

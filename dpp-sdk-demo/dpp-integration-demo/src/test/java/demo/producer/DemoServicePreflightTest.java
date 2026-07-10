@@ -35,7 +35,7 @@ class DemoServicePreflightTest {
 
         DemoServicePreflight preflight = new DemoServicePreflight();
 
-        assertDoesNotThrow(() -> preflight.verifyReachable("Registry", baseUrl(), "mock-eu-registry"));
+        assertDoesNotThrow(() -> preflight.verifyReachable("Registry", baseUrl(), "dpp-registry-api"));
     }
 
     @Test
@@ -51,7 +51,7 @@ class DemoServicePreflightTest {
                 "Registry",
                 baseUrl(),
                 "http://127.0.0.1:65529",
-                "mock-eu-registry"
+                "dpp-registry-api"
         );
 
         assertEquals(baseUrl(), resolved);
@@ -70,7 +70,7 @@ class DemoServicePreflightTest {
                 "Registry",
                 "http://127.0.0.1:65529",
                 baseUrl(),
-                "mock-eu-registry"
+                "dpp-registry-api"
         );
 
         assertEquals(baseUrl(), resolved);
@@ -84,12 +84,12 @@ class DemoServicePreflightTest {
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> preflight.verifyReachable("Registry", unreachableUrl, "mock-eu-registry")
+                () -> preflight.verifyReachable("Registry", unreachableUrl, "dpp-registry-api")
         );
 
         assertTrue(exception.getMessage().contains("Registry service is not reachable"));
         assertTrue(exception.getMessage().contains(unreachableUrl));
-        assertTrue(exception.getMessage().contains("mock-eu-registry"));
+        assertTrue(exception.getMessage().contains("dpp-registry-api"));
     }
 
     @Test
@@ -101,12 +101,12 @@ class DemoServicePreflightTest {
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> preflight.resolveReachable("Registry", preferredUrl, fallbackUrl, "mock-eu-registry")
+                () -> preflight.resolveReachable("Registry", preferredUrl, fallbackUrl, "dpp-registry-api")
         );
 
         assertTrue(exception.getMessage().contains(preferredUrl));
         assertTrue(exception.getMessage().contains(fallbackUrl));
-        assertTrue(exception.getMessage().contains("mock-eu-registry"));
+        assertTrue(exception.getMessage().contains("dpp-registry-api"));
     }
 
     private String baseUrl() {
