@@ -29,7 +29,7 @@ class Dpp4FunConvenienceGetterTest {
     }
 
     @Test
-    void cir4FunConvenienceGetters_delegateToSpecificSubmodels() {
+    void dpp4FunConvenienceGetters_delegateToSpecificSubmodels() {
         Dpp4Fun dpp = TestDataFactory.validDpp();
 
         assertEquals(dpp.getClassification().getSector(), dpp.getSector());

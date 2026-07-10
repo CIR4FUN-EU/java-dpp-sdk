@@ -3,12 +3,28 @@ package demo.repo;
 import dppsdk.dpp4fun.model.Dpp4Fun;
 import dppsdk.dpp4fun.transport.Dpp4FunJsonCodec;
 import dppsdk.dpp4fun.validation.Dpp4FunValidationService;
+import dppsdk.postgres.dpp4fun.Dpp4FunPostgresRepository;
+import org.postgresql.ds.PGSimpleDataSource;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import javax.sql.DataSource;
+import java.time.Clock;
+
+/**
+ * Wiring for the mock repository backend.
+ *
+ * <p>Memory remains the default backend. PostgreSQL is opt-in through {@code dpp.repo.backend=postgres}.</p>
+ */
 @Configuration
 class RepoConfiguration {
+
+    @Bean
+    Clock systemClock() {
+        return Clock.systemUTC();
+    }
 
     @Bean
     Dpp4FunJsonCodec dppJsonCodec() {
@@ -18,6 +34,40 @@ class RepoConfiguration {
     @Bean
     Dpp4FunValidationService validationService() {
         return new Dpp4FunValidationService();
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "dpp.repo.backend", havingValue = "memory", matchIfMissing = true)
+    DppRepoBackend inMemoryRepoBackend(InMemoryDppStore store, Dpp4FunJsonCodec dppJsonCodec,
+                                       com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
+        return new InMemoryDppRepoBackend(store, dppJsonCodec, objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "dpp.repo.backend", havingValue = "postgres")
+    DataSource postgresDataSource(
+            @org.springframework.beans.factory.annotation.Value("${spring.datasource.url}") String url,
+            @org.springframework.beans.factory.annotation.Value("${spring.datasource.username}") String username,
+            @org.springframework.beans.factory.annotation.Value("${spring.datasource.password}") String password
+    ) {
+        PGSimpleDataSource dataSource = new PGSimpleDataSource();
+        dataSource.setURL(url);
+        dataSource.setUser(username);
+        dataSource.setPassword(password);
+        return dataSource;
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "dpp.repo.backend", havingValue = "postgres")
+    Dpp4FunPostgresRepository dpp4FunPostgresRepository(DataSource dataSource) {
+        return new Dpp4FunPostgresRepository(dataSource);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "dpp.repo.backend", havingValue = "postgres")
+    DppRepoBackend postgresRepoBackend(Dpp4FunPostgresRepository repository,
+                                       com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
+        return new PostgresDppRepoBackend(repository, objectMapper);
     }
 
     @Bean
@@ -34,7 +84,7 @@ class RepoConfiguration {
     }
 
     private static void seedIfMissing(DppRepoService repoService, Dpp4FunJsonCodec dppJsonCodec, String dppId, Dpp4Fun dpp) {
-        if (!repoService.hasActiveDpp(dppId)) {
+        if (!repoService.hasAnyDpp(dppId)) {
             repoService.create(dppJsonCodec.toJson(dpp));
         }
     }

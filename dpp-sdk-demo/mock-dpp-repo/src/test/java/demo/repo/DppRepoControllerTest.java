@@ -588,12 +588,23 @@ class DppRepoControllerTest {
     }
 
     @Test
+    @DisplayName("GET / returns a simple repository landing page")
+    void rootReturnsRepositoryLandingPage() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+                .andExpect(content().string(containsString("DPP Repository API")))
+                .andExpect(content().string(containsString("Service is running.")))
+                .andExpect(content().string(containsString("/swagger-ui/index.html")));
+    }
+
+    @Test
     @DisplayName("GET /health reports the repository mock as UP")
     void healthEndpointReturnsUp() throws Exception {
         mockMvc.perform(get("/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
-                .andExpect(jsonPath("$.service").value("mock-dpp-repo"));
+                .andExpect(jsonPath("$.service").value("dpp-repo-api"));
     }
 
     @Test
