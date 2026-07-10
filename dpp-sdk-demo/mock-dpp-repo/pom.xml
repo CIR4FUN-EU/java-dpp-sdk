@@ -18,7 +18,7 @@
             <version>${dpp.sdk.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.example.dppsdk</groupId>
+            <groupId>dpp.postgres</groupId>
             <artifactId>dpp4fun-postgres</artifactId>
             <version>${dpp.sdk.version}</version>
         </dependency>

@@ -6,7 +6,7 @@
 
 Parent coordinates from `dpp-postgres/pom.xml`:
 
-- `groupId`: `com.example.dppsdk`
+- `groupId`: `dpp.postgres`
 - `artifactId`: `dpp-postgres`
 - `version`: `0.4.0`
 - packaging: `pom`
@@ -17,8 +17,8 @@ This module does not own the mock registry's PostgreSQL seam. That registry-spec
 
 | Module | Coordinates | What it provides |
 | --- | --- | --- |
-| `dpp-postgres-core` | `com.example.dppsdk:dpp-postgres-core:0.4.0` | Reusable PostgreSQL support for versioning, core mapping, lifecycle events, paging |
-| `dpp4fun-postgres` | `com.example.dppsdk:dpp4fun-postgres:0.4.0` | `Dpp4Fun` repository, relational mapping, history lookup, search support |
+| `dpp-postgres-core` | `dpp.postgres:dpp-postgres-core:0.4.0` | Reusable PostgreSQL support for versioning, core mapping, lifecycle events, paging |
+| `dpp4fun-postgres` | `dpp.postgres:dpp4fun-postgres:0.4.0` | `Dpp4Fun` repository, relational mapping, history lookup, search support |
 
 ## Prerequisites
 
@@ -90,7 +90,7 @@ Core PostgreSQL support:
 
 ```xml
 <dependency>
-    <groupId>com.example.dppsdk</groupId>
+    <groupId>dpp.postgres</groupId>
     <artifactId>dpp-postgres-core</artifactId>
     <version>0.4.0</version>
 </dependency>
@@ -100,7 +100,7 @@ Core PostgreSQL support:
 
 ```xml
 <dependency>
-    <groupId>com.example.dppsdk</groupId>
+    <groupId>dpp.postgres</groupId>
     <artifactId>dpp4fun-postgres</artifactId>
     <version>0.4.0</version>
 </dependency>
