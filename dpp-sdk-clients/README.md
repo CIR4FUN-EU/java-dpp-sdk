@@ -4,7 +4,7 @@
 
 `dpp-sdk-clients` provides generic Java HTTP clients and payload contracts for repository and registry APIs. The client modules stay model-independent: callers provide their own DPP type plus codec and validation hooks where needed.
 
-The implementation follows the drafted standardised API standards specified by the CEN/CENELEC JTC24 committee as of 06/2026.
+The clients implement selected EN 18222:2026-facing contracts but are not fully aligned. They do not claim final EN compliance, certification, or legal conformity.
 
 Parent coordinates from `dpp-sdk-clients/pom.xml`:
 
@@ -142,7 +142,6 @@ Payload contract surface:
 - `dpp.repo.payloads.DeleteDppResponse`
 - `dpp.repo.payloads.ReadDppIdsRequest`
 - `dpp.repo.payloads.ReadDppIdsResponse`
-- `dpp.repo.payloads.UpdateDataElementRequest`
 - `dpp.registry.payloads.DppApiResponse`
 - `dpp.registry.payloads.DppApiMessage`
 - `dpp.registry.payloads.DppStatusCode`
@@ -158,7 +157,7 @@ Payload contract surface:
 Repository payload examples:
 
 - wrapper DTOs: `DppApiResponse`, `DppApiMessage`, `DppStatusCode`, `MessageType`
-- request/response DTOs: `CreateDppResponse`, `DeleteDppResponse`, `ReadDppIdsRequest`, `ReadDppIdsResponse`, `UpdateDataElementRequest`
+- request/response DTOs: `CreateDppResponse`, `DeleteDppResponse`, `ReadDppIdsRequest`, `ReadDppIdsResponse`
 
 Registry payload examples:
 
@@ -247,13 +246,16 @@ Supported `DppRepoClient<T>` methods from `dpp-repo-client/src/main/java/dpp/rep
 
 - `createDpp(T dpp)`
 - `readDppById(String dppId)`
+- `readCompressedDppById(String dppId)`
 - `readDppByProductId(String productId)`
-- `readDppVersionByProductIdAndDate(String productId, Instant date)`
+- `readDppVersionByIdAndDate(String dppId, Instant date)`
 - `readDppIdsByProductIds(List<String> productIds, Integer limit, String cursor)`
 - `updateDppById(String dppId, JsonNode partialDpp)`
 - `deleteDppById(String dppId)`
-- `readDataElement(String dppId, String elementPath)`
-- `updateDataElement(String dppId, String elementPath, JsonNode payload)`
+- `readDataElement(String dppId, String elementIdPath)`
+- `updateDataElement(String dppId, String elementIdPath, JsonNode dataElement)`
+
+The deprecated `readDppVersionByProductIdAndDate` method remains available only as non-standard compatibility; new callers should use the DPP-ID method.
 
 Example:
 
@@ -307,14 +309,14 @@ RegisterDppResponse registered = registryClient.postNewDppToRegistry(
 );
 ```
 
-`RegisterDppRequest` currently contains four active fields:
+`RegisterDppRequest` contains the four supported standard-facing fields:
 
-- `productIdentifier`
-- `dppIdentifier`
-- `operatorIdentifier`
-- `repoUrl`
+- `uniqueProductIdentifier`
+- `digitalProductPassportId`
+- `uniqueEconomicOperatorIdentifier`
+- `dppApiEndpoint`
 
-`productIdentifier` and `operatorIdentifier` are the current registry identifiers in this contract. `dppIdentifier` and `repoUrl` are project/system/demo integration fields used by the current repo-backed registration flow.
+The response uses `registrationId`. Backup-operator behavior remains out of scope.
 
 ## Payload Notes
 
@@ -329,27 +331,27 @@ RegisterDppResponse registered = registryClient.postNewDppToRegistry(
 - `dppIdentifiers`
 - optional `nextCursor`
 
-`UpdateDataElementRequest` wraps the fine-granular patch payload in one field:
+Fine-granular PATCH sends the data element directly as JSON.
 
-- `payload`
+Typed read methods returning `T` explicitly request `representation=full`. `readCompressedDppById` returns `JsonNode`, so the project-defined provisional compressed summary is never decoded into the caller's DPP model. On the mock server, an omitted representation defaults to `compressed` under EN 18222 Clause 8.1; the concrete compressed shape is not claimed as EN 18223-compliant.
 
 ## Endpoint Coverage
 
 Repository client coverage:
 
-- `POST /dpps`
-- `GET /dpps/{dppId}`
-- `GET /dppsByProductId/{productId}`
-- `GET /dppsByProductIdAndDate/{productId}?date={instant}`
-- `POST /dppsByProductIds`
-- `PATCH /dpps/{dppId}`
-- `DELETE /dpps/{dppId}`
-- `GET /dpps/{dppId}/elements/{elementPath}`
-- `PATCH /dpps/{dppId}/elements/{elementPath}`
+- `POST /v1/dpps`
+- `GET /v1/dpps/{dppId}`
+- `GET /v1/dppsByProductId/{productId}`
+- `GET /v1/dppsByIdAndDate/{dppId}?date={instant}`
+- `POST /v1/dppsByProductIds`
+- `PATCH /v1/dpps/{dppId}`
+- `DELETE /v1/dpps/{dppId}`
+- `GET /v1/dpps/{dppId}/elements/{elementIdPath}`
+- `PATCH /v1/dpps/{dppId}/elements/{elementIdPath}`
 
 Registry client coverage:
 
-- `POST /registerDPP`
+- `POST /v1/registerDPP`
 
 The mock registry in `dpp-sdk-demo` also exposes metadata lookup endpoints, but those lookup endpoints are demo-local and are not part of `dpp-sdk-clients`.
 
@@ -377,7 +379,3 @@ try {
 - They do not own SDK model classes, validators, payload mappers, or JSON codecs for concrete DPP types.
 - They do not own persistence logic, mock-service behavior, or demo orchestration.
 - They do not document or guarantee production auth, retries, pagination, caching, or async behavior.
-
-## Related Docs
-
-- [`docs/pren-18222-api-alignment.md`](docs/pren-18222-api-alignment.md)

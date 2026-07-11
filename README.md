@@ -12,7 +12,7 @@ This monorepo contains:
 - Demo runtime
 - Optional PostgreSQL persistence support for `Dpp4Fun`
 
-The implementation follows the drafted standardised API standards specified by the CEN/CENELEC JTC24 committee as of 06/2026.
+Selected mock/client API contracts are partially aligned with EN 18222:2026. This repository does not claim final EN compliance, certification, or legal conformity.
 
 Use this root README as the quick entry point. For module-specific details, use the README and docs inside each subproject.
 
@@ -265,7 +265,7 @@ Dpp4Fun dpp = new Dpp4Fun.Builder()
 Dpp4FunValidationService validator = new Dpp4FunValidationService();
 validator.validate(dpp);
 
-// 5. Serialize to the standard JSON shape and read it back again.
+// 5. Serialize to the current Dpp4Fun transport JSON shape and read it back again.
 Dpp4FunJsonCodec codec = new Dpp4FunJsonCodec();
 String json = codec.toJson(dpp);
 Dpp4Fun parsed = codec.fromJson(json);
@@ -293,7 +293,7 @@ HttpDppRepoClient<Dpp4Fun> repoClient = new HttpDppRepoClient<>(
         clientValidator
 );
 
-// 8. Store and read back the full DPP through the standard repo API.
+// 8. Store and read back the full DPP through the versioned mock repo API.
 repoClient.createDpp(parsed);
 Dpp4Fun fromRepo = repoClient.readDppById(dpp.getDppId());
 ```
@@ -435,7 +435,6 @@ For the presenter-oriented walkthrough of those flows, use [`dpp-sdk-demo/DEMO_G
 - [`dpp-datamodel/MODEL_GUIDE.md`](dpp-datamodel/MODEL_GUIDE.md): consolidated SDK model structure and validation reference
 - [`dpp-postgres/README.md`](dpp-postgres/README.md): PostgreSQL module structure, storage layout, lifecycle events, and repository usage
 - [`dpp-sdk-clients/README.md`](dpp-sdk-clients/README.md): generic client modules, payload contracts, and endpoint coverage
-- [`dpp-sdk-clients/docs/pren-18222-api-alignment.md`](dpp-sdk-clients/docs/pren-18222-api-alignment.md): API-alignment notes for the current client surface
 - [`dpp-sdk-demo/README.md`](dpp-sdk-demo/README.md): build and run the mock services and integration demo
 - [`dpp-sdk-demo/DEMO_GUIDE.md`](dpp-sdk-demo/DEMO_GUIDE.md): live-demo walkthrough and presenter notes
 - [`docs/dpp-sdk-architecture.drawio.png`](docs/dpp-sdk-architecture.drawio.png): repository architecture diagram
@@ -446,6 +445,8 @@ For the presenter-oriented walkthrough of those flows, use [`dpp-sdk-demo/DEMO_G
 - `mock-dpp-repo` and `mock-eu-registry` are mock/demo services, not production services.
 - The registry stores metadata only; it does not store full DPP JSON.
 - In-memory demo backends are not durable persistence.
-- The upstream registry client currently supports `POST /registerDPP` only. The demo module has extra mock-only lookup endpoints that are not part of `dpp-sdk-clients`.
+- The registry client supports `POST /v1/registerDPP`. The demo module has extra internal/mock lookup endpoints that are not part of `dpp-sdk-clients`.
+- Full-DPP GET routes default to a project-defined compressed summary; EN 18223 payload conformity is not claimed.
+- Fine-granular paths are curated mock paths rather than full RFC 9535 JSONPath.
 - Real EU registry integration, production security hardening, and operational readiness are not implemented here.
 - The top-level `dpp-persistence/` directory is present in this checkout, but it is not part of the root reactor and this checkout does not expose a checked-in parent `pom.xml` or README for it. This README therefore does not document it as a consumable main module.
