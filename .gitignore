@@ -10,6 +10,9 @@
 .home/
 **/.home/
 
+# Private local standards-analysis note; do not add it to the repository.
+/dpp-sdk-clients/docs/pren-18222-api-alignment.md
+
 # IDE files
 .idea/
 **/.idea/
