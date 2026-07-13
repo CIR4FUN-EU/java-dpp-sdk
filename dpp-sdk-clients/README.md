@@ -283,10 +283,10 @@ Fine-granular element access:
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 
-JsonNode productName = repoClient.readDataElement(dpp.getDppId(), "characteristics.productName");
+JsonNode productName = repoClient.readDataElement(dpp.getDppId(), "$.characteristics.productName");
 JsonNode changed = repoClient.updateDataElement(
         dpp.getDppId(),
-        "characteristics.productName",
+        "$.characteristics.productName",
         JsonNodeFactory.instance.textNode("Updated element value")
 );
 ```
@@ -332,6 +332,8 @@ The response uses `registrationId`. Backup-operator behavior remains out of scop
 - optional `nextCursor`
 
 Fine-granular PATCH sends the data element directly as JSON.
+
+Fine-granular `elementIdPath` uses a bounded RFC 9535-compatible singular subset: `$`, dot members, quoted bracket members, and non-negative array indexes. Wildcards, descendants, unions, slices, filters, functions, and negative indexes are not supported by the mock repository and return HTTP 501; malformed paths return 400 and a selected path with no matching node returns 404. PATCH sends direct JSON, targets one existing value, and persists only after whole-DPP validation succeeds.
 
 Typed read methods returning `T` explicitly request `representation=full`. `readCompressedDppById` returns `JsonNode`, so the project-defined provisional compressed summary is never decoded into the caller's DPP model. On the mock server, an omitted representation defaults to `compressed` under EN 18222 Clause 8.1; the concrete compressed shape is not claimed as EN 18223-compliant.
 

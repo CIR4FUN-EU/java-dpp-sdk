@@ -4,14 +4,19 @@ import dpp.repo.payloads.DppApiResponse;
 import dpp.repo.payloads.DppStatusCode;
 import dppsdk.core.mapper.MappingException;
 import dppsdk.core.validation.ValidationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     private final ApiResponseFactory responseFactory;
 
@@ -45,8 +50,15 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<DppApiResponse<Void>> unexpected(Exception exception) {
+        log.error("Unexpected repository error", exception);
         return responseFactory.error(HttpStatus.INTERNAL_SERVER_ERROR, DppStatusCode.ServerInternalError,
                 "UNEXPECTED_ERROR", "Unexpected repository error");
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    ResponseEntity<DppApiResponse<Void>> routeNotFound(NoResourceFoundException exception) {
+        return responseFactory.error(HttpStatus.NOT_FOUND, DppStatusCode.ClientErrorResourceNotFound,
+                "ROUTE_NOT_FOUND", "Repository route not found");
     }
 
     private HttpStatus httpStatus(DppStatusCode statusCode) {
@@ -59,6 +71,7 @@ class GlobalExceptionHandler {
             case ClientErrorResourceNotFound -> HttpStatus.NOT_FOUND;
             case ClientResourceConflict -> HttpStatus.CONFLICT;
             case ServerErrorBadGateway -> HttpStatus.BAD_GATEWAY;
+            case ServerNotImplemented -> HttpStatus.NOT_IMPLEMENTED;
             case ServerInternalError -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
     }

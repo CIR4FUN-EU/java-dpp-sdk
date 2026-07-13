@@ -1,5 +1,7 @@
 package demo.repo;
 
+import static demo.repo.RepoSwaggerExamples.*;
+
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -23,7 +25,6 @@ import dpp.repo.payloads.DppApiResponse;
 import dpp.repo.payloads.DppStatusCode;
 import dpp.repo.payloads.ReadDppIdsRequest;
 import dpp.repo.payloads.ReadDppIdsResponse;
-import dpp.repo.payloads.UpdateDataElementRequest;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -32,7 +33,6 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
  * Exposes the standard-style mock repository API.
@@ -42,9 +42,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
  */
 @RestController
 @RequestMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-@Tag(name = "DPP Repository - Life Cycle API",
-        description = "Mock lifecycle endpoints for full DPP create, read, update, delete, and existence checks.")
 class DppRepoController {
+
+    private static final String API_PREFIX = "/v1";
+    private static final String INTERNAL_PREFIX = "/internal";
 
     private static final String LANDING_PAGE = """
             <!doctype html>
@@ -63,125 +64,6 @@ class DppRepoController {
 
     private static final String SEEDED_DPP_ID = "49192c87-20c8-4b6f-88de-48b56ca4c211";
     private static final String SEEDED_PRODUCT_ID = "04012345678901";
-    private static final String WRAPPED_SUCCESS_EXAMPLE = """
-            {
-              "statusCode": "Success",
-              "payload": {},
-              "messages": []
-            }
-            """;
-    private static final String ERROR_EXAMPLE = """
-            {
-              "statusCode": "ClientErrorBadRequest",
-              "payload": null,
-              "messages": [
-                {
-                  "messageType": "Error",
-                  "code": "MALFORMED_JSON",
-                  "text": "Malformed JSON payload",
-                  "correlationId": "demo-correlation-id"
-                }
-              ]
-            }
-            """;
-    private static final String CREATE_DPP_EXAMPLE = """
-            {
-              "passportMetadata": {
-                "uniqueProductIdentifier": "22222222-2222-2222-2222-222222222222",
-                "passportUpdateDates": ["2026-04-24"],
-                "qrCodeOrDigitalTag": "https://demo.example/dpp/22222222-2222-2222-2222-222222222222",
-                "externalDocumentationLink": "https://demo.example/docs/furniture"
-              },
-              "nameplate": {
-                "gtinCode": "04012345678999",
-                "internalArticleNumber": "C4F-DEMO-001",
-                "batchNumber": "DEMO-2026-04",
-                "customsTariffNumber": "940360",
-                "uriOfTheProduct": "https://demo.example/products/c4f-demo-001",
-                "manufacturer": {
-                  "name": "Cir4Fun Furniture GmbH",
-                  "gln": "4000001000005",
-                  "uri": "https://demo.example/organizations/cir4fun-furniture-gmbh",
-                  "role": "MANUFACTURER"
-                },
-                "supplier": {
-                  "name": "Partner Supplier GmbH",
-                  "gln": "4000001000005",
-                  "uri": "https://demo.example/organizations/partner-supplier-gmbh",
-                  "role": "SUPPLIER"
-                }
-              },
-              "documentation": {
-                "digitalInstructionsLink": "https://demo.example/docs/assembly",
-                "safetyInstructionsLink": "https://demo.example/docs/safety",
-                "downloadable": true,
-                "availableForYears": 10,
-                "paperCopyAvailableOnRequest": true
-              },
-              "classification": {
-                "sector": "Furniture",
-                "group": "Home and office furniture",
-                "category": "Beds",
-                "tags": ["cir4fun", "demo"]
-              },
-              "characteristics": {
-                "productName": "Cir4Fun Platform Bed",
-                "description": "Partner demo product passport",
-                "brand": "Cir4Fun",
-                "productType": "Bed",
-                "dimensions": {
-                  "width": 90.0,
-                  "height": 80.0,
-                  "depth": 120.0,
-                  "unit": "cm"
-                },
-                "weight": 24.5,
-                "color": "Warm oak",
-                "features": ["repairable", "recyclable"]
-              },
-              "billOfMaterials": {
-                "materials": [
-                  {
-                    "name": "FSC certified wood",
-                    "mandatory": true,
-                    "portion": 72.0,
-                    "reference": "MAT-WOOD-001"
-                  }
-                ]
-              }
-            }
-            """;
-    private static final String READ_IDS_EXAMPLE = """
-            {
-              "productIdentifiers": ["04012345678901"],
-              "limit": 10,
-              "cursor": "0"
-            }
-            """;
-    private static final String MERGE_PATCH_EXAMPLE = """
-            {
-              "characteristics": {
-                "productName": "Cir4Fun Platform Bed - Updated Demo"
-              },
-              "documentation": {
-                "safetyInstructionsLink": null
-              }
-            }
-            """;
-    private static final String CREATE_DPP_SUCCESS_EXAMPLE = """
-            {
-              "statusCode": "SuccessCreated",
-              "payload": {
-                "dppId": "22222222-2222-2222-2222-222222222222"
-              },
-              "messages": []
-            }
-            """;
-    private static final String DATA_ELEMENT_UPDATE_EXAMPLE = """
-            {
-              "payload": "Cir4Fun Platform Bed - Fine Granular Update"
-            }
-            """;
 
     private final DppRepoService repoService;
     private final ApiResponseFactory responseFactory;
@@ -220,47 +102,78 @@ class DppRepoController {
                             examples = @ExampleObject(value = ERROR_EXAMPLE))),
             @ApiResponse(responseCode = "409", description = "DPP id or product id already exists",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = DPP_CONFLICT_EXAMPLE))),
             @ApiResponse(responseCode = "500", description = "Unexpected repository error",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class)))
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INTERNAL_ERROR_EXAMPLE)))
     })
-    @PostMapping(value = "/dpps", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(value = API_PREFIX + "/dpps", consumes = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<DppApiResponse<CreateDppResponse>> create(@RequestBody String jsonPayload) {
         return responseFactory.success(HttpStatus.CREATED, DppStatusCode.SuccessCreated, repoService.create(jsonPayload));
     }
 
     @Operation(summary = "Read a DPP by id",
-            description = "Returns the active full DPP JSON document for the requested DPP identifier.",
+            description = "Returns compressed by default or the full stored DPP when representation=full. See the official standards for payload requirements.",
             tags = "DPP Repository - Life Cycle API")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "DPP found",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = DppApiResponse.class),
-                            examples = @ExampleObject(value = WRAPPED_SUCCESS_EXAMPLE))),
+                            examples = {
+                                    @ExampleObject(name = "Default compressed representation", value = COMPRESSED_SUCCESS_EXAMPLE),
+                                    @ExampleObject(name = "Full representation", value = FULL_SUCCESS_EXAMPLE)
+                            })),
+            @ApiResponse(responseCode = "400", description = "Invalid representation",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INVALID_REPRESENTATION_EXAMPLE))),
             @ApiResponse(responseCode = "404", description = "DPP not found",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = NOT_FOUND_EXAMPLE))),
             @ApiResponse(responseCode = "500", description = "Unexpected repository error",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class)))
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INTERNAL_ERROR_EXAMPLE)))
     })
-    @GetMapping("/dpps/{dppId}")
+    @GetMapping(API_PREFIX + "/dpps/{dppId}")
     ResponseEntity<DppApiResponse<JsonNode>> readById(
             @Parameter(description = "DPP identifier to read. The example is seeded when the mock repo starts.",
                     example = SEEDED_DPP_ID)
-            @PathVariable String dppId) {
-        return responseFactory.success(HttpStatus.OK, DppStatusCode.Success, repoService.readById(dppId));
+            @PathVariable String dppId,
+            @Parameter(description = "Response representation. Omitted values default to compressed.",
+                    schema = @Schema(allowableValues = {"compressed", "full"}, defaultValue = "compressed"),
+                    example = "compressed")
+            @RequestParam(value = "representation", required = false) String representation) {
+        return responseFactory.success(HttpStatus.OK, DppStatusCode.Success,
+                repoService.readById(dppId, DppRepresentation.parse(representation)));
+    }
+
+    @Operation(summary = "Read all active DPP ids",
+            description = "Internal/mock helper endpoint that lists all currently active DPP identifiers in the local repository.",
+            tags = "DPP Repository - Internal")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Active DPP ids returned"),
+            @ApiResponse(responseCode = "500", description = "Unexpected repository error",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INTERNAL_ERROR_EXAMPLE)))
+    })
+    @GetMapping(INTERNAL_PREFIX + "/dpps")
+    ResponseEntity<DppApiResponse<List<String>>> readAllActiveDppIds() {
+        return responseFactory.success(HttpStatus.OK, DppStatusCode.Success, repoService.readAllActiveDppIds());
     }
 
     @Operation(summary = "Verify active DPP existence",
             description = "HEAD endpoint used by the mock registry to verify that a DPP is active in the mock repository.",
-            tags = "DPP Repository - Life Cycle API")
+            tags = "DPP Repository - Internal")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "DPP exists", content = @Content),
             @ApiResponse(responseCode = "404", description = "DPP not found", content = @Content)
     })
-    @RequestMapping(value = "/dpps/{dppId}", method = RequestMethod.HEAD)
+    @RequestMapping(value = INTERNAL_PREFIX + "/dpps/{dppId}", method = RequestMethod.HEAD)
     ResponseEntity<Void> verifyById(
             @Parameter(description = "DPP identifier to verify. The example is seeded when the mock repo starts.",
                     example = SEEDED_DPP_ID)
@@ -271,55 +184,79 @@ class DppRepoController {
     }
 
     @Operation(summary = "Read active DPP by product id",
-            description = "Returns the active DPP JSON document for a product identifier.",
+            description = "Returns compressed by default or the full stored DPP when representation=full. See the official standards for payload requirements.",
             tags = "DPP Repository - Life Cycle API")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "DPP found",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = {
+                                    @ExampleObject(name = "Default compressed representation", value = COMPRESSED_SUCCESS_EXAMPLE),
+                                    @ExampleObject(name = "Full representation", value = FULL_SUCCESS_EXAMPLE)
+                            })),
+            @ApiResponse(responseCode = "400", description = "Invalid representation",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INVALID_REPRESENTATION_EXAMPLE))),
             @ApiResponse(responseCode = "404", description = "Product has no active DPP",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = PRODUCT_NOT_FOUND_EXAMPLE))),
             @ApiResponse(responseCode = "500", description = "Unexpected repository error",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class)))
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INTERNAL_ERROR_EXAMPLE)))
     })
-    @GetMapping("/dppsByProductId/{productId}")
+    @GetMapping(API_PREFIX + "/dppsByProductId/{productId}")
     ResponseEntity<DppApiResponse<JsonNode>> readByProductId(
             @Parameter(description = "Product identifier, for example a GTIN. The example is seeded when the mock repo starts.",
                     example = SEEDED_PRODUCT_ID)
-            @PathVariable String productId) {
-        return responseFactory.success(HttpStatus.OK, DppStatusCode.Success, repoService.readByProductId(productId));
+            @PathVariable String productId,
+            @Parameter(description = "Response representation. Omitted values default to compressed.",
+                    schema = @Schema(allowableValues = {"compressed", "full"}, defaultValue = "compressed"),
+                    example = "compressed")
+            @RequestParam(value = "representation", required = false) String representation) {
+        return responseFactory.success(HttpStatus.OK, DppStatusCode.Success,
+                repoService.readByProductId(productId, DppRepresentation.parse(representation)));
     }
 
-    @Operation(summary = "Read historical DPP snapshot by product id and date",
-            description = "Returns the repository snapshot that was active for a product at the requested ISO-8601 instant.",
+    @Operation(summary = "Read historical DPP snapshot by DPP id and date",
+            description = "Returns the repository snapshot active at the requested instant, compressed by default or full when representation=full. See the official standards for payload requirements.",
             tags = "DPP Repository - Life Cycle API")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Historical snapshot found",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid date parameter",
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = HISTORICAL_COMPRESSED_SUCCESS_EXAMPLE))),
+            @ApiResponse(responseCode = "400", description = "Invalid date or representation parameter",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INVALID_DATE_EXAMPLE))),
             @ApiResponse(responseCode = "404", description = "No matching snapshot found",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = DPP_VERSION_NOT_FOUND_EXAMPLE))),
             @ApiResponse(responseCode = "500", description = "Unexpected repository error",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class)))
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INTERNAL_ERROR_EXAMPLE)))
     })
-    @GetMapping("/dppsByProductIdAndDate/{productId}")
-    ResponseEntity<DppApiResponse<JsonNode>> readByProductIdAndDate(
-            @Parameter(description = "Product identifier, for example a GTIN. The example is seeded when the mock repo starts.",
-                    example = SEEDED_PRODUCT_ID)
-            @PathVariable String productId,
-            @Parameter(description = "ISO-8601 instant used for historical snapshot lookup.", example = "2026-06-08T10:15:30Z")
-            @RequestParam("date") String date
+    @GetMapping(API_PREFIX + "/dppsByIdAndDate/{dppId}")
+    ResponseEntity<DppApiResponse<JsonNode>> readByIdAndDate(
+            @Parameter(description = "DPP identifier whose historical snapshot should be resolved.",
+                    example = PostmanSeedData.HISTORICAL_SWAGGER_DPP_ID)
+            @PathVariable String dppId,
+            @Parameter(description = "ISO-8601 instant used for historical snapshot lookup.",
+                    example = PostmanSeedData.HISTORICAL_SWAGGER_QUERY_AT)
+            @RequestParam("date") String date,
+            @Parameter(description = "Response representation. Omitted values default to compressed.",
+                    schema = @Schema(allowableValues = {"compressed", "full"}, defaultValue = "compressed"),
+                    example = "compressed")
+            @RequestParam(value = "representation", required = false) String representation
     ) {
         // Snapshot lookup is based on repository history, not on any version fields inside the DPP document.
         return responseFactory.success(HttpStatus.OK, DppStatusCode.Success,
-                repoService.readVersionByProductIdAndDate(productId, date));
+                repoService.readVersionByDppIdAndDate(dppId, date, DppRepresentation.parse(representation)));
     }
 
     @Operation(summary = "Read DPP identifiers by product identifiers",
@@ -327,7 +264,7 @@ class DppRepoController {
             tags = "DPP Repository - Life Cycle API")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             required = true,
-            description = "Product identifiers plus optional limit and cursor.",
+            description = "Product identifiers plus optional limit and cursor. productIdentifiers is required and must not be empty.",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                     schema = @Schema(implementation = ReadDppIdsRequest.class),
                     examples = @ExampleObject(name = "Batch product lookup", value = READ_IDS_EXAMPLE))
@@ -335,15 +272,18 @@ class DppRepoController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "DPP identifiers returned",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = READ_IDS_SUCCESS_EXAMPLE))),
             @ApiResponse(responseCode = "400", description = "Invalid request, limit, cursor, or product id list",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = EMPTY_PRODUCT_IDENTIFIERS_EXAMPLE))),
             @ApiResponse(responseCode = "500", description = "Unexpected repository error",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class)))
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INTERNAL_ERROR_EXAMPLE)))
     })
-    @PostMapping(value = "/dppsByProductIds", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(value = API_PREFIX + "/dppsByProductIds", consumes = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<DppApiResponse<ReadDppIdsResponse>> readIdsByProductIds(
             @RequestBody ReadDppIdsRequest request
     ) {
@@ -363,20 +303,28 @@ class DppRepoController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "DPP updated",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = FULL_SUCCESS_EXAMPLE))),
             @ApiResponse(responseCode = "400", description = "Invalid patch, immutable-field change, or validation failure",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INVALID_PATCH_EXAMPLE))),
             @ApiResponse(responseCode = "404", description = "DPP not found",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = NOT_FOUND_EXAMPLE))),
+            @ApiResponse(responseCode = "409", description = "Concurrent DPP version conflict",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = VERSION_CONFLICT_EXAMPLE))),
             @ApiResponse(responseCode = "500", description = "Unexpected repository error",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class)))
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INTERNAL_ERROR_EXAMPLE)))
     })
-    @PatchMapping(value = "/dpps/{dppId}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PatchMapping(value = API_PREFIX + "/dpps/{dppId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<DppApiResponse<JsonNode>> update(
-            @Parameter(description = "DPP identifier to patch. Use the seeded example or the id returned by `POST /dpps`.",
+            @Parameter(description = "DPP identifier to patch. Use the seeded example or the id returned by `POST /v1/dpps`.",
                     example = SEEDED_DPP_ID)
             @PathVariable String dppId,
             @RequestBody String patchJson) {
@@ -384,87 +332,110 @@ class DppRepoController {
     }
 
     @Operation(summary = "Read a fine-granular DPP element",
-            description = "Reads one curated element path from the active DPP. Element paths are a supported subset, not arbitrary JSONPath.",
+            description = "Reads one value through the bounded RFC 9535-compatible singular subset: $, dot members, quoted bracket members, and non-negative indexes. Malformed paths return 400, a supported path with no match returns 404, and unsupported RFC features return 501. Full RFC 9535 JSONPath is not implemented.",
             tags = "DPP Repository - Fine Granular API")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Element returned",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Unsupported element path",
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = ELEMENT_READ_SUCCESS_EXAMPLE))),
+            @ApiResponse(responseCode = "400", description = "Malformed elementIdPath",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
-            @ApiResponse(responseCode = "404", description = "DPP not found",
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INVALID_ELEMENT_PATH_EXAMPLE))),
+            @ApiResponse(responseCode = "404", description = "DPP or selected data element not found",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = ELEMENT_NOT_FOUND_EXAMPLE))),
+            @ApiResponse(responseCode = "501", description = "Valid RFC 9535 feature outside the bounded singular subset",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = NOT_IMPLEMENTED_EXAMPLE))),
             @ApiResponse(responseCode = "500", description = "Unexpected repository error",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class)))
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INTERNAL_ERROR_EXAMPLE)))
     })
-    @GetMapping("/dpps/{dppId}/elements/{elementPath}")
+    @GetMapping(API_PREFIX + "/dpps/{dppId}/elements/{elementIdPath}")
     ResponseEntity<DppApiResponse<JsonNode>> readDataElement(
             @Parameter(description = "DPP identifier to read from. The example is seeded when the mock repo starts.",
                     example = SEEDED_DPP_ID)
             @PathVariable String dppId,
-            @Parameter(description = "Supported element path.", example = "characteristics.productName")
-            @PathVariable String elementPath
+            @Parameter(description = "Bounded RFC 9535-compatible singular JSONPath. Example: $.characteristics.productName.", example = "$.characteristics.productName")
+            @PathVariable String elementIdPath
     ) {
-        // Element paths are a deliberately small supported subset, not arbitrary JSONPath.
+        // Evaluation is intentionally limited to singular JSONPath selectors in the service layer.
         return responseFactory.success(HttpStatus.OK, DppStatusCode.Success,
-                repoService.readDataElement(dppId, elementPath));
+                repoService.readDataElement(dppId, elementIdPath));
     }
 
     @Operation(summary = "Patch a fine-granular DPP element",
-            description = "Updates one curated element path using a `{ \"payload\": ... }` body and returns the updated element value.",
+            description = "Updates one existing singular target using the data element directly. The resulting full DPP is decoded and validated before persistence; failed updates do not persist. Malformed paths return 400, no match returns 404, and unsupported RFC features return 501. Full RFC 9535 JSONPath is not implemented.",
             tags = "DPP Repository - Fine Granular API")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             required = true,
-            description = "Element update wrapper. The `payload` value may be a scalar, object, or array accepted for the target element.",
+            description = "Direct JSON data element value, not a payload wrapper. It may be a scalar, object, or array accepted for the existing singular target.",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                    schema = @Schema(implementation = UpdateDataElementRequest.class),
+                    schema = @Schema(implementation = Object.class),
                     examples = @ExampleObject(name = "Update product name", value = DATA_ELEMENT_UPDATE_EXAMPLE))
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Element updated",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Unsupported element path or invalid payload",
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = ELEMENT_UPDATE_SUCCESS_EXAMPLE))),
+            @ApiResponse(responseCode = "400", description = "Malformed elementIdPath, root replacement, or invalid payload",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
-            @ApiResponse(responseCode = "404", description = "DPP not found",
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INVALID_ELEMENT_PATH_EXAMPLE))),
+            @ApiResponse(responseCode = "404", description = "DPP or selected data element not found",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = ELEMENT_NOT_FOUND_EXAMPLE))),
+            @ApiResponse(responseCode = "501", description = "Valid RFC 9535 feature outside the bounded singular subset",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = NOT_IMPLEMENTED_EXAMPLE))),
+            @ApiResponse(responseCode = "409", description = "Concurrent DPP version conflict",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = VERSION_CONFLICT_EXAMPLE))),
             @ApiResponse(responseCode = "500", description = "Unexpected repository error",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class)))
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INTERNAL_ERROR_EXAMPLE)))
     })
-    @PatchMapping(value = "/dpps/{dppId}/elements/{elementPath}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PatchMapping(value = API_PREFIX + "/dpps/{dppId}/elements/{elementIdPath}", consumes = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<DppApiResponse<JsonNode>> updateDataElement(
-            @Parameter(description = "DPP identifier to update. Use the seeded example or the id returned by `POST /dpps`.",
+            @Parameter(description = "DPP identifier to update. Use the seeded example or the id returned by `POST /v1/dpps`.",
                     example = SEEDED_DPP_ID)
             @PathVariable String dppId,
-            @Parameter(description = "Supported element path.", example = "characteristics.productName")
-            @PathVariable String elementPath,
-            @RequestBody UpdateDataElementRequest request
+            @Parameter(description = "Bounded RFC 9535-compatible singular JSONPath. Example: $.characteristics.productName.", example = "$.characteristics.productName")
+            @PathVariable String elementIdPath,
+            @RequestBody JsonNode dataElement
     ) {
         return responseFactory.success(HttpStatus.OK, DppStatusCode.Success,
-                repoService.updateDataElement(dppId, elementPath, request));
+                repoService.updateDataElement(dppId, elementIdPath, dataElement));
     }
 
     @Operation(summary = "Read DPP lifecycle events",
             description = "Returns lifecycle events recorded by the local mock repository for the requested DPP.",
-            tags = "DPP Repository - Events")
+            tags = "DPP Repository - Internal")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Lifecycle events returned",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = EVENTS_SUCCESS_EXAMPLE))),
             @ApiResponse(responseCode = "404", description = "DPP not found",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = NOT_FOUND_EXAMPLE))),
             @ApiResponse(responseCode = "500", description = "Unexpected repository error",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class)))
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INTERNAL_ERROR_EXAMPLE)))
     })
-    @GetMapping("/dpps/{dppId}/events")
+    @GetMapping(INTERNAL_PREFIX + "/dpps/{dppId}/events")
     ResponseEntity<DppApiResponse<List<LifecycleEventRecord>>> readEvents(
             @Parameter(description = "DPP identifier whose lifecycle events should be returned.",
                     example = SEEDED_DPP_ID)
@@ -478,15 +449,22 @@ class DppRepoController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "DPP soft-deleted",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = DELETE_SUCCESS_EXAMPLE))),
             @ApiResponse(responseCode = "404", description = "DPP not found",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class))),
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = NOT_FOUND_EXAMPLE))),
+            @ApiResponse(responseCode = "409", description = "Concurrent DPP version conflict",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = VERSION_CONFLICT_EXAMPLE))),
             @ApiResponse(responseCode = "500", description = "Unexpected repository error",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class)))
+                            schema = @Schema(implementation = DppApiResponse.class),
+                            examples = @ExampleObject(value = INTERNAL_ERROR_EXAMPLE)))
     })
-    @DeleteMapping("/dpps/{dppId}")
+    @DeleteMapping(API_PREFIX + "/dpps/{dppId}")
     ResponseEntity<DppApiResponse<Void>> delete(
             @Parameter(description = "DPP identifier to soft-delete. This example is seeded only for DELETE so the read/query examples stay queryable.",
                     example = PostmanSeedData.DELETE_EXAMPLE_DPP_ID)

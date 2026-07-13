@@ -4,6 +4,7 @@ import dpp.registry.payloads.DppStatusCode;
 import dpp.registry.payloads.RegisterDppRequest;
 import dpp.registry.payloads.RegisterDppResponse;
 import java.time.Instant;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -38,10 +39,10 @@ class DppRegistryService {
             throw new RegistryApiException(DppStatusCode.ClientErrorBadRequest, "INVALID_REGISTRATION",
                     "Registration request must not be null");
         }
-        String productIdentifier = requireNonBlank(request.getProductIdentifier(), "productIdentifier");
-        String dppIdentifier = requireNonBlank(request.getDppIdentifier(), "dppIdentifier");
-        String operatorIdentifier = requireNonBlank(request.getOperatorIdentifier(), "operatorIdentifier");
-        String repoUrl = requireNonBlank(request.getRepoUrl(), "repoUrl");
+        String productIdentifier = requireNonBlank(request.getUniqueProductIdentifier(), "uniqueProductIdentifier");
+        String dppIdentifier = requireNonBlank(request.getDigitalProductPassportId(), "digitalProductPassportId");
+        String operatorIdentifier = requireNonBlank(request.getUniqueEconomicOperatorIdentifier(), "uniqueEconomicOperatorIdentifier");
+        String repoUrl = requireNonBlank(request.getDppApiEndpoint(), "dppApiEndpoint");
         if (backend.existsByDppId(dppIdentifier)) {
             throw new RegistryApiException(DppStatusCode.ClientResourceConflict, "REGISTRY_CONFLICT",
                     "A registry record already exists for dpp id " + dppIdentifier);
@@ -57,8 +58,12 @@ class DppRegistryService {
                 Instant.now()
         );
         RegisterDppResponse response = new RegisterDppResponse();
-        response.setRegistryIdentifier(record.registryIdentifier());
+        response.setRegistrationId(record.registryIdentifier());
         return response;
+    }
+
+    List<String> readAllRegisteredDppIds() {
+        return backend.findAllRegisteredDppIds();
     }
 
     RegistryRecordPayload readByRegistryId(String registryId) {

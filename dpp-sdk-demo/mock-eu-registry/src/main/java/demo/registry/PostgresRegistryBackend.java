@@ -109,6 +109,22 @@ final class PostgresRegistryBackend implements RegistryBackend {
     }
 
     @Override
+    public List<String> findAllRegisteredDppIds() {
+        String sql = "SELECT dpp_identifier FROM registry_records ORDER BY dpp_identifier";
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet resultSet = statement.executeQuery()) {
+            List<String> dppIds = new ArrayList<>();
+            while (resultSet.next()) {
+                dppIds.add(resultSet.getString("dpp_identifier"));
+            }
+            return dppIds;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Failed to list registry DPP ids", exception);
+        }
+    }
+
+    @Override
     public void seed(
             String registryIdentifier,
             String productIdentifier,

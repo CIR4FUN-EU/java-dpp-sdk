@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "911cc53d-9d2e-4458-b58b-f721da522049",
     "name": "DPP Lifecycle API",
-    "description": "Manual smoke collection for the mock DPP repository lifecycle API. Run requests in order. CreateDPP generates a fresh dppId/productId and captures versionDate. HEAD /dpps/{dppId} is an internal lightweight verification endpoint used by the registry. Lifecycle events are internal mock events, not full Track & Trace.",
+    "description": "Manual smoke collection for the mock DPP repository lifecycle API. Run requests in order. CreateDPP generates a fresh dppId/productId and captures versionDate. HEAD /internal/dpps/{dppId} is an internal lightweight verification endpoint used by the registry. Lifecycle events are internal mock events, not full Track & Trace.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "0"
   },
@@ -100,13 +100,14 @@
             ],
             "description": "Creates a valid DPP; generates fresh IDs.",
             "url": {
-              "raw": "http://localhost:8080/dpps",
+              "raw": "http://localhost:8080/v1/dpps",
               "protocol": "http",
               "host": [
                 "localhost"
               ],
               "port": "8080",
               "path": [
+                "v1",
                 "dpps"
               ]
             },
@@ -145,13 +146,14 @@
             ],
             "description": "Lightweight verification endpoint.",
             "url": {
-              "raw": "http://localhost:8080/dpps/{{deleteDppId}}",
+              "raw": "http://localhost:8080/internal/dpps/{{deleteDppId}}",
               "protocol": "http",
               "host": [
                 "localhost"
               ],
               "port": "8080",
               "path": [
+                "internal",
                 "dpps",
                 "{{deleteDppId}}"
               ]
@@ -160,7 +162,7 @@
           "response": []
         },
         {
-          "name": "ReadDPPById",
+          "name": "ReadDPPById - Full representation",
           "event": [
             {
               "listen": "test",
@@ -183,18 +185,71 @@
                 "value": "application/json"
               }
             ],
-            "description": "Reads by DPP ID.",
+            "description": "Reads by DPP ID and explicitly requests the full representation used by typed Java clients.",
             "url": {
-              "raw": "http://localhost:8080/dpps/{{dppId}}",
+              "raw": "http://localhost:8080/v1/dpps/{{dppId}}?representation=full",
               "protocol": "http",
               "host": [
                 "localhost"
               ],
               "port": "8080",
               "path": [
+                "v1",
                 "dpps",
                 "{{dppId}}"
+              ],
+              "query": [
+                {
+                  "key": "representation",
+                  "value": "full"
+                }
               ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ReadDPPById - Default compressed representation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('omitted representation defaults to compressed', function () { pm.expect(json.payload.representation).to.eql('compressed'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "description": "EN 18222 Clause 8.1 default. The compressed payload is a project-defined provisional summary pending EN 18223.",
+            "url": {
+              "raw": "http://localhost:8080/v1/dpps/{{dppId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["v1", "dpps", "{{dppId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ReadDPPById - Explicit compressed representation",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "description": "Explicit project-defined provisional compressed summary.",
+            "url": {
+              "raw": "http://localhost:8080/v1/dpps/{{dppId}}?representation=compressed",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["v1", "dpps", "{{dppId}}"],
+              "query": [{"key": "representation", "value": "compressed"}]
             }
           },
           "response": []
@@ -225,15 +280,22 @@
             ],
             "description": "Reads by product ID.",
             "url": {
-              "raw": "http://localhost:8080/dppsByProductId/{{productId}}",
+              "raw": "http://localhost:8080/v1/dppsByProductId/{{productId}}?representation=full",
               "protocol": "http",
               "host": [
                 "localhost"
               ],
               "port": "8080",
               "path": [
+                "v1",
                 "dppsByProductId",
                 "{{productId}}"
+              ],
+              "query": [
+                {
+                  "key": "representation",
+                  "value": "full"
+                }
               ]
             }
           },
@@ -270,13 +332,14 @@
             ],
             "description": "Applies JSON Merge Patch.",
             "url": {
-              "raw": "http://localhost:8080/dpps/{{dppId}}",
+              "raw": "http://localhost:8080/v1/dpps/{{dppId}}",
               "protocol": "http",
               "host": [
                 "localhost"
               ],
               "port": "8080",
               "path": [
+                "v1",
                 "dpps",
                 "{{dppId}}"
               ]
@@ -294,7 +357,7 @@
           "response": []
         },
         {
-          "name": "ReadDPPVersionByProductIdAndDate",
+          "name": "ReadDPPVersionByIdAndDate",
           "event": [
             {
               "listen": "test",
@@ -317,22 +380,27 @@
                 "value": "application/json"
               }
             ],
-            "description": "Reads snapshot at versionDate.",
+            "description": "Reads snapshot at versionDate using the DPP identifier.",
             "url": {
-              "raw": "http://localhost:8080/dppsByProductIdAndDate/{{productId}}?date={{versionDate}}",
+              "raw": "http://localhost:8080/v1/dppsByIdAndDate/{{dppId}}?date={{versionDate}}&representation=full",
               "protocol": "http",
               "host": [
                 "localhost"
               ],
               "port": "8080",
               "path": [
-                "dppsByProductIdAndDate",
-                "{{productId}}"
+                "v1",
+                "dppsByIdAndDate",
+                "{{dppId}}"
               ],
               "query": [
                 {
                   "key": "date",
                   "value": "{{versionDate}}"
+                },
+                {
+                  "key": "representation",
+                  "value": "full"
                 }
               ]
             }
@@ -369,13 +437,14 @@
             ],
             "description": "Resolves DPP IDs.",
             "url": {
-              "raw": "http://localhost:8080/dppsByProductIds",
+              "raw": "http://localhost:8080/v1/dppsByProductIds",
               "protocol": "http",
               "host": [
                 "localhost"
               ],
               "port": "8080",
               "path": [
+                "v1",
                 "dppsByProductIds"
               ]
             },
@@ -422,13 +491,14 @@
             ],
             "description": "Reads internal mock events.",
             "url": {
-              "raw": "http://localhost:8080/dpps/{{dppId}}/events",
+              "raw": "http://localhost:8080/internal/dpps/{{dppId}}/events",
               "protocol": "http",
               "host": [
                 "localhost"
               ],
               "port": "8080",
               "path": [
+                "internal",
                 "dpps",
                 "{{dppId}}",
                 "events"
@@ -467,13 +537,14 @@
             ],
             "description": "Soft-deletes DPP.",
             "url": {
-              "raw": "http://localhost:8080/dpps/{{dppId}}",
+              "raw": "http://localhost:8080/v1/dpps/{{dppId}}",
               "protocol": "http",
               "host": [
                 "localhost"
               ],
               "port": "8080",
               "path": [
+                "v1",
                 "dpps",
                 "{{dppId}}"
               ]
@@ -509,13 +580,14 @@
             ],
             "description": "HEAD missing DPP.",
             "url": {
-              "raw": "http://localhost:8080/dpps/{{missingDppId}}",
+              "raw": "http://localhost:8080/v1/dpps/{{missingDppId}}",
               "protocol": "http",
               "host": [
                 "localhost"
               ],
               "port": "8080",
               "path": [
+                "v1",
                 "dpps",
                 "{{missingDppId}}"
               ]
@@ -548,16 +620,47 @@
             ],
             "description": "Read missing DPP.",
             "url": {
-              "raw": "http://localhost:8080/dpps/{{missingDppId}}",
+              "raw": "http://localhost:8080/v1/dpps/{{missingDppId}}",
               "protocol": "http",
               "host": [
                 "localhost"
               ],
               "port": "8080",
               "path": [
+                "v1",
                 "dpps",
                 "{{missingDppId}}"
               ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Read DPP with invalid representation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('HTTP 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('invalid representation is rejected', function () { pm.expect(json.statusCode).to.eql('ClientErrorBadRequest'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "description": "Negative example: only compressed and full are accepted.",
+            "url": {
+              "raw": "http://localhost:8080/v1/dpps/{{dppId}}?representation=invalid",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["v1", "dpps", "{{dppId}}"],
+              "query": [{"key": "representation", "value": "invalid"}]
             }
           },
           "response": []
@@ -600,13 +703,14 @@
             ],
             "description": "Malformed JSON.",
             "url": {
-              "raw": "http://localhost:8080/dpps",
+              "raw": "http://localhost:8080/v1/dpps",
               "protocol": "http",
               "host": [
                 "localhost"
               ],
               "port": "8080",
               "path": [
+                "v1",
                 "dpps"
               ]
             },
@@ -646,13 +750,14 @@
             ],
             "description": "Invalid cursor.",
             "url": {
-              "raw": "http://localhost:8080/dppsByProductIds",
+              "raw": "http://localhost:8080/v1/dppsByProductIds",
               "protocol": "http",
               "host": [
                 "localhost"
               ],
               "port": "8080",
               "path": [
+                "v1",
                 "dppsByProductIds"
               ]
             },
@@ -693,13 +798,14 @@
             ],
             "description": "Delete missing DPP.",
             "url": {
-              "raw": "http://localhost:8080/dpps/{{missingDppId}}",
+              "raw": "http://localhost:8080/v1/dpps/{{missingDppId}}",
               "protocol": "http",
               "host": [
                 "localhost"
               ],
               "port": "8080",
               "path": [
+                "v1",
                 "dpps",
                 "{{missingDppId}}"
               ]

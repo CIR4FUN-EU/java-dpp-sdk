@@ -18,8 +18,17 @@ public interface DppRepoClient<T> {
 
     T readDppById(String dppId);
 
+    JsonNode readCompressedDppById(String dppId);
+
     T readDppByProductId(String productId);
 
+    T readDppVersionByIdAndDate(String dppId, Instant date);
+
+    /**
+     * @deprecated Non-standard transitional compatibility method. EN 18222-facing callers should
+     * use {@link #readDppVersionByIdAndDate(String, Instant)}.
+     */
+    @Deprecated
     T readDppVersionByProductIdAndDate(String productId, Instant date);
 
     ReadDppIdsResponse readDppIdsByProductIds(List<String> productIds, Integer limit, String cursor);
@@ -28,7 +37,7 @@ public interface DppRepoClient<T> {
 
     DeleteDppResponse deleteDppById(String dppId);
 
-    JsonNode readDataElement(String dppId, String elementPath);
+    JsonNode readDataElement(String dppId, String elementIdPath);
 
-    JsonNode updateDataElement(String dppId, String elementPath, JsonNode payload);
+    JsonNode updateDataElement(String dppId, String elementIdPath, JsonNode dataElement);
 }

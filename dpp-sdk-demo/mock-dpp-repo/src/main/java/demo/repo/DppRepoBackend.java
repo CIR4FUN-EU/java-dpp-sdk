@@ -24,9 +24,11 @@ interface DppRepoBackend {
 
     Optional<Dpp4Fun> findCurrentByProductId(String productId);
 
-    Optional<Dpp4Fun> findByProductIdAt(String productId, Instant timestamp);
+    Optional<Dpp4Fun> findByDppIdAt(String dppId, Instant timestamp);
 
     DppIdPage findActiveDppIdsByProductIds(List<String> productIds, int offset, int limit);
+
+    List<String> findAllActiveDppIds();
 
     void appendVersion(Dpp4Fun dpp, Instant occurredAt, String eventType, Map<String, String> eventData);
 

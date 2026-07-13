@@ -56,7 +56,7 @@ class MockRegistrySeedDataPostgresBackendTest {
     @Test
     @DisplayName("default Postman registry identifiers resolve against clean PostgreSQL startup state")
     void defaultPostmanRegistryIdentifiersExistOnCleanPostgresStartup() throws Exception {
-        mockMvc.perform(get("/registry/dpps/" + SEEDED_REGISTRY_ID))
+        mockMvc.perform(get("/internal/dpps/" + SEEDED_REGISTRY_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value("Success"))
                 .andExpect(jsonPath("$.payload.registryIdentifier").value(SEEDED_REGISTRY_ID))
@@ -65,7 +65,7 @@ class MockRegistrySeedDataPostgresBackendTest {
                 .andExpect(jsonPath("$.payload.operatorIdentifier").value("operator-123"))
                 .andExpect(jsonPath("$.payload.repoUrl").value("http://localhost:18080"));
 
-        mockMvc.perform(get("/registry/dpps/by-dpp-id/" + SEEDED_DPP_ID))
+        mockMvc.perform(get("/internal/dpps/by-dpp-id/" + SEEDED_DPP_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value("Success"))
                 .andExpect(jsonPath("$.payload.registryIdentifier").value(SEEDED_REGISTRY_ID));

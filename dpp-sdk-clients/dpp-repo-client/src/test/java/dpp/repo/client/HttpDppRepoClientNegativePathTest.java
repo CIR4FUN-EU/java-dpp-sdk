@@ -25,7 +25,7 @@ class HttpDppRepoClientNegativePathTest {
     @Test
     void createDppMapsNon2xxHttpResponsesToHttpException() {
         try (TestServer server = server()) {
-            server.httpServer().createContext("/dpps", exchange ->
+            server.httpServer().createContext("/v1/dpps", exchange ->
                     respond(exchange, 502, "{\"statusCode\":\"ServerErrorBadGateway\",\"payload\":null,\"messages\":[]}"));
             DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), new CountingCodec(), new CountingValidator());
 
@@ -42,7 +42,7 @@ class HttpDppRepoClientNegativePathTest {
     @Test
     void wrapperApiErrorsExposeRepositoryStatusAndMessages() {
         try (TestServer server = server()) {
-            server.httpServer().createContext("/dpps/dpp-1", exchange ->
+            server.httpServer().createContext("/v1/dpps/dpp-1", exchange ->
                     respond(exchange, 200, "{\"statusCode\":\"ClientErrorResourceNotFound\",\"payload\":null,\"messages\":[{\"messageType\":\"Error\",\"text\":\"missing\"}]}"));
             DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), new CountingCodec(), new CountingValidator());
 
@@ -60,7 +60,7 @@ class HttpDppRepoClientNegativePathTest {
     void createDppMapsCodecSerializationFailuresBeforeSendingRequest() {
         try (TestServer server = server()) {
             AtomicInteger hits = new AtomicInteger();
-            server.httpServer().createContext("/dpps", exchange -> {
+            server.httpServer().createContext("/v1/dpps", exchange -> {
                 hits.incrementAndGet();
                 respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{\"dppId\":\"dpp-1\"},\"messages\":[]}");
             });
@@ -82,7 +82,7 @@ class HttpDppRepoClientNegativePathTest {
     void createDppRejectsNullJsonReturnedByCodecBeforeSendingRequest() {
         try (TestServer server = server()) {
             AtomicInteger hits = new AtomicInteger();
-            server.httpServer().createContext("/dpps", exchange -> {
+            server.httpServer().createContext("/v1/dpps", exchange -> {
                 hits.incrementAndGet();
                 respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{\"dppId\":\"dpp-1\"},\"messages\":[]}");
             });
@@ -103,7 +103,7 @@ class HttpDppRepoClientNegativePathTest {
     @Test
     void readDppByIdMapsCodecDeserializationFailures() {
         try (TestServer server = server()) {
-            server.httpServer().createContext("/dpps/dpp-1", exchange ->
+            server.httpServer().createContext("/v1/dpps/dpp-1", exchange ->
                     respond(exchange, 200, successDppBody("dpp-1", "chair")));
             CountingCodec codec = new CountingCodec();
             codec.failFromJson();
@@ -121,7 +121,7 @@ class HttpDppRepoClientNegativePathTest {
     @Test
     void readDppByIdRejectsNullDppReturnedByCodec() {
         try (TestServer server = server()) {
-            server.httpServer().createContext("/dpps/dpp-1", exchange ->
+            server.httpServer().createContext("/v1/dpps/dpp-1", exchange ->
                     respond(exchange, 200, successDppBody("dpp-1", "chair")));
             CountingCodec codec = new CountingCodec();
             codec.returnNullDpp();
@@ -139,7 +139,7 @@ class HttpDppRepoClientNegativePathTest {
     @Test
     void readDppByIdRejectsMalformedWrapperResponses() {
         try (TestServer server = server()) {
-            server.httpServer().createContext("/dpps/dpp-1", exchange -> respond(exchange, 200, "{"));
+            server.httpServer().createContext("/v1/dpps/dpp-1", exchange -> respond(exchange, 200, "{"));
             DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), new CountingCodec(), new CountingValidator());
 
             DppMappingClientException ex = assertThrows(
@@ -154,7 +154,7 @@ class HttpDppRepoClientNegativePathTest {
     @Test
     void readDppByIdRequiresPayloadWhenWrapperSucceeds() {
         try (TestServer server = server()) {
-            server.httpServer().createContext("/dpps/dpp-1", exchange ->
+            server.httpServer().createContext("/v1/dpps/dpp-1", exchange ->
                     respond(exchange, 200, "{\"statusCode\":\"Success\",\"payload\":null,\"messages\":[]}"));
             DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), new CountingCodec(), new CountingValidator());
 
@@ -170,17 +170,27 @@ class HttpDppRepoClientNegativePathTest {
     @Test
     void readDataElementRequiresPayloadWhenWrapperSucceeds() {
         try (TestServer server = server()) {
-            server.httpServer().createContext("/dpps/dpp-1/elements/characteristics.productName", exchange ->
+            server.httpServer().createContext("/v1/dpps/dpp-1/elements/$.characteristics.productName", exchange ->
                     respond(exchange, 200, "{\"statusCode\":\"Success\",\"payload\":null,\"messages\":[]}"));
             DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), new CountingCodec(), new CountingValidator());
 
             DppMappingClientException ex = assertThrows(
                     DppMappingClientException.class,
-                    () -> client.readDataElement("dpp-1", "characteristics.productName")
+                    () -> client.readDataElement("dpp-1", "$.characteristics.productName")
             );
 
             assertEquals("Missing required response field: payload", ex.getMessage());
         }
+    }
+
+    @Test
+    void fineGranularElementIdPathMustNotBeBlank() {
+        DppRepoClient<TestDpp> client = new HttpDppRepoClient<>("http://localhost:1", new CountingCodec(), new CountingValidator());
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> client.readDataElement("dpp-1", " "));
+
+        assertEquals("elementIdPath must not be blank", exception.getMessage());
     }
 
     @Test
@@ -202,7 +212,7 @@ class HttpDppRepoClientNegativePathTest {
             validator.fail();
             AtomicInteger hits = new AtomicInteger();
             JsonNode patch = objectMapper().readTree("{\"name\":\"Updated Name\"}");
-            server.httpServer().createContext("/dpps/dpp-1", exchange -> {
+            server.httpServer().createContext("/v1/dpps/dpp-1", exchange -> {
                 hits.incrementAndGet();
                 assertEquals("PATCH", exchange.getRequestMethod());
                 assertEquals("{\"name\":\"Updated Name\"}", requestBody(exchange));

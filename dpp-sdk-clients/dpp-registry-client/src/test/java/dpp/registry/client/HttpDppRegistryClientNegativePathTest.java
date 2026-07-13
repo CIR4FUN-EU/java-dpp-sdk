@@ -23,7 +23,7 @@ class HttpDppRegistryClientNegativePathTest {
     @Test
     void non2xxRegistryResponsesMapToHttpException() {
         try (TestServer server = TestServer.start()) {
-            server.httpServer().createContext("/registerDPP", exchange ->
+            server.httpServer().createContext("/v1/registerDPP", exchange ->
                     respond(exchange, 503, "{\"statusCode\":\"ServerErrorBadGateway\",\"payload\":null,\"messages\":[]}"));
             DppRegistryClient client = new HttpDppRegistryClient(server.baseUrl());
 
@@ -40,7 +40,7 @@ class HttpDppRegistryClientNegativePathTest {
     @Test
     void malformedRegistryWrapperResponsesMapToMappingException() {
         try (TestServer server = TestServer.start()) {
-            server.httpServer().createContext("/registerDPP", exchange -> respond(exchange, 200, "{"));
+            server.httpServer().createContext("/v1/registerDPP", exchange -> respond(exchange, 200, "{"));
             DppRegistryClient client = new HttpDppRegistryClient(server.baseUrl());
 
             DppMappingClientException ex = assertThrows(

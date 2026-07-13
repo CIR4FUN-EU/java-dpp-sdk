@@ -445,8 +445,7 @@ For the presenter-oriented walkthrough of those flows, use [`dpp-sdk-demo/DEMO_G
 - `mock-dpp-repo` and `mock-eu-registry` are mock/demo services, not production services.
 - The registry stores metadata only; it does not store full DPP JSON.
 - In-memory demo backends are not durable persistence.
-- The registry client supports `POST /v1/registerDPP`. The demo module has extra internal/mock lookup endpoints that are not part of `dpp-sdk-clients`.
+- The registry client supports `POST /v1/registerDPP`. Demo-only repository verification/events/listing and registry metadata lookups are hard-cut over to `/internal/...`; the former unprefixed internal routes are removed and these endpoints are not part of `dpp-sdk-clients`.
 - Full-DPP GET routes default to a project-defined compressed summary; EN 18223 payload conformity is not claimed.
-- Fine-granular paths are curated mock paths rather than full RFC 9535 JSONPath.
+- Fine-granular paths implement a bounded RFC 9535-compatible singular subset rather than full RFC 9535 JSONPath.
 - Real EU registry integration, production security hardening, and operational readiness are not implemented here.
-- The top-level `dpp-persistence/` directory is present in this checkout, but it is not part of the root reactor and this checkout does not expose a checked-in parent `pom.xml` or README for it. This README therefore does not document it as a consumable main module.

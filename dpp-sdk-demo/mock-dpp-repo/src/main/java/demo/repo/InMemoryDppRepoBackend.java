@@ -52,8 +52,8 @@ final class InMemoryDppRepoBackend implements DppRepoBackend {
     }
 
     @Override
-    public Optional<Dpp4Fun> findByProductIdAt(String productId, Instant timestamp) {
-        return store.findVersionByProductIdAndDate(productId, timestamp).map(record -> codec.fromJson(record.dppJson()));
+    public Optional<Dpp4Fun> findByDppIdAt(String dppId, Instant timestamp) {
+        return store.findVersionByDppIdAndDate(dppId, timestamp).map(record -> codec.fromJson(record.dppJson()));
     }
 
     @Override
@@ -62,6 +62,11 @@ final class InMemoryDppRepoBackend implements DppRepoBackend {
                 store.findDppIdsByProductIds(productIds, offset, limit),
                 store.nextCursor(productIds, offset, limit)
         );
+    }
+
+    @Override
+    public List<String> findAllActiveDppIds() {
+        return store.findAllActiveDppIds();
     }
 
     @Override

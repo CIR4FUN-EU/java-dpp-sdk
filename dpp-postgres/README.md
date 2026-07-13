@@ -201,8 +201,8 @@ repository.create(
 ```java
 java.util.Optional<Dpp4Fun> byDppId = repository.findCurrentByDppId(dpp.getDppId());
 java.util.Optional<Dpp4Fun> byProductId = repository.findCurrentByProductId(dpp.getProductId());
-java.util.Optional<Dpp4Fun> historical = repository.findByProductIdAt(
-        dpp.getProductId(),
+java.util.Optional<Dpp4Fun> historical = repository.findByDppIdAt(
+        dpp.getDppId(),
         java.time.Instant.parse("2026-06-29T12:00:00Z")
 );
 boolean exists = repository.existsActiveByDppId(dpp.getDppId());

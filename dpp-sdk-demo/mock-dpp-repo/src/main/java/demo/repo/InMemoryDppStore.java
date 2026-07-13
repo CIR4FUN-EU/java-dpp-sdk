@@ -23,8 +23,10 @@ class InMemoryDppStore {
     private final ConcurrentMap<String, StoredDppRecord> dppsByDppId = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, String> activeDppIdByProductId = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, CopyOnWriteArrayList<DppVersionRecord>> versionsByProductId = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, CopyOnWriteArrayList<DppVersionRecord>> versionsByDppId = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, CopyOnWriteArrayList<LifecycleEventRecord>> eventsByDppId = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, CopyOnWriteArrayList<Instant>> deletionsByProductId = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, CopyOnWriteArrayList<Instant>> deletionsByDppId = new ConcurrentHashMap<>();
 
     synchronized void create(String dppId, String productId, String dppJson, Instant now) {
         if (dppsByDppId.containsKey(dppId)) {
@@ -58,6 +60,7 @@ class InMemoryDppStore {
         dppsByDppId.put(dppId, deleted);
         // Product-level deletion timestamps let version-by-date distinguish "no version yet" from "was deleted".
         deletionsByProductId.computeIfAbsent(existing.productId(), ignored -> new CopyOnWriteArrayList<>()).add(now);
+        deletionsByDppId.computeIfAbsent(dppId, ignored -> new CopyOnWriteArrayList<>()).add(now);
         return deleted;
     }
 
@@ -103,6 +106,24 @@ class InMemoryDppStore {
         return deletedBeforeRequestedTime ? Optional.empty() : candidate;
     }
 
+    Optional<DppVersionRecord> findVersionByDppIdAndDate(String dppId, Instant at) {
+        CopyOnWriteArrayList<DppVersionRecord> versions = versionsByDppId.get(dppId);
+        if (versions == null || versions.isEmpty()) {
+            return Optional.empty();
+        }
+        Optional<DppVersionRecord> candidate = versions.stream()
+                .filter(version -> !version.validFrom().isAfter(at))
+                .max(Comparator.comparing(DppVersionRecord::validFrom));
+        if (candidate.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Instant candidateStart = candidate.get().validFrom();
+        boolean deletedBeforeRequestedTime = deletionsByDppId.getOrDefault(dppId, new CopyOnWriteArrayList<>()).stream()
+                .anyMatch(deletedAt -> deletedAt.isAfter(candidateStart) && !deletedAt.isAfter(at));
+        return deletedBeforeRequestedTime ? Optional.empty() : candidate;
+    }
+
     List<String> findDppIdsByProductIds(List<String> productIds, int offset, int limit) {
         List<String> result = new ArrayList<>();
         for (int index = offset; index < productIds.size() && result.size() < limit; index++) {
@@ -130,12 +151,22 @@ class InMemoryDppStore {
         return versions == null ? List.of() : List.copyOf(versions);
     }
 
+    List<String> findAllActiveDppIds() {
+        return dppsByDppId.values().stream()
+                .filter(record -> !record.deleted())
+                .map(StoredDppRecord::dppId)
+                .sorted()
+                .toList();
+    }
+
     void clear() {
         dppsByDppId.clear();
         activeDppIdByProductId.clear();
         versionsByProductId.clear();
+        versionsByDppId.clear();
         eventsByDppId.clear();
         deletionsByProductId.clear();
+        deletionsByDppId.clear();
     }
 
     private StoredDppRecord requireActiveRecord(String dppId) {
@@ -146,6 +177,8 @@ class InMemoryDppStore {
 
     private void appendVersion(String dppId, String productId, String dppJson, Instant now) {
         versionsByProductId.computeIfAbsent(productId, ignored -> new CopyOnWriteArrayList<>())
+                .add(new DppVersionRecord(UUID.randomUUID().toString(), dppId, productId, dppJson, now, now));
+        versionsByDppId.computeIfAbsent(dppId, ignored -> new CopyOnWriteArrayList<>())
                 .add(new DppVersionRecord(UUID.randomUUID().toString(), dppId, productId, dppJson, now, now));
     }
 }

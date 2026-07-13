@@ -63,8 +63,8 @@ final class PostgresDppRepoBackend implements DppRepoBackend {
     }
 
     @Override
-    public Optional<Dpp4Fun> findByProductIdAt(String productId, Instant timestamp) {
-        return repository.findByProductIdAt(productId, timestamp);
+    public Optional<Dpp4Fun> findByDppIdAt(String dppId, Instant timestamp) {
+        return repository.findByDppIdAt(dppId, timestamp);
     }
 
     @Override
@@ -72,6 +72,11 @@ final class PostgresDppRepoBackend implements DppRepoBackend {
         dppsdk.postgres.core.DppPage<String> page =
                 repository.findActiveDppIdsByProductIds(productIds, new DppPageRequest(Integer.toString(offset), limit));
         return new DppIdPage(page.items(), page.nextCursor());
+    }
+
+    @Override
+    public List<String> findAllActiveDppIds() {
+        return repository.findAllActiveDppIds();
     }
 
     @Override

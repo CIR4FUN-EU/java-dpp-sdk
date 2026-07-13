@@ -81,20 +81,20 @@ class DppRegistryControllerPostgresBackendTest {
     void postgresModeRegisterAndLookupWork() throws Exception {
         String repoUrl = startRepoStubReturning(200);
 
-        String responseBody = mockMvc.perform(post("/registerDPP")
+        String responseBody = mockMvc.perform(post("/v1/registerDPP")
                         .contentType(APPLICATION_JSON)
                         .content(registrationBody("product-123", "dpp-123", "operator-123", repoUrl)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.statusCode").value("SuccessCreated"))
-                .andExpect(jsonPath("$.payload.registryIdentifier").value(notNullValue()))
-                .andExpect(jsonPath("$.payload.registryIdentifier").value(not("")))
+                .andExpect(jsonPath("$.payload.registrationId").value(notNullValue()))
+                .andExpect(jsonPath("$.payload.registrationId").value(not("")))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
-        String registryId = responseBody.split("\"registryIdentifier\":\"")[1].split("\"")[0];
+        String registryId = responseBody.split("\"registrationId\":\"")[1].split("\"")[0];
 
-        mockMvc.perform(get("/registry/dpps/" + registryId))
+        mockMvc.perform(get("/internal/dpps/" + registryId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value("Success"))
                 .andExpect(jsonPath("$.payload.registryIdentifier").value(registryId))
@@ -108,7 +108,7 @@ class DppRegistryControllerPostgresBackendTest {
                 .andExpect(jsonPath("$.payload.passportMetadata").doesNotExist())
                 .andExpect(jsonPath("$.payload.backupOperatorIdentifier").doesNotExist());
 
-        mockMvc.perform(get("/registry/dpps/by-dpp-id/dpp-123"))
+        mockMvc.perform(get("/internal/dpps/by-dpp-id/dpp-123"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value("Success"))
                 .andExpect(jsonPath("$.payload.registryIdentifier").value(registryId))
@@ -118,6 +118,10 @@ class DppRegistryControllerPostgresBackendTest {
                 .andExpect(jsonPath("$.payload.repoUrl").value(repoUrl))
                 .andExpect(jsonPath("$.payload.registeredAt").value(notNullValue()))
                 .andExpect(jsonPath("$.payload.lastUpdatedAt").value(notNullValue()));
+
+        mockMvc.perform(get("/internal/dpps"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload[0]").value("dpp-123"));
     }
 
     @Test
@@ -125,24 +129,24 @@ class DppRegistryControllerPostgresBackendTest {
     void postgresModeDuplicateAndMissingCasesMatchMemoryMode() throws Exception {
         String repoUrl = startRepoStubReturning(200);
 
-        mockMvc.perform(post("/registerDPP")
+        mockMvc.perform(post("/v1/registerDPP")
                         .contentType(APPLICATION_JSON)
                         .content(registrationBody("product-123", "dpp-123", "operator-123", repoUrl)))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(post("/registerDPP")
+        mockMvc.perform(post("/v1/registerDPP")
                         .contentType(APPLICATION_JSON)
                         .content(registrationBody("product-456", "dpp-123", "operator-456", repoUrl)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.statusCode").value("ClientResourceConflict"))
                 .andExpect(jsonPath("$.messages[0].code").value("REGISTRY_CONFLICT"));
 
-        mockMvc.perform(get("/registry/dpps/missing-registry-id"))
+        mockMvc.perform(get("/internal/dpps/missing-registry-id"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"))
                 .andExpect(jsonPath("$.messages[0].code").value("REGISTRY_NOT_FOUND"));
 
-        mockMvc.perform(get("/registry/dpps/by-dpp-id/missing-dpp-id"))
+        mockMvc.perform(get("/internal/dpps/by-dpp-id/missing-dpp-id"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"))
                 .andExpect(jsonPath("$.messages[0].code").value("REGISTRY_NOT_FOUND"));
@@ -153,34 +157,34 @@ class DppRegistryControllerPostgresBackendTest {
     void postgresModeStillVerifiesRepoHeadBeforePersisting() throws Exception {
         String missingRepoUrl = startRepoStubReturning(404);
 
-        mockMvc.perform(post("/registerDPP")
+        mockMvc.perform(post("/v1/registerDPP")
                         .contentType(APPLICATION_JSON)
                         .content(registrationBody("product-404", "missing-dpp", "operator-123", missingRepoUrl)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"))
                 .andExpect(jsonPath("$.messages[0].text").value("Referenced DPP missing-dpp was not found in repo " + missingRepoUrl));
 
-        mockMvc.perform(get("/registry/dpps/by-dpp-id/missing-dpp"))
+        mockMvc.perform(get("/internal/dpps/by-dpp-id/missing-dpp"))
                 .andExpect(status().isNotFound());
 
         repoHeadStatus = 500;
-        mockMvc.perform(post("/registerDPP")
+        mockMvc.perform(post("/v1/registerDPP")
                         .contentType(APPLICATION_JSON)
                         .content(registrationBody("product-500", "downstream-dpp", "operator-123", missingRepoUrl)))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.statusCode").value("ServerErrorBadGateway"));
 
-        mockMvc.perform(get("/registry/dpps/by-dpp-id/downstream-dpp"))
+        mockMvc.perform(get("/internal/dpps/by-dpp-id/downstream-dpp"))
                 .andExpect(status().isNotFound());
     }
 
     private String registrationBody(String productId, String dppId, String operatorId, String repoUrl) {
         return """
                 {
-                  "productIdentifier": "%s",
-                  "dppIdentifier": "%s",
-                  "operatorIdentifier": "%s",
-                  "repoUrl": "%s"
+                  "uniqueProductIdentifier": "%s",
+                  "digitalProductPassportId": "%s",
+                  "uniqueEconomicOperatorIdentifier": "%s",
+                  "dppApiEndpoint": "%s"
                 }
                 """.formatted(productId, dppId, operatorId, repoUrl);
     }
@@ -188,7 +192,7 @@ class DppRegistryControllerPostgresBackendTest {
     private String startRepoStubReturning(int status) throws IOException {
         repoHeadStatus = status;
         repoServer = HttpServer.create(new InetSocketAddress(0), 0);
-        repoServer.createContext("/dpps", this::handleRepoHead);
+        repoServer.createContext("/internal/dpps", this::handleRepoHead);
         repoServer.start();
         return "http://localhost:" + repoServer.getAddress().getPort();
     }

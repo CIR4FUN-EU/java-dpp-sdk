@@ -52,13 +52,13 @@ class RepoPayloadContractTest {
     void repoStatusCodeAliasesDeserializeToCurrentEnumValues() throws Exception {
         assertEquals(DppStatusCode.ClientNotAuthorized, objectMapper.readValue("\"ClientErrorNotAuthorized\"", DppStatusCode.class));
         assertEquals(DppStatusCode.ClientForbidden, objectMapper.readValue("\"ClientErrorForbidden\"", DppStatusCode.class));
+        assertEquals(DppStatusCode.ServerNotImplemented, objectMapper.readValue("\"ServerNotImplemented\"", DppStatusCode.class));
         assertEquals("\"SuccessCreated\"", objectMapper.writeValueAsString(DppStatusCode.SuccessCreated));
     }
 
     @Test
     void requestAndResponseDtosSerializeWithCurrentContractShape() throws Exception {
         ReadDppIdsRequest request = new ReadDppIdsRequest(List.of("product-1", "product-2"), 2, "cursor-1");
-        UpdateDataElementRequest updateRequest = new UpdateDataElementRequest(objectMapper.readTree("\"Updated Name\""));
         ReadDppIdsResponse response = new ReadDppIdsResponse();
         response.setDppIdentifiers(List.of("dpp-1", "dpp-2"));
         response.setNextCursor("cursor-2");
@@ -67,10 +67,6 @@ class RepoPayloadContractTest {
         assertEquals(
                 "{\"productIdentifiers\":[\"product-1\",\"product-2\"],\"limit\":2,\"cursor\":\"cursor-1\"}",
                 objectMapper.writeValueAsString(request)
-        );
-        assertEquals(
-                "{\"payload\":\"Updated Name\"}",
-                objectMapper.writeValueAsString(updateRequest)
         );
         assertEquals(
                 "{\"dppIdentifiers\":[\"dpp-1\",\"dpp-2\"],\"nextCursor\":\"cursor-2\"}",

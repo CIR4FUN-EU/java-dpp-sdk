@@ -21,7 +21,8 @@ class RepositoryDppVerifier {
     void verifyActiveDpp(String repoUrl, String verificationRepoUrl, String dppIdentifier) {
         int statusCode;
         try {
-            URI target = URI.create(stripTrailingSlash(verificationRepoUrl) + "/dpps/" + encodePathSegment(dppIdentifier));
+            URI target = URI.create(stripTrailingSlash(verificationRepoUrl)
+                    + "/internal/dpps/" + encodePathSegment(dppIdentifier));
             HttpRequest request = HttpRequest.newBuilder(target)
                     .timeout(Duration.ofSeconds(15))
                     .method("HEAD", HttpRequest.BodyPublishers.noBody())

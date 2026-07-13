@@ -84,34 +84,67 @@ class DppRepoControllerPostgresBackendTest {
     void postgresModeCreateReadHeadAndProductLookupWork() throws Exception {
         String dppJson = codec.toJson(factory.createValidBedDpp());
 
-        mockMvc.perform(post("/dpps")
+        mockMvc.perform(post("/v1/dpps")
                         .contentType(APPLICATION_JSON)
                         .content(dppJson))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.statusCode").value("SuccessCreated"))
                 .andExpect(jsonPath("$.payload.dppId").value(DemoDppFactory.BED_DPP_ID));
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
+                        .param("representation", "full"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value("Success"))
                 .andExpect(jsonPath("$.payload.characteristics.productName").value("Cir4Fun Platform Bed"));
 
-        mockMvc.perform(head("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(head("/internal/dpps/" + DemoDppFactory.BED_DPP_ID))
                 .andExpect(status().isOk())
                 .andExpect(content().string(""));
 
-        mockMvc.perform(get("/dppsByProductId/04012345678901"))
+        mockMvc.perform(get("/v1/dppsByProductId/04012345678901")
+                        .param("representation", "full"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.passportMetadata.uniqueProductIdentifier").value(DemoDppFactory.BED_DPP_ID));
+    }
+
+    @Test
+    @DisplayName("PostgreSQL backend derives compressed reads without changing full-DPP storage")
+    void postgresModeRepresentationReadsMatchMemoryBehavior() throws Exception {
+        createValidBed();
+
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.representation").value("compressed"))
+                .andExpect(jsonPath("$.payload.dppId").value(DemoDppFactory.BED_DPP_ID))
+                .andExpect(jsonPath("$.payload.passportMetadata").doesNotExist());
+
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
+                        .param("representation", "full"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.passportMetadata.uniqueProductIdentifier")
+                        .value(DemoDppFactory.BED_DPP_ID));
+
+        mockMvc.perform(get("/v1/dppsByProductId/04012345678901")
+                        .param("representation", "compressed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.representation").value("compressed"));
+
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
+                        .param("representation", "invalid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"));
     }
 
     @Test
     @DisplayName("PostgreSQL backend preserves full update history lookup and batch paging behavior")
     void postgresModePatchHistoryAndBatchPagingWork() throws Exception {
         createValidBed();
+        // Keep a small timing buffer so the JDBC/PostgreSQL timestamp boundary is stable for history lookups.
+        Thread.sleep(25L);
         Instant afterCreate = Instant.now();
+        Thread.sleep(25L);
 
-        mockMvc.perform(patch("/dpps/" + DemoDppFactory.BED_DPP_ID)
+        mockMvc.perform(patch("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
@@ -122,25 +155,28 @@ class DppRepoControllerPostgresBackendTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.characteristics.productName").value("Cir4Fun Platform Bed - Updated Demo"));
+        Thread.sleep(25L);
         Instant afterPatch = Instant.now();
 
-        mockMvc.perform(get("/dppsByProductIdAndDate/04012345678901")
-                        .param("date", afterCreate.toString()))
+        mockMvc.perform(get("/v1/dppsByIdAndDate/" + DemoDppFactory.BED_DPP_ID)
+                        .param("date", afterCreate.toString())
+                        .param("representation", "full"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.characteristics.productName").value("Cir4Fun Platform Bed"));
 
-        mockMvc.perform(get("/dppsByProductIdAndDate/04012345678901")
-                        .param("date", afterPatch.toString()))
+        mockMvc.perform(get("/v1/dppsByIdAndDate/" + DemoDppFactory.BED_DPP_ID)
+                        .param("date", afterPatch.toString())
+                        .param("representation", "full"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.characteristics.productName").value("Cir4Fun Platform Bed - Updated Demo"));
 
         Dpp4Fun chair = withProductId(factory.createValidChairDpp(), "04012345678902");
-        mockMvc.perform(post("/dpps")
+        mockMvc.perform(post("/v1/dpps")
                         .contentType(APPLICATION_JSON)
                         .content(codec.toJson(chair)))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(post("/dppsByProductIds")
+        mockMvc.perform(post("/v1/dppsByProductIds")
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
@@ -154,7 +190,7 @@ class DppRepoControllerPostgresBackendTest {
                 .andExpect(jsonPath("$.payload.dppIdentifiers[0]").value(DemoDppFactory.BED_DPP_ID))
                 .andExpect(jsonPath("$.payload.nextCursor").value("1"));
 
-        mockMvc.perform(post("/dppsByProductIds")
+        mockMvc.perform(post("/v1/dppsByProductIds")
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
@@ -175,7 +211,7 @@ class DppRepoControllerPostgresBackendTest {
     void postgresModeDeleteAndEventsWork() throws Exception {
         createValidBed();
 
-        mockMvc.perform(patch("/dpps/" + DemoDppFactory.BED_DPP_ID)
+        mockMvc.perform(patch("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
@@ -186,17 +222,17 @@ class DppRepoControllerPostgresBackendTest {
                                 """))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(delete("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(delete("/v1/dpps/" + DemoDppFactory.BED_DPP_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value("SuccessNoContent"));
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID))
                 .andExpect(status().isNotFound());
 
-        mockMvc.perform(get("/dppsByProductId/04012345678901"))
+        mockMvc.perform(get("/v1/dppsByProductId/04012345678901"))
                 .andExpect(status().isNotFound());
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID + "/events"))
+        mockMvc.perform(get("/internal/dpps/" + DemoDppFactory.BED_DPP_ID + "/events"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload", hasSize(3)))
                 .andExpect(jsonPath("$.payload[*].eventType").value(hasItem("DPP_CREATED")))
@@ -210,25 +246,48 @@ class DppRepoControllerPostgresBackendTest {
     void postgresModeFineGrainedReadAndUpdateWork() throws Exception {
         createValidBed();
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/characteristics.productName"))
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/$.characteristics.productName"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload").value("Cir4Fun Platform Bed"));
 
-        mockMvc.perform(patch("/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/characteristics.productName")
+        mockMvc.perform(patch("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/$.characteristics.productName")
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {
-                                  "payload": "Updated Product Name from Postgres"
-                                }
+                                "Updated Product Name from Postgres"
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload").value("Updated Product Name from Postgres"));
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
+                        .param("representation", "full"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.characteristics.productName").value("Updated Product Name from Postgres"));
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID + "/events"))
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/$.billOfMaterials.materials[*]"))
+                .andExpect(status().isNotImplemented())
+                .andExpect(jsonPath("$.statusCode").value("ServerNotImplemented"));
+
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/$.characteristics.missing"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"));
+
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/characteristics.productName"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"));
+
+        mockMvc.perform(patch("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/$.characteristics.productName")
+                        .contentType(APPLICATION_JSON)
+                        .content("\"\""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"));
+
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
+                        .param("representation", "full"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.characteristics.productName")
+                        .value("Updated Product Name from Postgres"));
+
+        mockMvc.perform(get("/internal/dpps/" + DemoDppFactory.BED_DPP_ID + "/events"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload", hasSize(2)))
                 .andExpect(jsonPath("$.payload[*].eventType").value(hasItem("DPP_CREATED")))
@@ -241,7 +300,7 @@ class DppRepoControllerPostgresBackendTest {
     void postgresModeDuplicateDppIdReturnsConflict() throws Exception {
         createValidBed();
 
-        mockMvc.perform(post("/dpps")
+        mockMvc.perform(post("/v1/dpps")
                         .contentType(APPLICATION_JSON)
                         .content(codec.toJson(factory.createValidBedDpp())))
                 .andExpect(status().isConflict())
@@ -255,7 +314,7 @@ class DppRepoControllerPostgresBackendTest {
         createValidBed();
         Dpp4Fun conflictingChair = withProductId(factory.createValidChairDpp(), "04012345678901");
 
-        mockMvc.perform(post("/dpps")
+        mockMvc.perform(post("/v1/dpps")
                         .contentType(APPLICATION_JSON)
                         .content(codec.toJson(conflictingChair)))
                 .andExpect(status().isConflict())
@@ -264,7 +323,7 @@ class DppRepoControllerPostgresBackendTest {
     }
 
     private void createValidBed() throws Exception {
-        mockMvc.perform(post("/dpps")
+        mockMvc.perform(post("/v1/dpps")
                         .contentType(APPLICATION_JSON)
                         .content(codec.toJson(factory.createValidBedDpp())))
                 .andExpect(status().isCreated());

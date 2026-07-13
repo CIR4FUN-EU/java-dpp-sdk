@@ -151,7 +151,7 @@ Registry verification config note:
 
 - The registry service reads the repo port from `dpp-sdk-demo/.env` when present and otherwise falls back to `8080`.
 - That shared config drives the seeded registry record and the registry's internal verification base URL.
-- `POST /registerDPP` still starts from the `repoUrl` inside the request payload.
+- `POST /v1/registerDPP` uses `dppApiEndpoint` inside the request payload for repository HEAD verification.
 - If that payload matches the configured public repo base URL, the registry internally rewrites only the verification hop to its configured verification base URL.
 - That lets one public repo URL work for both localhost and Dockerized runs.
 - If verification still fails, the registry returns a repo-verification error that names the public repo URL and, when different, the internal verification URL.
@@ -176,16 +176,16 @@ Presenter note:
 
 Point out:
 
-- The runner uses public `HttpDppRepoClient` for `CreateDPP`, `ReadDPPById`, `ReadDPPByProductId`, `ReadDPPVersionByProductIdAndDate`, `ReadDPPIdsByProductIds`, `UpdateDPPById`, `DeleteDPPById`, `ReadDataElement`, and `UpdateDataElement`.
-- The runner uses public `HttpDppRegistryClient` for `POST /registerDPP`.
-- The runner uses a small demo-local helper for `GET /registry/dpps/...` because those internal mock lookup endpoints are not part of the split upstream registry client.
+- The runner uses public `HttpDppRepoClient` for `CreateDPP`, `ReadDPPById`, `ReadDPPByProductId`, `ReadDPPVersionByIdAndDate`, `ReadDPPIdsByProductIds`, `UpdateDPPById`, `DeleteDPPById`, `ReadDataElement`, and `UpdateDataElement`.
+- The runner uses public `HttpDppRegistryClient` for `POST /v1/registerDPP`.
+- The runner uses a small demo-local helper for `GET /internal/dpps/...` because those internal mock lookup endpoints are not part of the split upstream registry client.
 - This helper is mock/demo-only visibility plumbing and is not part of the public `dpp-registry-client` contract.
 - The client validates before sending.
 - No additional custom helper clients are used beyond that mock/demo-only registry read-back helper.
 - The repo service receives JSON, maps it with SDK `Dpp4FunJsonCodec`, validates it with `Dpp4FunValidationService`, and stores it through the selected backend. The default backend is memory; PostgreSQL is optional.
-- Full DPP reads return a wrapped payload that the HTTP client maps back into an SDK domain object.
-- The registry verifies the repo reference with `HEAD /dpps/{dppId}` before storing metadata; it does not fetch the full DPP JSON.
-- Fine-granular reads and updates return wrapped raw JSON element payloads.
+- Repository reads default to a wrapped project-defined compressed summary. Typed Java client reads explicitly request `representation=full` before mapping the payload into an SDK domain object; the compressed shape is provisional because EN 18223 is not present here.
+- The registry verifies the repo reference with `HEAD /internal/dpps/{dppId}` before storing metadata; it does not fetch the full DPP JSON.
+- Fine-granular reads and updates return wrapped raw JSON element payloads. `elementIdPath` supports the bounded RFC 9535-compatible singular subset (`$`, dot members, quoted bracket members, and non-negative indexes); malformed paths return 400, supported no-match paths return 404, and unsupported multi-node or advanced selectors return 501. PATCH accepts direct JSON and validates the reconstructed full DPP before persistence.
 - Validation, mapping, HTTP, and network errors are separated.
 - The network error step is intentional; it uses an unreachable registry URL to show client exception separation.
 
@@ -200,19 +200,19 @@ Use the registry Postman collection:
 Before running it, set the collection variables for your network context:
 
 - `repoBaseUrl`
-  - Used by Postman for host-side repo create/delete calls and written into the registration payload as `repoUrl`.
+  - Used by Postman for host-side repo create/delete calls and written into the registration payload as `dppApiEndpoint`.
   - Keep this at `http://localhost:${DPP_REPO_PORT}` for normal local or Docker-host access.
   - The registry will internally rewrite the verification hop when Docker requires a different internal hostname.
 
 Say:
 
-- The producer/client can store a DPP in the repo service and then call `POST /registerDPP` directly.
-- During registration the registry calls `{repoUrl}/dpps/{dppIdentifier}` with HEAD and stores metadata only if the repo confirms the DPP is active.
+- The producer/client can store a DPP in the repo service and then call `POST /v1/registerDPP` directly.
+- During registration the registry calls `{dppApiEndpoint}/internal/dpps/{digitalProductPassportId}` with HEAD and stores metadata only if the repo confirms the DPP is active.
 - The registry stores only registration metadata, not the full DPP JSON.
 - The registry trusts the repo as the validated DPP store and does not run SDK validation itself.
 - The repo service does not automatically call the registry in this demo.
 - The registry can use memory or a local PostgreSQL backend in this demo, but it still does not call a real EU service.
-- The two `GET /registry/dpps/...` endpoints are mock/internal convenience helpers for tests and debugging.
+- The `GET /internal/dpps`, `GET /internal/dpps/{registrationId}`, and `GET /internal/dpps/by-dpp-id/{dppId}` registry endpoints are mock/internal convenience helpers for tests and debugging.
 
 ## 6. Show Invalid And Malformed Input
 
@@ -248,7 +248,7 @@ The repo and registry mocks still start with default in-memory records for ad-ho
 - The registry mock does not expose a metadata delete endpoint, so repeated registry collection runs stay independent by using fresh DPP and product identifiers each time.
 - Their default ad-hoc variables are also isolated from Swagger UI and the demo runner, and each collection cleanup delete falls back to its own delete-only seeded DPP until a create step replaces that variable with a fresh runtime ID.
 
-The collections cover the standard-style mock APIs only. No `/exists` endpoint is used; repo-backed registry verification uses `HEAD /dpps/{dppId}`.
+The collections cover the standard-style and explicitly `/internal` mock APIs. No `/exists` endpoint is used; repo-backed registry verification uses `HEAD /internal/dpps/{dppId}`.
 
 ## Scope
 
@@ -268,4 +268,4 @@ Not implemented:
 - Production resilience, retries, auditing, or monitoring
 - AAS adapter
 - Backup identifier/operator/provider placeholders
-- Full official draft data-model field coverage
+- Full EN data-model field coverage

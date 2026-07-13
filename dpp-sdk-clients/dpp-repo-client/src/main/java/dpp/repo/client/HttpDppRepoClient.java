@@ -10,7 +10,6 @@ import dpp.repo.payloads.DeleteDppResponse;
 import dpp.repo.payloads.DppApiResponse;
 import dpp.repo.payloads.ReadDppIdsRequest;
 import dpp.repo.payloads.ReadDppIdsResponse;
-import dpp.repo.payloads.UpdateDataElementRequest;
 
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -23,10 +22,12 @@ import java.util.Optional;
  * Java {@link HttpClient}-based implementation of the repository client.
  */
 public class HttpDppRepoClient<T> implements DppRepoClient<T> {
-    private static final String DPPS_PATH = "/dpps";
-    private static final String DPPS_BY_PRODUCT_ID_PATH = "/dppsByProductId/";
-    private static final String DPPS_BY_PRODUCT_ID_AND_DATE_PATH = "/dppsByProductIdAndDate/";
-    private static final String DPPS_BY_PRODUCT_IDS_PATH = "/dppsByProductIds";
+    private static final String API_PREFIX = "/v1";
+    private static final String DPPS_PATH = API_PREFIX + "/dpps";
+    private static final String DPPS_BY_PRODUCT_ID_PATH = API_PREFIX + "/dppsByProductId/";
+    private static final String DPPS_BY_ID_AND_DATE_PATH = API_PREFIX + "/dppsByIdAndDate/";
+    private static final String DPPS_BY_PRODUCT_IDS_PATH = API_PREFIX + "/dppsByProductIds";
+    private static final String LEGACY_DPPS_BY_PRODUCT_ID_AND_DATE_PATH = "/dppsByProductIdAndDate/";
 
     private final String baseUrl;
     private final DppCodec<T> codec;
@@ -77,7 +78,7 @@ public class HttpDppRepoClient<T> implements DppRepoClient<T> {
 
     @Override
     public T readDppById(String dppId) {
-        DppApiResponse<JsonNode> response = sendForApiResponse("GET", dppPath(dppId), Optional.empty());
+        DppApiResponse<JsonNode> response = sendForApiResponse("GET", dppPath(dppId) + "?representation=full", Optional.empty());
         return decodeDppPayload(response);
     }
 
@@ -85,15 +86,36 @@ public class HttpDppRepoClient<T> implements DppRepoClient<T> {
     public T readDppByProductId(String productId) {
         DppApiResponse<JsonNode> response = sendForApiResponse(
                 "GET",
-                DPPS_BY_PRODUCT_ID_PATH + HttpSupport.encodePathSegment(productId),
+                DPPS_BY_PRODUCT_ID_PATH + HttpSupport.encodePathSegment(productId) + "?representation=full",
                 Optional.empty()
         );
         return decodeDppPayload(response);
     }
 
     @Override
+    public T readDppVersionByIdAndDate(String dppId, Instant date) {
+        String path = DPPS_BY_ID_AND_DATE_PATH
+                + HttpSupport.encodePathSegment(dppId)
+                + "?date=" + HttpSupport.encodeQueryParam(Objects.requireNonNull(date, "date must not be null").toString()) + "&representation=full";
+        DppApiResponse<JsonNode> response = sendForApiResponse("GET", path, Optional.empty());
+        return decodeDppPayload(response);
+    }
+
+    @Override
+    public JsonNode readCompressedDppById(String dppId) {
+        DppApiResponse<JsonNode> response = sendForApiResponse(
+                "GET", dppPath(dppId) + "?representation=compressed", Optional.empty());
+        return HttpSupport.requirePayload(response);
+    }
+
+    /**
+     * @deprecated Non-standard transitional compatibility method. EN 18222-facing callers should
+     * use {@link #readDppVersionByIdAndDate(String, Instant)}.
+     */
+    @Deprecated
+    @Override
     public T readDppVersionByProductIdAndDate(String productId, Instant date) {
-        String path = DPPS_BY_PRODUCT_ID_AND_DATE_PATH
+        String path = LEGACY_DPPS_BY_PRODUCT_ID_AND_DATE_PATH
                 + HttpSupport.encodePathSegment(productId)
                 + "?date=" + HttpSupport.encodeQueryParam(Objects.requireNonNull(date, "date must not be null").toString());
         DppApiResponse<JsonNode> response = sendForApiResponse("GET", path, Optional.empty());
@@ -124,18 +146,15 @@ public class HttpDppRepoClient<T> implements DppRepoClient<T> {
     }
 
     @Override
-    public JsonNode readDataElement(String dppId, String elementPath) {
-        DppApiResponse<JsonNode> response = sendForApiResponse("GET", dataElementPath(dppId, elementPath), Optional.empty());
+    public JsonNode readDataElement(String dppId, String elementIdPath) {
+        DppApiResponse<JsonNode> response = sendForApiResponse("GET", dataElementPath(dppId, elementIdPath), Optional.empty());
         return HttpSupport.requirePayload(response);
     }
 
     @Override
-    public JsonNode updateDataElement(String dppId, String elementPath, JsonNode payload) {
-        String body = HttpSupport.serializeJson(
-                objectMapper,
-                new UpdateDataElementRequest(Objects.requireNonNull(payload, "payload must not be null"))
-        );
-        DppApiResponse<JsonNode> response = sendForApiResponse("PATCH", dataElementPath(dppId, elementPath), Optional.of(body));
+    public JsonNode updateDataElement(String dppId, String elementIdPath, JsonNode dataElement) {
+        String body = HttpSupport.serializeJson(objectMapper, Objects.requireNonNull(dataElement, "dataElement must not be null"));
+        DppApiResponse<JsonNode> response = sendForApiResponse("PATCH", dataElementPath(dppId, elementIdPath), Optional.of(body));
         return HttpSupport.requirePayload(response);
     }
 
@@ -158,7 +177,11 @@ public class HttpDppRepoClient<T> implements DppRepoClient<T> {
         return DPPS_PATH + "/" + HttpSupport.encodePathSegment(dppId);
     }
 
-    private static String dataElementPath(String dppId, String elementPath) {
-        return dppPath(dppId) + "/elements/" + HttpSupport.encodePathSegment(elementPath);
+    private static String dataElementPath(String dppId, String elementIdPath) {
+        String path = Objects.requireNonNull(elementIdPath, "elementIdPath must not be null");
+        if (path.isBlank()) {
+            throw new IllegalArgumentException("elementIdPath must not be blank");
+        }
+        return dppPath(dppId) + "/elements/" + HttpSupport.encodePathSegment(path);
     }
 }

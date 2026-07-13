@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Moved all demo-only repository and registry business endpoints to `/internal/...` in a hard cutover; `/v1` and conventional health, landing, and OpenAPI routes are unchanged.
+
+### Documentation
+- Audited root and module documentation against the current Maven reactor, source contracts, mock-service routes, runtime configuration, and EN 18222 alignment status.
+- Corrected standards overclaims, registry payload wording, internal Docker build commands, and stale guidance for the non-buildable `dpp-persistence` path.
+
 ## [0.4.0] - 2026-07-02
 
 ### Added

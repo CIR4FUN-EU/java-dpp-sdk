@@ -51,6 +51,13 @@ import dppsdk.dpp4fun.model.Dpp4Fun;
 @AutoConfigureMockMvc
 class DppRepoControllerTest {
 
+    @Test
+    @DisplayName("Controller keeps Swagger example payloads outside the request-handling class")
+    void controllerDoesNotDeclareSwaggerExamplePayloads() {
+        assertTrue(java.util.Arrays.stream(DppRepoController.class.getDeclaredFields())
+                .noneMatch(field -> field.getName().endsWith("_EXAMPLE")));
+    }
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -77,7 +84,7 @@ class DppRepoControllerTest {
     void createDppCreatesAndCanBeReadByIdAndProductId() throws Exception {
         String dppJson = codec.toJson(factory.createValidBedDpp());
 
-        mockMvc.perform(post("/dpps")
+        mockMvc.perform(post("/v1/dpps")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(dppJson))
                 .andExpect(status().isCreated())
@@ -86,17 +93,24 @@ class DppRepoControllerTest {
                 .andExpect(jsonPath("$.payload.dppId").value(not("")))
                 .andExpect(jsonPath("$.payload").exists());
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
+                        .param("representation", "full"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value("Success"))
                 .andExpect(jsonPath("$.payload").exists())
                 .andExpect(jsonPath("$.payload.characteristics.productName").value("Cir4Fun Platform Bed"));
 
-        mockMvc.perform(get("/dppsByProductId/04012345678901"))
+        mockMvc.perform(get("/v1/dppsByProductId/04012345678901")
+                        .param("representation", "full"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value("Success"))
                 .andExpect(jsonPath("$.payload").exists())
                 .andExpect(jsonPath("$.payload.passportMetadata.uniqueProductIdentifier").value(DemoDppFactory.BED_DPP_ID));
+
+        mockMvc.perform(get("/internal/dpps"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusCode").value("Success"))
+                .andExpect(jsonPath("$.payload[0]").value(DemoDppFactory.BED_DPP_ID));
 
         assertEquals(1, store.versionsForProduct("04012345678901").size());
         assertEquals(1, store.eventsFor(DemoDppFactory.BED_DPP_ID).size());
@@ -104,34 +118,77 @@ class DppRepoControllerTest {
     }
 
     @Test
+    @DisplayName("Full-DPP reads default to compressed and accept explicit compressed/full representations")
+    void fullDppReadsHonorRepresentationContract() throws Exception {
+        createValidBed();
+        Instant afterCreate = Instant.now();
+
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.representation").value("compressed"))
+                .andExpect(jsonPath("$.payload.dppId").value(DemoDppFactory.BED_DPP_ID))
+                .andExpect(jsonPath("$.payload.productId").value("04012345678901"))
+                .andExpect(jsonPath("$.payload.productName").value("Cir4Fun Platform Bed"))
+                .andExpect(jsonPath("$.payload.passportMetadata").doesNotExist());
+
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
+                        .param("representation", "compressed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.representation").value("compressed"));
+
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
+                        .param("representation", "full"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.passportMetadata.uniqueProductIdentifier")
+                        .value(DemoDppFactory.BED_DPP_ID))
+                .andExpect(jsonPath("$.payload.representation").doesNotExist());
+
+        mockMvc.perform(get("/v1/dppsByProductId/04012345678901")
+                        .param("representation", "compressed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.representation").value("compressed"));
+
+        mockMvc.perform(get("/v1/dppsByIdAndDate/" + DemoDppFactory.BED_DPP_ID)
+                        .param("date", afterCreate.toString())
+                        .param("representation", "compressed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.representation").value("compressed"));
+
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
+                        .param("representation", "summary"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"));
+    }
+
+    @Test
     @DisplayName("POST /dpps rejects duplicates, malformed JSON, and SDK validation failures")
     void createRejectsDuplicateMalformedAndInvalidDpps() throws Exception {
-        mockMvc.perform(post("/dpps")
+        mockMvc.perform(post("/v1/dpps")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(codec.toJson(factory.createValidBedDpp())))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(post("/dpps")
+        mockMvc.perform(post("/v1/dpps")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(codec.toJson(factory.createValidBedDpp())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.statusCode").value("ClientResourceConflict"));
 
-        mockMvc.perform(post("/dpps")
+        mockMvc.perform(post("/v1/dpps")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(codec.toJson(withIdAndProduct(factory.createValidChairDpp(),
                                 DemoDppFactory.CHAIR_DPP_ID, "04012345678901", "Chair duplicate product"))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.statusCode").value("ClientResourceConflict"));
 
-        mockMvc.perform(post("/dpps")
+        mockMvc.perform(post("/v1/dpps")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(factory.createMalformedJson()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"))
                 .andExpect(jsonPath("$.messages[0].correlationId").value(notNullValue()));
 
-        mockMvc.perform(post("/dpps")
+        mockMvc.perform(post("/v1/dpps")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(codec.toJson(factory.createDppWithInvalidDocumentation())))
                 .andExpect(status().isBadRequest())
@@ -143,58 +200,58 @@ class DppRepoControllerTest {
     void readByIdAndProductIdHandleMissingAndDeletedRecords() throws Exception {
         createValidBed();
 
-        mockMvc.perform(get("/dpps/missing-dpp-id"))
+        mockMvc.perform(get("/v1/dpps/missing-dpp-id"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"));
 
-        mockMvc.perform(get("/dppsByProductId/missing-product-id"))
+        mockMvc.perform(get("/v1/dppsByProductId/missing-product-id"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"));
 
-        mockMvc.perform(delete("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(delete("/v1/dpps/" + DemoDppFactory.BED_DPP_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value("SuccessNoContent"));
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"));
 
-        mockMvc.perform(get("/dppsByProductId/04012345678901"))
+        mockMvc.perform(get("/v1/dppsByProductId/04012345678901"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"));
     }
 
     @Test
-    @DisplayName("HEAD /dpps/{dppId} verifies active DPP existence without a response body")
+    @DisplayName("HEAD /internal/dpps/{dppId} verifies active DPP existence without a response body")
     void headByDppIdVerifiesActiveDppExistence() throws Exception {
         createValidBed();
 
-        mockMvc.perform(head("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(head("/internal/dpps/" + DemoDppFactory.BED_DPP_ID))
                 .andExpect(status().isOk())
                 .andExpect(content().string(""));
 
-        mockMvc.perform(head("/dpps/missing-dpp-id"))
+        mockMvc.perform(head("/internal/dpps/missing-dpp-id"))
                 .andExpect(status().isNotFound())
                 .andExpect(content().string(""));
 
-        mockMvc.perform(delete("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(delete("/v1/dpps/" + DemoDppFactory.BED_DPP_ID))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(head("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(head("/internal/dpps/" + DemoDppFactory.BED_DPP_ID))
                 .andExpect(status().isNotFound())
                 .andExpect(content().string(""));
     }
 
     @Test
-    @DisplayName("GET /dppsByProductIdAndDate returns repository snapshots for the requested timestamp")
-    void readVersionByProductIdAndDateReturnsHistoricalSnapshots() throws Exception {
+    @DisplayName("GET /v1/dppsByIdAndDate returns repository snapshots for the requested DPP id and timestamp")
+    void readVersionByDppIdAndDateReturnsHistoricalSnapshots() throws Exception {
         createValidBed();
         // TODO: replace these timing gaps with an injected Clock when the mock services gain a time seam.
         Thread.sleep(25L);
         Instant afterCreate = Instant.now();
         Thread.sleep(25L);
 
-        mockMvc.perform(patch("/dpps/" + DemoDppFactory.BED_DPP_ID)
+        mockMvc.perform(patch("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -205,43 +262,56 @@ class DppRepoControllerTest {
                                 """))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/dppsByProductIdAndDate/04012345678901")
-                        .param("date", afterCreate.toString()))
+        mockMvc.perform(get("/v1/dppsByIdAndDate/" + DemoDppFactory.BED_DPP_ID)
+                        .param("date", afterCreate.toString())
+                        .param("representation", "full"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.characteristics.productName").value("Cir4Fun Platform Bed"));
 
-        mockMvc.perform(get("/dppsByProductIdAndDate/04012345678901")
+        mockMvc.perform(get("/v1/dppsByIdAndDate/" + DemoDppFactory.BED_DPP_ID)
                         .param("date", "2020-01-01T00:00:00Z"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"));
 
-        mockMvc.perform(get("/dppsByProductIdAndDate/04012345678901")
-                        .param("date", Instant.now().toString()))
+        mockMvc.perform(get("/v1/dppsByIdAndDate/" + DemoDppFactory.BED_DPP_ID)
+                        .param("date", Instant.now().toString())
+                        .param("representation", "full"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.characteristics.productName").value("Cir4Fun Platform Bed - Updated Demo"));
 
-        mockMvc.perform(get("/dppsByProductIdAndDate/04012345678901")
+        mockMvc.perform(get("/v1/dppsByIdAndDate/" + DemoDppFactory.BED_DPP_ID)
                         .param("date", "not-a-timestamp"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"));
 
-        mockMvc.perform(get("/dppsByProductIdAndDate/missing-product")
+        mockMvc.perform(get("/v1/dppsByIdAndDate/missing-dpp-id")
                         .param("date", Instant.now().toString()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"));
     }
 
     @Test
+    @DisplayName("Old unprefixed internal repository routes are removed")
+    void oldInternalRepositoryRoutesReturnNotFound() throws Exception {
+        mockMvc.perform(get("/dpps"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(head("/dpps/missing-dpp-id"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/dpps/missing-dpp-id/events"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     @DisplayName("POST /dppsByProductIds supports limit and cursor semantics and rejects bad input")
     void readDppIdsByProductIdsSupportsLimitCursorAndRejectsBadInput() throws Exception {
         createValidBed();
-        mockMvc.perform(post("/dpps")
+        mockMvc.perform(post("/v1/dpps")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(codec.toJson(withIdAndProduct(factory.createValidChairDpp(),
                                 DemoDppFactory.CHAIR_DPP_ID, "04012345678902", "Chair v1"))))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(post("/dppsByProductIds")
+        mockMvc.perform(post("/v1/dppsByProductIds")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -254,7 +324,7 @@ class DppRepoControllerTest {
                 .andExpect(jsonPath("$.payload.dppIdentifiers", hasSize(1)))
                 .andExpect(jsonPath("$.payload.nextCursor").value("1"));
 
-        mockMvc.perform(post("/dppsByProductIds")
+        mockMvc.perform(post("/v1/dppsByProductIds")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -267,7 +337,7 @@ class DppRepoControllerTest {
                 .andExpect(jsonPath("$.payload.dppIdentifiers", hasSize(1)))
                 .andExpect(jsonPath("$.payload.nextCursor").doesNotExist());
 
-        mockMvc.perform(post("/dppsByProductIds")
+        mockMvc.perform(post("/v1/dppsByProductIds")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -279,7 +349,7 @@ class DppRepoControllerTest {
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"))
                 .andExpect(jsonPath("$.messages[0].code").value("INVALID_LIMIT"));
 
-        mockMvc.perform(post("/dppsByProductIds")
+        mockMvc.perform(post("/v1/dppsByProductIds")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -291,7 +361,7 @@ class DppRepoControllerTest {
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"))
                 .andExpect(jsonPath("$.messages[0].code").value("INVALID_CURSOR"));
 
-        mockMvc.perform(post("/dppsByProductIds")
+        mockMvc.perform(post("/v1/dppsByProductIds")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -302,7 +372,7 @@ class DppRepoControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"));
 
-        mockMvc.perform(post("/dppsByProductIds")
+        mockMvc.perform(post("/v1/dppsByProductIds")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -313,7 +383,7 @@ class DppRepoControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"));
 
-        mockMvc.perform(post("/dppsByProductIds")
+        mockMvc.perform(post("/v1/dppsByProductIds")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -322,7 +392,7 @@ class DppRepoControllerTest {
                                 """))
                 .andExpect(status().isBadRequest());
 
-        mockMvc.perform(post("/dppsByProductIds")
+        mockMvc.perform(post("/v1/dppsByProductIds")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -334,7 +404,7 @@ class DppRepoControllerTest {
     void updateByIdUsesMergePatchAndRemainsAtomicOnValidationFailure() throws Exception {
         createValidBed();
 
-        mockMvc.perform(patch("/dpps/" + DemoDppFactory.BED_DPP_ID)
+        mockMvc.perform(patch("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -354,7 +424,7 @@ class DppRepoControllerTest {
 
         int versionsAfterValidUpdate = store.versionsForProduct("04012345678901").size();
 
-        mockMvc.perform(patch("/dpps/" + DemoDppFactory.BED_DPP_ID)
+        mockMvc.perform(patch("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -367,7 +437,7 @@ class DppRepoControllerTest {
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"))
                 .andExpect(jsonPath("$.messages[0].code").value("DPP_ID_IMMUTABLE"));
 
-        mockMvc.perform(patch("/dpps/" + DemoDppFactory.BED_DPP_ID)
+        mockMvc.perform(patch("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -380,7 +450,7 @@ class DppRepoControllerTest {
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"))
                 .andExpect(jsonPath("$.messages[0].code").value("PRODUCT_ID_IMMUTABLE"));
 
-        mockMvc.perform(patch("/dpps/" + DemoDppFactory.BED_DPP_ID)
+        mockMvc.perform(patch("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -394,19 +464,20 @@ class DppRepoControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"));
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
+                        .param("representation", "full"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.characteristics.productName").value("Cir4Fun Platform Bed - Updated Demo"));
 
         assertEquals(versionsAfterValidUpdate, store.versionsForProduct("04012345678901").size());
         assertTrue(store.eventsFor(DemoDppFactory.BED_DPP_ID).stream().anyMatch(event -> event.eventType().equals("DPP_UPDATED")));
 
-        mockMvc.perform(patch("/dpps/" + DemoDppFactory.BED_DPP_ID)
+        mockMvc.perform(patch("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"characteristics\":"))
                 .andExpect(status().isBadRequest());
 
-        mockMvc.perform(patch("/dpps/missing-dpp-id")
+        mockMvc.perform(patch("/v1/dpps/missing-dpp-id")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -427,19 +498,19 @@ class DppRepoControllerTest {
         // TODO: replace this timing gap with an injected Clock when the mock services gain a time seam.
         Thread.sleep(5L);
 
-        mockMvc.perform(delete("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(delete("/v1/dpps/" + DemoDppFactory.BED_DPP_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value("SuccessNoContent"));
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID + "/events"))
+        mockMvc.perform(get("/internal/dpps/" + DemoDppFactory.BED_DPP_ID + "/events"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload[*].eventType").value(org.hamcrest.Matchers.hasItem("DPP_DELETED")));
 
-        mockMvc.perform(get("/dppsByProductIdAndDate/04012345678901")
+        mockMvc.perform(get("/v1/dppsByIdAndDate/" + DemoDppFactory.BED_DPP_ID)
                         .param("date", beforeDelete.toString()))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(delete("/dpps/missing-dpp-id"))
+        mockMvc.perform(delete("/v1/dpps/missing-dpp-id"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"));
 
@@ -447,8 +518,8 @@ class DppRepoControllerTest {
     }
 
     @Test
-    @DisplayName("Version lookup stays deterministic across delete and recreate cycles for the same product")
-    void versionLookupUsesDeterministicProductDeletionHistory() {
+    @DisplayName("Version lookup stays deterministic across delete and recreate cycles for the same DPP id")
+    void versionLookupUsesDeterministicDppDeletionHistory() {
         Instant firstCreate = Instant.parse("2026-05-11T09:00:00Z");
         Instant firstDelete = Instant.parse("2026-05-11T10:00:00Z");
         Instant secondCreate = Instant.parse("2026-05-11T11:00:00Z");
@@ -458,102 +529,104 @@ class DppRepoControllerTest {
         store.softDelete("dpp-old", firstDelete);
         store.create("dpp-new", productId, "{\"id\":\"new\"}", secondCreate);
 
-        assertEquals("dpp-old", store.findVersionByProductIdAndDate(productId, Instant.parse("2026-05-11T09:30:00Z"))
+        assertEquals("dpp-old", store.findVersionByDppIdAndDate("dpp-old", Instant.parse("2026-05-11T09:30:00Z"))
                 .orElseThrow().dppId());
-        assertTrue(store.findVersionByProductIdAndDate(productId, Instant.parse("2026-05-11T10:30:00Z")).isEmpty());
-        assertEquals("dpp-new", store.findVersionByProductIdAndDate(productId, Instant.parse("2026-05-11T11:30:00Z"))
+        assertTrue(store.findVersionByDppIdAndDate("dpp-old", Instant.parse("2026-05-11T10:30:00Z")).isEmpty());
+        assertEquals("dpp-new", store.findVersionByDppIdAndDate("dpp-new", Instant.parse("2026-05-11T11:30:00Z"))
                 .orElseThrow().dppId());
     }
 
     @Test
-    @DisplayName("Fine-granular read and update endpoints support curated paths and remain atomic on failure")
+    @DisplayName("Fine-granular endpoints support the bounded singular JSONPath subset and remain atomic on failure")
     void readAndUpdateDataElementWorkAndRemainAtomic() throws Exception {
         createValidBed();
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/characteristics.productName"))
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/$.characteristics.productName"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload").value("Cir4Fun Platform Bed"));
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/coreDpp.nameplate.gtinCode"))
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/$['nameplate'][\"gtinCode\"]"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload").value("04012345678901"));
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/billOfMaterials"))
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/$.billOfMaterials"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.materials", hasSize(2)));
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/billOfMaterials.materials[0].name"))
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/$.billOfMaterials.materials[0].name"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload").value(not("")));
 
-        mockMvc.perform(patch("/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/characteristics.productName")
+        mockMvc.perform(patch("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/$.characteristics.productName")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "payload": "Granular Update Name"
-                                }
+                                "Granular Update Name"
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload").value("Granular Update Name"));
 
         int versionsAfterValidUpdate = store.versionsForProduct("04012345678901").size();
 
-        mockMvc.perform(patch("/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/characteristics.productName")
+        mockMvc.perform(patch("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/$.characteristics.productName")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "payload": null
-                                }
+                                null
                                 """))
                 .andExpect(status().isBadRequest());
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
+                        .param("representation", "full"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.characteristics.productName").value("Granular Update Name"));
 
-        mockMvc.perform(patch("/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/nameplate.supplier.role")
+        mockMvc.perform(patch("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/$.characteristics.productName")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "payload": "DISTRIBUTOR"
-                                }
+                                ""
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"));
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
+                        .param("representation", "full"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.payload.nameplate.supplier.role").value("SUPPLIER"));
+                .andExpect(jsonPath("$.payload.characteristics.productName").value("Granular Update Name"));
 
         assertEquals(versionsAfterValidUpdate, store.versionsForProduct("04012345678901").size());
         assertTrue(store.eventsFor(DemoDppFactory.BED_DPP_ID).stream()
                 .anyMatch(event -> event.eventType().equals("DATA_ELEMENT_UPDATED")));
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/unsupported.field"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"));
-
-        mockMvc.perform(get("/dpps/missing-dpp-id/elements/characteristics.productName"))
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/$.unsupported.field"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"));
 
-        mockMvc.perform(patch("/dpps/missing-dpp-id/elements/characteristics.productName")
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/$.billOfMaterials.materials[*]"))
+                .andExpect(status().isNotImplemented())
+                .andExpect(jsonPath("$.statusCode").value("ServerNotImplemented"));
+
+        mockMvc.perform(get("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/characteristics.productName"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"));
+
+        mockMvc.perform(get("/v1/dpps/missing-dpp-id/elements/$.characteristics.productName"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"));
+
+        mockMvc.perform(patch("/v1/dpps/missing-dpp-id/elements/$.characteristics.productName")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "payload": "Missing"
-                                }
+                                "Missing"
                                 """))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"));
     }
 
     @Test
-    @DisplayName("GET /dpps/{dppId}/events returns structured lifecycle events and rejects missing DPPs")
+    @DisplayName("GET /internal/dpps/{dppId}/events returns structured lifecycle events and rejects missing DPPs")
     void readEventsReturnsLifecycleEventObjectsAndMissingDppFails() throws Exception {
         createValidBed();
 
-        mockMvc.perform(patch("/dpps/" + DemoDppFactory.BED_DPP_ID)
+        mockMvc.perform(patch("/v1/dpps/" + DemoDppFactory.BED_DPP_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -564,25 +637,23 @@ class DppRepoControllerTest {
                                 """))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(patch("/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/characteristics.productName")
+        mockMvc.perform(patch("/v1/dpps/" + DemoDppFactory.BED_DPP_ID + "/elements/$.characteristics.productName")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "payload": "Granular event update"
-                                }
+                                "Granular event update"
                                 """))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(delete("/dpps/" + DemoDppFactory.BED_DPP_ID))
+        mockMvc.perform(delete("/v1/dpps/" + DemoDppFactory.BED_DPP_ID))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/dpps/" + DemoDppFactory.BED_DPP_ID + "/events"))
+        mockMvc.perform(get("/internal/dpps/" + DemoDppFactory.BED_DPP_ID + "/events"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload", hasSize(4)))
                 .andExpect(jsonPath("$.payload[0].eventType").value(not("")))
                 .andExpect(jsonPath("$.payload[0].occurredAt").value(notNullValue()));
 
-        mockMvc.perform(get("/dpps/missing-dpp-id/events"))
+        mockMvc.perform(get("/internal/dpps/missing-dpp-id/events"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"));
     }
@@ -613,25 +684,81 @@ class DppRepoControllerTest {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.info.title").value("DPP Mock Repository API"))
-                .andExpect(jsonPath("$.paths['/dpps']").exists())
-                .andExpect(jsonPath("$.paths['/dpps/{dppId}'].get").exists())
-                .andExpect(jsonPath("$.paths['/dpps/{dppId}'].head").exists())
-                .andExpect(jsonPath("$.paths['/dppsByProductId/{productId}']").exists())
-                .andExpect(jsonPath("$.paths['/dppsByProductIdAndDate/{productId}'].get.parameters[?(@.name == 'date')]").exists())
-                .andExpect(jsonPath("$.paths['/dppsByProductIds'].post").exists())
-                .andExpect(jsonPath("$.paths['/dpps/{dppId}'].patch").exists())
-                .andExpect(jsonPath("$.paths['/dpps/{dppId}'].delete").exists())
-                .andExpect(jsonPath("$.paths['/dpps/{dppId}/elements/{elementPath}'].get").exists())
-                .andExpect(jsonPath("$.paths['/dpps/{dppId}/elements/{elementPath}'].patch").exists())
-                .andExpect(jsonPath("$.paths['/dpps/{dppId}/events'].get").exists())
+                .andExpect(jsonPath("$.paths['/internal/dpps']").exists())
+                .andExpect(jsonPath("$.paths['/internal/dpps/{dppId}'].head").exists())
+                .andExpect(jsonPath("$.paths['/v1/dpps']").exists())
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].get").exists())
+                .andExpect(jsonPath("$.paths['/v1/dppsByProductId/{productId}']").exists())
+                .andExpect(jsonPath("$.paths['/v1/dppsByIdAndDate/{dppId}'].get.parameters[?(@.name == 'dppId' && @.example == '77777777-7777-7777-7777-777777777777')]").exists())
+                .andExpect(jsonPath("$.paths['/v1/dppsByIdAndDate/{dppId}'].get.parameters[?(@.name == 'date' && @.example == '2026-06-08T10:15:30Z')]").exists())
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].get.parameters[?(@.name == 'representation' && @.schema.default == 'compressed')]").exists())
+                .andExpect(jsonPath("$.paths['/v1/dppsByProductId/{productId}'].get.parameters[?(@.name == 'representation' && @.schema.default == 'compressed')]").exists())
+                .andExpect(jsonPath("$.paths['/v1/dppsByIdAndDate/{dppId}'].get.parameters[?(@.name == 'representation' && @.schema.default == 'compressed')]").exists())
+                .andExpect(jsonPath("$.paths['/v1/dppsByProductIds'].post").exists())
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].patch").exists())
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].delete").exists())
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}/elements/{elementIdPath}'].get").exists())
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}/elements/{elementIdPath}'].patch").exists())
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}/elements/{elementIdPath}'].get.parameters[?(@.name == 'elementIdPath' && @.example == '$.characteristics.productName')]").exists())
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}/elements/{elementIdPath}'].patch.parameters[?(@.name == 'elementIdPath' && @.example == '$.characteristics.productName')]").exists())
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}/elements/{elementIdPath}'].get.description").value(containsString("Malformed paths return 400")))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}/elements/{elementIdPath}'].get.responses['501'].description").value(containsString("bounded singular subset")))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}/elements/{elementIdPath}'].patch.description").value(containsString("validated before persistence")))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}/elements/{elementIdPath}'].patch.requestBody.description").value(containsString("not a payload wrapper")))
+                .andExpect(jsonPath("$.paths['/internal/dpps/{dppId}/events'].get").exists())
+                .andExpect(jsonPath("$.paths['/dpps']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/dpps/{dppId}/events']").doesNotExist())
                 .andExpect(jsonPath("$.tags[?(@.name == 'DPP Repository - Life Cycle API')]").exists())
-                .andExpect(jsonPath("$.paths['/dpps/{dppId}/elements/{elementPath}'].get.tags[?(@ == 'DPP Repository - Fine Granular API')]").exists())
-                .andExpect(jsonPath("$.paths['/dpps/{dppId}/events'].get.tags[?(@ == 'DPP Repository - Events')]").exists())
-                .andExpect(jsonPath("$.paths['/dpps/{dppId}'].get.parameters[?(@.name == 'dppId' && @.example == '49192c87-20c8-4b6f-88de-48b56ca4c211')]").exists())
-                .andExpect(jsonPath("$.paths['/dpps/{dppId}'].delete.parameters[?(@.name == 'dppId' && @.example == '33333333-3333-3333-3333-333333333333')]").exists())
-                .andExpect(jsonPath("$.paths['/dppsByProductId/{productId}'].get.parameters[?(@.name == 'productId' && @.example == '04012345678901')]").exists())
-                .andExpect(jsonPath("$.paths['/dpps'].post.requestBody.content['application/json'].examples['Full DPP JSON'].value.passportMetadata.uniqueProductIdentifier").value("22222222-2222-2222-2222-222222222222"))
-                .andExpect(jsonPath("$.paths['/dpps'].post.requestBody.content['application/json'].examples['Full DPP JSON'].value.nameplate.gtinCode").value("04012345678999"));
+                .andExpect(jsonPath("$.tags[?(@.name == 'DPP Repository - Internal')]").exists())
+                .andExpect(jsonPath("$.paths['/v1/dpps'].post.tags")
+                        .value(org.hamcrest.Matchers.contains("DPP Repository - Life Cycle API")))
+                .andExpect(jsonPath("$.paths['/internal/dpps'].get.tags")
+                        .value(org.hamcrest.Matchers.contains("DPP Repository - Internal")))
+                .andExpect(jsonPath("$.paths['/internal/dpps/{dppId}'].head.tags")
+                        .value(org.hamcrest.Matchers.contains("DPP Repository - Internal")))
+                .andExpect(jsonPath("$.paths['/internal/dpps/{dppId}/events'].get.tags")
+                        .value(org.hamcrest.Matchers.contains("DPP Repository - Internal")))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}/elements/{elementIdPath}'].get.tags[?(@ == 'DPP Repository - Fine Granular API')]").exists())
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].get.parameters[?(@.name == 'dppId' && @.example == '49192c87-20c8-4b6f-88de-48b56ca4c211')]").exists())
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].delete.parameters[?(@.name == 'dppId' && @.example == '33333333-3333-3333-3333-333333333333')]").exists())
+                .andExpect(jsonPath("$.paths['/v1/dppsByProductId/{productId}'].get.parameters[?(@.name == 'productId' && @.example == '04012345678901')]").exists())
+                .andExpect(jsonPath("$.components.schemas.ReadDppIdsRequest.required")
+                        .value(org.hamcrest.Matchers.contains("productIdentifiers")))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].get.responses['200'].content['application/json'].examples['Default compressed representation'].value.payload.representation").value("compressed"))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].get.responses['200'].content['application/json'].examples['Full representation'].value.payload.passportMetadata.uniqueProductIdentifier").value("49192c87-20c8-4b6f-88de-48b56ca4c211"))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].get.responses['400'].content['application/json'].example.messages[0].code").value("INVALID_REPRESENTATION"))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].get.responses['404'].content['application/json'].example.statusCode").value("ClientErrorResourceNotFound"))
+                .andExpect(jsonPath("$.paths['/v1/dppsByProductId/{productId}'].get.responses['400'].content['application/json'].example.messages[0].code").value("INVALID_REPRESENTATION"))
+                .andExpect(jsonPath("$.paths['/v1/dppsByProductId/{productId}'].get.responses['404'].content['application/json'].example.messages[0].code").value("PRODUCT_NOT_FOUND"))
+                .andExpect(jsonPath("$.paths['/v1/dppsByIdAndDate/{dppId}'].get.responses['200'].content['application/json'].example.payload.dppId").value("77777777-7777-7777-7777-777777777777"))
+                .andExpect(jsonPath("$.paths['/v1/dppsByIdAndDate/{dppId}'].get.responses['400'].description").value(containsString("date or representation")))
+                .andExpect(jsonPath("$.paths['/v1/dppsByIdAndDate/{dppId}'].get.responses['400'].content['application/json'].example.messages[0].code").value("INVALID_DATE"))
+                .andExpect(jsonPath("$.paths['/v1/dppsByIdAndDate/{dppId}'].get.responses['404'].content['application/json'].example.messages[0].code").value("DPP_VERSION_NOT_FOUND"))
+                .andExpect(jsonPath("$.paths['/v1/dppsByProductIds'].post.requestBody.description").value(containsString("productIdentifiers is required")))
+                .andExpect(jsonPath("$.paths['/v1/dppsByProductIds'].post.responses['200'].content['application/json'].example.payload.dppIdentifiers[0]").value("49192c87-20c8-4b6f-88de-48b56ca4c211"))
+                .andExpect(jsonPath("$.paths['/v1/dppsByProductIds'].post.responses['400'].content['application/json'].example.messages[0].code").value("EMPTY_PRODUCT_IDENTIFIERS"))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].patch.parameters[?(@.name == 'dppId')].description")
+                        .value(org.hamcrest.Matchers.hasItem(containsString("POST /v1/dpps"))))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].patch.responses['200'].content['application/json'].example.payload.passportMetadata.uniqueProductIdentifier").value("49192c87-20c8-4b6f-88de-48b56ca4c211"))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].patch.responses['400'].content['application/json'].example.messages[0].code").value("INVALID_PATCH"))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].patch.responses['409'].content['application/json'].example.messages[0].code").value("DPP_VERSION_CONFLICT"))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].delete.responses['200'].content['application/json'].example.statusCode").value("SuccessNoContent"))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}'].delete.responses['409'].content['application/json'].example.statusCode").value("ClientResourceConflict"))
+                .andExpect(jsonPath("$.paths['/v1/dpps'].post.responses['409'].content['application/json'].example.messages[0].code").value("DPP_CONFLICT"))
+                .andExpect(jsonPath("$.paths['/v1/dpps'].post.responses['500'].content['application/json'].example.statusCode").value("ServerInternalError"))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}/elements/{elementIdPath}'].get.responses['200'].content['application/json'].example.payload").value("Cir4Fun Platform Bed"))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}/elements/{elementIdPath}'].get.responses['400'].content['application/json'].example.statusCode").value("ClientErrorBadRequest"))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}/elements/{elementIdPath}'].get.responses['404'].content['application/json'].example.messages[0].code").value("ELEMENT_NOT_FOUND"))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}/elements/{elementIdPath}'].get.responses['501'].content['application/json'].example.statusCode").value("ServerNotImplemented"))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}/elements/{elementIdPath}'].patch.responses['200'].content['application/json'].example.payload").value("Cir4Fun Platform Bed - Fine Granular Update"))
+                .andExpect(jsonPath("$.paths['/v1/dpps/{dppId}/elements/{elementIdPath}'].patch.responses['409'].content['application/json'].example.messages[0].code").value("DPP_VERSION_CONFLICT"))
+                .andExpect(jsonPath("$.paths['/internal/dpps/{dppId}/events'].get.responses['200'].content['application/json'].example.payload[0].eventType").value("DPP_CREATED"))
+                .andExpect(jsonPath("$.paths['/internal/dpps/{dppId}/events'].get.responses['200'].content['application/json'].example.payload[0].dppId").value("49192c87-20c8-4b6f-88de-48b56ca4c211"))
+                .andExpect(jsonPath("$.paths['/internal/dpps/{dppId}/events'].get.responses['404'].content['application/json'].example.messages[0].code").value("DPP_NOT_FOUND"))
+                .andExpect(jsonPath("$.paths['/v1/dpps'].post.requestBody.content['application/json'].examples['Full DPP JSON'].value.passportMetadata.uniqueProductIdentifier").value("22222222-2222-2222-2222-222222222222"))
+                .andExpect(jsonPath("$.paths['/v1/dpps'].post.requestBody.content['application/json'].examples['Full DPP JSON'].value.nameplate.gtinCode").value("04012345678999"))
+                .andExpect(content().string(not(containsString("EN 18223"))))
+                .andExpect(content().string(containsString("See the official standards for payload requirements.")));
     }
 
     @Test
@@ -698,7 +825,7 @@ class DppRepoControllerTest {
     }
 
     private void createValidBed() throws Exception {
-        mockMvc.perform(post("/dpps")
+        mockMvc.perform(post("/v1/dpps")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(codec.toJson(factory.createValidBedDpp())))
                 .andExpect(status().isCreated());

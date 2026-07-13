@@ -1,6 +1,7 @@
 package demo.registry;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -23,6 +24,8 @@ interface RegistryBackend {
     Optional<RegistryRecord> findByDppId(String dppId);
 
     boolean existsByDppId(String dppId);
+
+    List<String> findAllRegisteredDppIds();
 
     void seed(
             String registryIdentifier,

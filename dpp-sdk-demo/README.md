@@ -95,14 +95,27 @@ Build only the integration demo runner:
 
 ## Run The Mock Services
 
+The commands below are relative to the `dpp-sdk-demo` directory. If your current
+directory is the monorepo root, use the root-relative alternatives shown below.
+
 ### Mock Registry
 
 ```powershell
-java -jar mock-eu-registry\target\mock-eu-registry-0.4.0-exec.jar --debug=false
+java -jar mock-eu-registry/target/mock-eu-registry-0.4.0-exec.jar --debug=false
 ```
 
 ```bash
 java -jar mock-eu-registry/target/mock-eu-registry-0.4.0-exec.jar --debug=false
+```
+
+From the monorepo root:
+
+```powershell
+java -jar .\dpp-sdk-demo\mock-eu-registry\target\mock-eu-registry-0.4.0-exec.jar --debug=false
+```
+
+```bash
+java -jar ./dpp-sdk-demo/mock-eu-registry/target/mock-eu-registry-0.4.0-exec.jar --debug=false
 ```
 
 ### Mock Repository
@@ -113,6 +126,16 @@ java -jar mock-dpp-repo\target\mock-dpp-repo-0.4.0-exec.jar --debug=false
 
 ```bash
 java -jar mock-dpp-repo/target/mock-dpp-repo-0.4.0-exec.jar --debug=false
+```
+
+From the monorepo root:
+
+```powershell
+java -jar .\dpp-sdk-demo\mock-dpp-repo\target\mock-dpp-repo-0.4.0-exec.jar --debug=false
+```
+
+```bash
+java -jar ./dpp-sdk-demo/mock-dpp-repo/target/mock-dpp-repo-0.4.0-exec.jar --debug=false
 ```
 
 Both services import `optional:file:.env[.properties]`, so starting them from `dpp-sdk-demo` lets them read an optional local `.env` file if present. Use `dpp-sdk-demo/.env.example` as the tracked template when you want overrides. If you do not create `.env`, the built-in defaults still apply.
@@ -247,24 +270,36 @@ Successful integration demo:
 - `readDppById`
 - `readDppByProductId`
 - `updateDppById`
-- `readDppVersionByProductIdAndDate`
+- `readDppVersionByIdAndDate`
 - `readDppIdsByProductIds`
 - `deleteDppById`
 
+The three GET routes that return complete DPPs default to a project-defined compressed summary when `representation` is omitted. Typed Java client reads request `representation=full`; the compressed payload is not claimed as an EN 18223-defined representation.
+
+The HTTP demo prints the compressed summary beside the typed full-DPP read so their different payload purposes are visible.
+
 ### Registry Registration Flow
 
-The HTTP demo then registers the stored DPP metadata through `POST /registerDPP` using `HttpDppRegistryClient`.
+The HTTP demo then registers the stored DPP metadata through `POST /v1/registerDPP` using `HttpDppRegistryClient`.
+
+The public registration request uses `uniqueProductIdentifier`, `digitalProductPassportId`, `uniqueEconomicOperatorIdentifier`, and `dppApiEndpoint`; the response uses `registrationId`. Backup-operator behavior is not implemented.
 
 The registry verifies that the referenced DPP exists in the repository before accepting the registration.
+
+### Internal Mock API Boundary
+
+Standard-facing operations use `/v1/...`. Demo-only operations use `/internal/...`: the repository exposes active-ID listing, HEAD verification, and lifecycle events there, while the registry exposes metadata listing and lookup by registration ID or DPP ID. `/`, `/health`, `/swagger-ui`, and `/v3/api-docs` remain conventional infrastructure routes. This is a hard cutover; the former unprefixed internal routes are not aliases.
 
 ### Fine-Grained Read And Update
 
 The HTTP demo also calls:
 
-- `readDataElement(dppId, "characteristics.productName")`
-- `updateDataElement(dppId, "characteristics.productName", ...)`
+- `readDataElement(dppId, "$.characteristics.productName")`
+- `updateDataElement(dppId, "$.characteristics.productName", ...)`
 
-The repo controller documents these as a curated supported subset of element paths, not arbitrary JSONPath.
+The repo supports a bounded RFC 9535-compatible singular subset: `$`, dot members, quoted bracket members, and non-negative array indexes. It does not claim full RFC 9535 support; wildcard, descendant, union, slice, filter, function, and negative-index selectors return HTTP 501. Malformed paths return 400, valid paths with no matching element return 404, and direct JSON PATCH values are persisted only after full-DPP validation succeeds.
+
+The HTTP demo prints the dot-member path `$.characteristics.productName`, the array-index path `$.billOfMaterials.materials[0].name`, and the product-name value before and after replacement.
 
 ### Error Handling Examples
 
