@@ -1,0 +1,63 @@
+name: Publish demo images to GHCR
+
+# Fires when the GitLab pipeline mirrors code into this GitHub repo's main branch.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      # Dockerfiles COPY pre-built *-exec.jars, so build the reactor first.
+      - name: Build jars
+        run: ./mvnw -B -ntp -DskipTests clean package
+
+      - name: Resolve version and lowercase owner
+        id: meta
+        run: |
+          echo "version=$(./mvnw -q help:evaluate -Dexpression=project.version -DforceStdout)" >> "$GITHUB_OUTPUT"
+          echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push dpp-repo-api
+        uses: docker/build-push-action@v6
+        with:
+          context: dpp-sdk-demo
+          file: dpp-sdk-demo/mock-dpp-repo/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.meta.outputs.owner }}/dpp-repo-api:${{ steps.meta.outputs.version }}
+            ghcr.io/${{ steps.meta.outputs.owner }}/dpp-repo-api:latest
+            ghcr.io/${{ steps.meta.outputs.owner }}/dpp-repo-api:sha-${{ github.sha }}
+
+      - name: Build & push dpp-registry-api
+        uses: docker/build-push-action@v6
+        with:
+          context: dpp-sdk-demo
+          file: dpp-sdk-demo/mock-eu-registry/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.meta.outputs.owner }}/dpp-registry-api:${{ steps.meta.outputs.version }}
+            ghcr.io/${{ steps.meta.outputs.owner }}/dpp-registry-api:latest
+            ghcr.io/${{ steps.meta.outputs.owner }}/dpp-registry-api:sha-${{ github.sha }}
