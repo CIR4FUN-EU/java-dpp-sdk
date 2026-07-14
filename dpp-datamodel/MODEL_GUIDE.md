@@ -1,444 +1,192 @@
-# Model And Validation Guide
+# Model and Validation Guide
 
-This SDK has two model packages:
+This is the detailed reference for the immutable domain model, construction checks, and semantic validation in `dpp-core` and `dpp4fun`. Start with the consumer-oriented [README.md](README.md) for dependencies and end-to-end use. Builders throw `IllegalArgumentException` for their local checks; validation is fail-fast and throws `ValidationException` for the first semantic failure.
 
-- `dppsdk.core.model`
-- `dppsdk.dpp4fun.model`
+## How to use this guide
 
-The same module also owns the validation packages:
+Read the object graph first, then find a type below. “Builder checks” happen at `build()` time. “Validator rules” happen only when the relevant validator or validation service is called; a type described as optional returns successfully when its individual validator receives `null`.
 
-- `dppsdk.core.validation`
-- `dppsdk.dpp4fun.validation`
+- [Core model](#core-model)
+- [Dpp4Fun model](#dpp4fun-model)
+- [Validation services](#validation-services)
+- [Immutable editing](#immutable-editing)
 
-Use this document as the single reference for both model structure and validation behavior.
+## Visual model graph
 
-## Core Principles
+```mermaid
+flowchart TD
+    Dpp["Dpp (abstract)"] -->|implemented by| Dpp4Fun["Dpp4Fun"]
 
-- models are immutable after construction
-- builders enforce local structural rules only
-- validators enforce semantic and cross-object rules
-- validation is fail-fast and throws `ValidationException` on the first error
-- model classes do not perform HTTP, persistence, mapping, or JSON work
+    Dpp4Fun --> Core["DppCore"]
+    Dpp4Fun --> Classification["ProductClassification"]
+    Dpp4Fun --> Characteristics["Characteristics"]
+    Dpp4Fun -. optional .-> Bom["BillOfMaterials"]
 
-## Object Graph
+    Core --> Metadata["PassportMetadata"]
+    Core --> Nameplate["Nameplate"]
+    Core -. optional .-> Documentation["Documentation"]
+
+    Nameplate -. manufacturer / supplier .-> Organization["Organization"]
+    Organization -. optional .-> Contact["Contact"]
+    Contact -. optional .-> Address["Address"]
+    Contact -. optional .-> Email["Email"]
+    Contact -. optional .-> Telephone["Telephone"]
+
+    Characteristics -. optional .-> Dimensions["Dimensions"]
+    Bom -. optional .-> Material["Material"]
+    Bom -. optional .-> Component["Component"]
+    Bom -. optional .-> Part["Part"]
+```
+
+The labelled `Dpp` edge is the implementation relationship. Other solid arrows are required aggregate relationships; dashed arrows are optional nested values or collections. Read the text graph below for the exact structure and then use the per-type sections for fields and validation rules.
+
+## Object graph
 
 ```text
-Dpp
-+-- Dpp4Fun
+Dpp (abstract)
+`-- Dpp4Fun
     +-- DppCore
     |   +-- PassportMetadata
     |   +-- Nameplate
-    |   +-- Documentation
+    |   |   +-- Organization (manufacturer and/or supplier)
+    |   |       `-- Contact
+    |   |           +-- Address
+    |   |           +-- Email
+    |   |           `-- Telephone
+    |   `-- Documentation (optional)
     +-- ProductClassification
     +-- Characteristics
-    |   +-- Dimensions
-    +-- BillOfMaterials
+    |   `-- Dimensions (optional)
+    `-- BillOfMaterials (optional)
         +-- Material
         +-- Component
-        +-- Part
+        `-- Part
 ```
 
-`Dpp` is the abstract base type. `Dpp4Fun` is the concrete aggregate currently implemented in this repository.
+`Dpp4Fun` is the concrete `Dpp` implementation in this source tree. It returns the passport type string `Dpp4Fun Furniture`.
 
-## Validation Entry Points
-
-Core validation:
-
-- `ValidationService`
-- `DppCoreValidator`
-- the individual core validators for nested value objects
-
-`Dpp4Fun` validation:
-
-- `Dpp4FunValidationService`
-- `Dpp4FunValidator`
-- the individual furniture-specific validators
-
-`ValidationService` registers the core validators. `Dpp4FunValidationService` layers the `dpp4fun` validators on top of that core service.
-
-## Convenience Accessors
-
-`Dpp` and `Dpp4Fun` expose convenience getters that delegate into nested objects instead of duplicating state:
-
-```java
-String dppId = dpp.getDppId();
-String productId = dpp.getProductId();
-String gtin = dpp.getGtinCode();
-String productName = dpp.getProductName();
-String category = dpp.getCategory();
-```
-
-## Builder And Validator Rules By Type
+## Core model
 
 ### `Dpp`
 
-Purpose:
-- abstract base class for DPP aggregates
-- exposes convenience accessors for `passportMetadata`, `nameplate`, `documentation`, `dppId`, and `productId`
-
-Rules:
-- `getDppId()` throws if `PassportMetadata.uniqueProductIdentifier` is missing
-- `getProductId()` throws if `Nameplate.gtinCode` is missing
+- Abstract aggregate base with `getCoreDpp()` and `getPassportType()`.
+- Convenience accessors delegate to the core: passport metadata, nameplate, documentation, UUID, update dates, QR/digital tag, external documentation link, GTIN, manufacturer, supplier, and instruction links.
+- `getDppId()` returns the UUID as a string and throws `IllegalStateException` when the UUID is null. `getProductId()` returns the GTIN and throws `IllegalStateException` when it is null.
 
 ### `DppCore`
 
-Shape:
-- `passportMetadata`
-- `nameplate`
-- optional `documentation`
-
-Builder rules:
-- `passportMetadata` is required
-- `nameplate` is required
-
-Validator:
-- `DppCoreValidator`
-
-Validator rules:
-- `DppCore` must not be null
-- `passportMetadata` must not be null
-- `nameplate` must not be null
-- delegates to `PassportMetadataValidator`, `NameplateValidator`, and `DocumentationValidator`
+- Fields: required `passportMetadata`, required `nameplate`, optional `documentation`.
+- Builder checks: metadata and nameplate are non-null.
+- `DppCoreValidator`: the core and both required fields must be non-null; validates `PassportMetadata`, `Nameplate`, and optional `Documentation`.
 
 ### `PassportMetadata`
 
-Shape:
-- `uniqueProductIdentifier`
-- `passportUpdateDates`
-- optional `qrCodeOrDigitalTag`
-- optional `externalDocumentationLink`
-
-Builder rules:
-- none beyond normal object construction
-
-Validator:
-- `PassportMetadataValidator`
-
-Validator rules:
-- object must not be null
-- `uniqueProductIdentifier` is required
-- `passportUpdateDates` must not be null or empty
-- `passportUpdateDates` must not contain null values
-- `passportUpdateDates` must not contain future dates
-- `qrCodeOrDigitalTag` must not be blank if present
-- `externalDocumentationLink` must not be blank if present
+- Fields: required `uniqueProductIdentifier` (`UUID`), required non-empty `passportUpdateDates` (`List<LocalDate>`), optional `qrCodeOrDigitalTag`, optional `externalDocumentationLink`.
+- Builder checks: UUID and at least one date are required; `addPassportUpdateDate` rejects null; supplied strings cannot be blank. Dates are defensively copied.
+- `PassportMetadataValidator`: rejects null metadata, null UUID, empty dates, null date entries, and dates after `LocalDate.now()`; supplied strings cannot be blank.
 
 ### `Nameplate`
 
-Shape:
-- `gtinCode`
-- optional `internalArticleNumber`
-- optional `batchNumber`
-- optional `customsTariffNumber`
-- optional `uriOfTheProduct`
-- optional `manufacturer`
-- optional `supplier`
-
-Builder rules:
-- `gtinCode` is required and must not be blank
-- optional string fields must not be blank if present
-
-Validator:
-- `NameplateValidator`
-
-Validator rules:
-- object must not be null
-- `gtinCode` is required
-- optional identifier fields must not be blank if present
-- at least one of `manufacturer` or `supplier` must exist
-- `manufacturer` is validated if present and must have role `MANUFACTURER`
-- `supplier` is validated if present and must have role `SUPPLIER`
+- Fields: required `gtinCode`; optional `internalArticleNumber`, `batchNumber`, `customsTariffNumber`, `uriOfTheProduct`, `manufacturer`, and `supplier`.
+- Builder checks: GTIN is required; supplied identifier strings cannot be blank.
+- `NameplateValidator`: GTIN is required; supplied identifier strings cannot be blank; at least a manufacturer or supplier is required. Each present organization is validated. A manufacturer must have role `MANUFACTURER`; a supplier must have role `SUPPLIER` (a null role fails in either slot).
 
 ### `Organization`
 
-Shape:
-- `name`
-- optional `gln`
-- optional `uri`
-- optional `role`
-- optional `contact`
+- Fields: required `name`; optional `gln`, `productDescription`, `productDesignation`, `productFamily`, `productRoot`, `productOrderSuffix`, `uri`, `contact`, and `role` (`OrganizationRole`).
+- Builder checks: name is required; every supplied string field above cannot be blank.
+- `OrganizationValidator`: organization and name are required; supplied `uri` cannot be blank; validates a present contact. `role` is optional here and is constrained by `NameplateValidator` when used as manufacturer or supplier.
 
-Builder rules:
-- check the class directly for local construction rules when editing this type
+### `OrganizationRole`
 
-Validator:
-- `OrganizationValidator`
-
-Validator rules:
-- object must not be null when validator is invoked
-- `name` is required
-- `uri` must not be blank if present
-- `contact` is validated if present
-- `role` stays optional here; slot-specific role rules are enforced by parent validators such as `NameplateValidator`
+- Enum values: `MANUFACTURER`, `SUPPLIER`, and `DISTRIBUTOR`.
+- It has no builder or standalone validator. `NameplateValidator` permits only `MANUFACTURER` in the manufacturer slot and `SUPPLIER` in the supplier slot.
 
 ### `Contact`
 
-Shape:
-- `organization`
-- optional `address`
-- optional `email`
-- optional `telephone`
-
-Builder rules:
-- local construction only
-
-Validator:
-- `ContactValidator`
-
-Validator rules:
-- `organization` is required
-- at least one of `address`, `email`, or `telephone` must exist
-- nested values are validated if present
+- Fields: required `organization`; optional `address`, `email`, and `telephone`.
+- Builder checks: organization is required and cannot be blank.
+- `ContactValidator`: optional as a nested value; when present, organization is required and at least one of address, email, or telephone must be present. Validates each present channel.
 
 ### `Address`
 
-Shape:
-- optional `street`
-- optional `zipCode`
-- required semantic `town`
-- optional `region`
-- required semantic `country`
-
-Builder rules:
-- local construction only
-
-Validator:
-- `AddressValidator`
-
-Validator rules:
-- `country` is required
-- `town` is required
-- `zipCode`, `region`, and `street` must not be blank if present
+- Fields: required `country` and `town`; optional `zipCode`, `region`, and `street`.
+- Builder checks and `AddressValidator`: country and town are required; each supplied optional string cannot be blank. The individual validator treats a null address as optional.
 
 ### `Email`
 
-Shape:
-- `emailAddress`
-- optional `typeOfEmail`
-
-Builder rules:
-- local construction only
-
-Validator:
-- `EmailValidator`
-
-Validator rules:
-- `emailAddress` is required
-- `emailAddress` must contain `@`
-- `typeOfEmail` must not be blank if present
+- Fields: required `emailAddress`; optional `typeOfEmail`.
+- Builder checks: email address is required; a supplied type cannot be blank.
+- `EmailValidator`: optional as a nested value; when present, address is required, must contain `@`, and supplied type cannot be blank.
 
 ### `Telephone`
 
-Shape:
-- `telephoneNumber`
-- optional `typeOfTelephone`
-
-Builder rules:
-- local construction only
-
-Validator:
-- `TelephoneValidator`
-
-Validator rules:
-- `telephoneNumber` is required
-- `typeOfTelephone` must not be blank if present
+- Fields: required `telephoneNumber`; optional `typeOfTelephone`.
+- Builder checks and `TelephoneValidator`: number is required and a supplied type cannot be blank. The individual validator treats a null telephone as optional.
 
 ### `Documentation`
 
-Shape:
-- optional `digitalInstructionsLink`
-- optional `safetyInstructionsLink`
-- `downloadable`
-- optional `availableForYears`
-- `paperCopyAvailableOnRequest`
+- Fields: optional `digitalInstructionsLink`, optional `safetyInstructionsLink`, `downloadable` (boolean), optional `availableForYears` (`Integer`), and `paperCopyAvailableOnRequest` (boolean).
+- Builder checks: supplied links cannot be blank; `availableForYears` cannot be negative.
+- `DocumentationValidator`: optional as a nested value; supplied links cannot be blank. If `downloadable` is true, at least one link is required. A supplied `availableForYears` must be non-negative and also requires at least one link.
 
-Builder rules:
-- `availableForYears` must be non-negative if present
-- documentation links must not be blank if present
-
-Validator:
-- `DocumentationValidator`
-
-Validator rules:
-- object is optional
-- documentation links must not be blank if present
-- if `downloadable` is `true`, at least one documentation link must exist
-- `availableForYears` must be non-negative if present
-- if `availableForYears` is set, at least one documentation link must exist
+## Dpp4Fun model
 
 ### `Dpp4Fun`
 
-Shape:
-- `coreDpp`
-- `classification`
-- `characteristics`
-- optional `billOfMaterials`
-
-Builder rules:
-- `coreDpp` is required
-- `classification` is required
-- `characteristics` is required
-
-Validator:
-- `Dpp4FunValidator`
-
-Validator rules:
-- object must not be null
-- `coreDpp`, `classification`, and `characteristics` must exist
-- delegates to `DppCoreValidator`, `ProductClassificationValidator`, `CharacteristicsValidator`, and `BillOfMaterialsValidator`
-- cross-object rules:
-  - if both `classification.category` and `characteristics.productType` are present, one must contain the other after lowercasing and trimming
-  - if `externalDocumentationLink` exists, `documentation` must also exist
+- Fields: required `coreDpp`, required `classification`, required `characteristics`, optional `billOfMaterials`.
+- Builder checks: all three required fields are non-null.
+- `Dpp4FunValidator`: validates the core, classification, characteristics, and optional bill of materials. When both category and product type have text, either one must contain the other after trimming and lowercasing. A non-blank external documentation link requires a documentation object.
 
 ### `ProductClassification`
 
-Shape:
-- `sector`
-- optional `group`
-- `category`
-- optional `subCategory`
-- `tags`
-
-Builder rules:
-- `sector` is required
-- `category` is required
-- `group` must not be blank if present
-- `subCategory` must not be blank if present
-
-Validator:
-- `ProductClassificationValidator`
-
-Validator rules:
-- object must not be null
-- `sector` is required
-- `category` is required
-- `group` and `subCategory` must not be blank if present
-- if `subCategory` has text, `category` must also have text
-- if `group` has text, `sector` must also have text
-- `tags` must not contain null, blank, or duplicate values
+- Fields: required `sector` and `category`; optional `group`, optional `subCategory`, and `tags` list.
+- Builder checks: sector and category are required; supplied group and subcategory cannot be blank. `addTag` appends to the list and `removeTag` removes a value.
+- `ProductClassificationValidator`: sector and category are required; supplied group/subcategory cannot be blank; non-blank subcategory requires a non-blank category and non-blank group requires a non-blank sector. Tags, when non-empty, cannot contain null, blank, or duplicate values after trim/lowercase comparison.
 
 ### `Characteristics`
 
-Shape:
-- `productName`
-- optional `description`
-- optional `brand`
-- optional `productType`
-- optional `dimensions`
-- optional `weight`
-- optional `color`
-- `features`
-
-Builder rules:
-- `productName` is required
-- `description`, `brand`, `productType`, and `color` must not be blank if present
-- `weight` must be non-negative if present
-
-Validator:
-- `CharacteristicsValidator`
-
-Validator rules:
-- object must not be null
-- `productName` is required
-- `weight` must be non-negative if present
-- `dimensions` is validated if present
-- `features` must not contain null, blank, or duplicate values
+- Fields: required `productName`; optional `description`, `brand`, `productType`, `dimensions`, `weight`, `color`; and `features` list.
+- Builder checks: product name is required; supplied description, brand, product type, and color cannot be blank; weight cannot be negative. `addFeature` and `removeFeature` edit the builder list.
+- `CharacteristicsValidator`: product name is required; supplied weight must be non-negative; validates present dimensions. Features, when non-empty, cannot contain null, blank, or duplicate values after trim/lowercase comparison.
 
 ### `Dimensions`
 
-Shape:
-- optional `width`
-- optional `height`
-- optional `depth`
-- optional `unit`
-
-Builder rules:
-- local construction only
-
-Validator:
-- `DimensionsValidator`
-
-Validator rules:
-- object is optional
-- `width`, `height`, and `depth` must be non-negative if present
-- at least one of `width`, `height`, or `depth` must exist when a `Dimensions` object exists
-- if any dimension value exists, `unit` is required
+- Fields: `width`, `height`, `depth` (`Double`), and optional `unit`.
+- Builder checks: all three measurements are required and non-negative; a supplied unit cannot be blank.
+- `DimensionsValidator`: optional as a nested value; checks non-negative measurements, requires at least one measurement, and requires a non-blank unit when a measurement is present. The builder’s stricter checks mean normally constructed instances have all three measurements, while the validator also protects values obtained through mapping.
 
 ### `BillOfMaterials`
 
-Shape:
-- `materials`
-- `components`
-- `parts`
-
-Builder rules:
-- none; empty lists are allowed
-- supports `add*`, `remove*`, and `toBuilder()` copy/edit flows
-
-Validator:
-- `BillOfMaterialsValidator`
-
-Validator rules:
-- object is optional
-- `materials`, `components`, and `parts` lists must not contain null entries
-- each nested item is validated
-- duplicates are rejected per list using a lowercased `name|reference` key
+- Fields: `materials`, `components`, and `parts` lists. A builder starts with empty lists; `add*`/`remove*` methods edit each list.
+- Builder checks: none; lists are defensively copied.
+- `BillOfMaterialsValidator`: optional as a nested value. Each list cannot contain null entries; each item is validated; duplicates within a list are rejected using a trimmed, lowercased `name|reference` key.
 
 ### `Material`
 
-Shape:
-- `name`
-- `mandatory`
-- `portion`
-- optional `reference`
-
-Builder rules:
-- local construction only
-
-Validator:
-- `MaterialValidator`
-
-Validator rules:
-- `name` is required
-- `portion` must be non-negative
-- `reference` must not be blank if present
-- if `mandatory` is `true`, `portion` must be greater than zero
+- Fields: required `name`, `mandatory` (boolean), required `portion` (`double`), optional `reference`.
+- Builder checks: name is required; portion cannot be negative; supplied reference cannot be blank.
+- `MaterialValidator`: name is required, portion must be non-negative, supplied reference cannot be blank, and a mandatory material must have a portion greater than zero.
 
 ### `Component`
 
-Shape:
-- `name`
-- optional `reference`
-
-Builder rules:
-- local construction only
-
-Validator:
-- `ComponentValidator`
-
-Validator rules:
-- `name` is required
-- `reference` must not be blank if present
+- Fields: required `name`, optional `reference`.
+- Builder checks and `ComponentValidator`: name is required; supplied reference cannot be blank. The individual validator treats a null component as optional.
 
 ### `Part`
 
-Shape:
-- `name`
-- optional `reference`
+- Fields: required `name`, `mandatory` (boolean), optional `reference`.
+- Builder checks and `PartValidator`: name is required; supplied reference cannot be blank. The individual validator treats a null part as optional; it does not impose an additional rule for `mandatory`.
 
-Builder rules:
-- local construction only
+## Validation services
 
-Validator:
-- `PartValidator`
+`ValidationService` registers validators for `Email`, `Telephone`, `Address`, `Contact`, `DppCore`, `PassportMetadata`, `Nameplate`, `Organization`, and `Documentation`. It rejects null values and values with no registered compatible validator; callers can add validators with `register`.
 
-Validator rules:
-- `name` is required
-- `reference` must not be blank if present
+`Dpp4FunValidationService` starts with that core service and registers `Dimensions`, `Material`, `Component`, `Part`, `ProductClassification`, `Characteristics`, `BillOfMaterials`, `Dpp4Fun`, and `Dpp`. For a `Dpp`, it validates only the concrete `Dpp4Fun` subtype; another subtype fails.
 
-## Copy / Edit Pattern
+## Immutable editing
 
-Most model classes expose `toBuilder()` so callers can make immutable edits:
+Every concrete model type in this guide provides `toBuilder()`. Use it to create a changed copy; domain objects do not expose setters.
 
 ```java
 Dpp4Fun updated = dpp.toBuilder()
@@ -448,10 +196,4 @@ Dpp4Fun updated = dpp.toBuilder()
         .build();
 ```
 
-List-style value objects also support targeted removal through the builder:
-
-```java
-BillOfMaterials smallerBom = dpp.getBillOfMaterials().toBuilder()
-        .removeMaterial(material)
-        .build();
-```
+For the consumer workflow, mapping, JSON transport, and identifier helpers, return to [README.md](README.md).
