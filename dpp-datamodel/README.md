@@ -21,8 +21,11 @@ flowchart TD
     C --> CM["DppCoreMapper"]
     CM <--> CP["DppCorePayload"]
     F --> FV["Dpp4FunValidationService"]
+    FV -. layers on core validation .-> CV
     F --> FM["Dpp4FunMapper"]
     FM <--> FP["Dpp4FunPayload"]
+    FM --> CM
+    FP --> CP
     FP <--> JSON["JSON via Dpp4FunJsonCodec"]
 ```
 

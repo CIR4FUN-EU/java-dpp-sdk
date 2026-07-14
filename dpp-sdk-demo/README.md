@@ -19,10 +19,10 @@ flowchart LR
     I["dpp-integration-demo<br/>SDK-only or HTTP runner"] --> R["mock-dpp-repo<br/>Full DPP lifecycle API"]
     I --> G["mock-eu-registry<br/>Metadata-only registry API"]
     G -->|verifies referenced DPP| R
-    R --> RM["Memory backend"]
-    R --> RP["PostgreSQL backend"]
-    G --> GM["Memory backend"]
-    G --> GP["PostgreSQL backend"]
+    R -. "selects one" .-> RM["Memory backend"]
+    R -. "selects one" .-> RP["PostgreSQL backend"]
+    G -. "selects one" .-> GM["Memory backend"]
+    G -. "selects one" .-> GP["PostgreSQL backend"]
     RP --> RDB["dpp-repo-db"]
     GP --> GDB["dpp-registry-db"]
 ```
