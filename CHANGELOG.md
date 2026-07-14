@@ -7,12 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+No unreleased changes.
+
+## [0.5.0] - 2026-07-14
+
 ### Changed
+- Bumped the monorepo and all published module artifacts from `0.4.0` to `0.5.0` for the breaking API and standards-alignment changes in this release.
 - Moved all demo-only repository and registry business endpoints to `/internal/...` in a hard cutover; `/v1` and conventional health, landing, and OpenAPI routes are unchanged.
 
 ### Documentation
-- Audited root and module documentation against the current Maven reactor, source contracts, mock-service routes, runtime configuration, and EN 18222 alignment status.
-- Corrected standards overclaims, registry payload wording, internal Docker build commands, and stale guidance for the non-buildable `dpp-persistence` path.
+- Audited root and module documentation against the current Maven reactor, source contracts, mock-service routes, runtime configuration, and implementation scope.
+- Corrected standards overclaims, registry payload wording, internal Docker build commands, stale version references, and guidance for the non-buildable `dpp-persistence` path.
+
+### Validation
+- Revalidated the root and module Maven coordinates, generated JAR naming, and documented commands for the `0.5.0` release.
 
 ## [0.4.0] - 2026-07-02
 
@@ -55,4 +63,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Architecture diagram under `docs/`.
 
 [0.4.0]: https://github.com/CIR4FUN-EU/dpp-sdk/releases/tag/v0.4.0
+[0.5.0]: https://github.com/CIR4FUN-EU/dpp-sdk/releases/tag/v0.5.0
 [0.3.0]: https://github.com/CIR4FUN-EU/dpp-sdk/releases/tag/v0.3.0
