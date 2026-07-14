@@ -17,18 +17,24 @@ flowchart TD
     N -. manufacturer / supplier .-> O["Organization"]
     CH -. optional .-> DIM["Dimensions"]
     B -. optional .-> BOM["Materials, components, and parts"]
-    F --> V["Dpp4FunValidationService"]
-    F --> MAP["Dpp4FunMapper"]
-    MAP <--> P["Dpp4FunPayload"]
-    P <--> JSON["JSON via Dpp4FunJsonCodec"]
+    C --> CV["DppCoreValidator"]
+    C --> CM["DppCoreMapper"]
+    CM <--> CP["DppCorePayload"]
+    F --> FV["Dpp4FunValidationService"]
+    F --> FM["Dpp4FunMapper"]
+    FM <--> FP["Dpp4FunPayload"]
+    FP <--> JSON["JSON via Dpp4FunJsonCodec"]
 ```
 
-The builders create immutable domain objects. Validation, payload mapping, and
-JSON transport are separate responsibilities: `Dpp4FunValidationService`
-checks semantic rules, `Dpp4FunMapper` converts between domain and payload
-objects, and `Dpp4FunJsonCodec` handles JSON. The result is consumed by the
-HTTP clients or persistence modules; those modules are outside this datamodel
-boundary.
+The builders create immutable domain objects. Both model layers have their own
+validation, mapper, and payload responsibilities: `DppCoreValidator`,
+`DppCoreMapper`, and `DppCorePayload` cover reusable core fields, while
+`Dpp4FunValidationService`, `Dpp4FunMapper`, and `Dpp4FunPayload` cover the full
+furniture aggregate. JSON transport is aggregate-level: `Dpp4FunJsonCodec`
+serializes and parses `Dpp4Fun`, including its nested core payload. There is no
+standalone `dpp-core` JSON codec in the current API. The result is consumed by
+the HTTP clients or persistence modules; those modules are outside this
+datamodel boundary.
 
 ## Choose a module
 
