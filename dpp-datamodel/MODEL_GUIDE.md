@@ -36,7 +36,23 @@ flowchart TD
     Bom -. optional .-> Material["Material"]
     Bom -. optional .-> Component["Component"]
     Bom -. optional .-> Part["Part"]
+
+    Core --> CoreValidation["Core validation<br/>ValidationService"]
+    Core --> CoreMapping["Core mapping<br/>DppCoreMapper"]
+    CoreMapping <--> CorePayload["DppCorePayload"]
+
+    Dpp4Fun --> FunValidation["Furniture validation<br/>Dpp4FunValidationService"]
+    Dpp4Fun --> FunMapping["Furniture mapping<br/>Dpp4FunMapper"]
+    FunMapping --> CoreMapping
+    FunMapping <--> FunPayload["Dpp4FunPayload"]
+    FunPayload <--> JsonCodec["JSON transport<br/>Dpp4FunJsonCodec"]
 ```
+
+The core model owns reusable validation and mapping through `ValidationService`
+and `DppCoreMapper`. `Dpp4FunValidationService` layers furniture-specific
+validation on that core service, while `Dpp4FunMapper` delegates core fields to
+`DppCoreMapper`. JSON transport is currently exposed by `Dpp4FunJsonCodec` for
+the complete `Dpp4Fun` aggregate; there is no separate `DppCore` JSON codec.
 
 The labelled `Dpp` edge is the implementation relationship. Other solid arrows are required aggregate relationships; dashed arrows are optional nested values or collections. Read the text graph below for the exact structure and then use the per-type sections for fields and validation rules.
 

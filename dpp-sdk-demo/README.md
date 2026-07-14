@@ -56,7 +56,7 @@ the working directory never changes.
 - The upstream artifacts in the local Maven repository when building this subproject alone
 
 For an isolated demo build, install the upstream reactors in the following
-order from `dpp-sdk-demo`:
+order from the repository root:
 
 ```powershell
 .\mvnw.cmd -f .\dpp-datamodel\pom.xml clean install
@@ -107,10 +107,21 @@ curl --fail http://localhost:8081/health
 ```
 
 Wait until both API containers are healthy or running before executing the
-health requests. If a request initially fails, inspect the service logs shown
-above. Success: both APIs are `running` in `docker compose -f dpp-sdk-demo/docker-compose.yml ps`, and each health
-request returns JSON with `status` `UP`. Use [Stop and clean](#stop-and-clean)
-for shutdown choices.
+health requests. If a request initially fails, inspect:
+
+```powershell
+docker compose -f dpp-sdk-demo/docker-compose.yml ps
+docker compose -f dpp-sdk-demo/docker-compose.yml logs --tail=100 dpp-repo-api
+docker compose -f dpp-sdk-demo/docker-compose.yml logs --tail=100 dpp-registry-api
+```
+
+```bash
+docker compose -f dpp-sdk-demo/docker-compose.yml ps
+docker compose -f dpp-sdk-demo/docker-compose.yml logs --tail=100 dpp-repo-api
+docker compose -f dpp-sdk-demo/docker-compose.yml logs --tail=100 dpp-registry-api
+```
+
+Success: both APIs are `running` in `docker compose -f dpp-sdk-demo/docker-compose.yml ps`, and each health request returns JSON with `status` `UP`. Use [Stop and clean](#stop-and-clean) for shutdown choices.
 
 Each service also exposes a minimal root landing page that confirms it is running and links to Swagger:
 
@@ -124,8 +135,8 @@ These are simple demo conveniences, not production user interfaces. Use `/health
 | Compose file | Purpose |
 | --- | --- |
 | `docker-compose.yml` | Default buildable full stack with repository API, registry API, and both PostgreSQL databases |
-| `docker-compose.build.yml` | Alternative full-stack definition that also builds the local API images |
-| `docker-compose.postgres.yml` | PostgreSQL dependencies, or the configured prebuilt-image stack when API services are selected |
+| `docker-compose.build.yml` | Alternate filename for the same buildable full-stack definition; it currently matches `docker-compose.yml` |
+| `docker-compose.postgres.yml` | Configured-image full stack; individual database services can also be selected for mixed local-JAR mode |
 
 ## Local JAR quick run with memory
 
@@ -230,6 +241,9 @@ docker compose -f dpp-sdk-demo/docker-compose.yml logs -f dpp-repo-api
 docker compose -f dpp-sdk-demo/docker-compose.yml stop dpp-repo-api
 ```
 
+The `logs -f` command follows the logs until you press `Ctrl+C`; it does not
+stop the service. Run the subsequent `stop` command afterward when needed.
+
 The registry expects a reachable repository for new registration verification. In Docker, its internal verifier uses `http://dpp-repo-api:8080`; the registration's public `dppApiEndpoint` can remain a host-reachable URL such as `http://localhost:8080`.
 
 Success: `docker compose -f dpp-sdk-demo/docker-compose.yml logs` shows the service started and its `/health` endpoint returns `UP`. The last command above stops the selected service; use `docker compose -f dpp-sdk-demo/docker-compose.yml start dpp-repo-api` to start it again.
@@ -276,7 +290,7 @@ docker compose -f dpp-sdk-demo/docker-compose.yml stop
 docker compose -f dpp-sdk-demo/docker-compose.yml stop
 ```
 
-The commands above stop the default stack while retaining its volumes. To
+The command above stops the default stack while retaining its volumes. To
 remove the default stack while retaining its volumes, run instead:
 
 ```powershell
@@ -297,7 +311,29 @@ docker compose -f dpp-sdk-demo/docker-compose.yml down -v
 docker compose -f dpp-sdk-demo/docker-compose.yml down -v
 ```
 
-For the PostgreSQL-only compose file, use the matching alternatives:
+For the PostgreSQL-only Compose file, choose one of these alternatives:
+
+Stop its containers while retaining volumes:
+
+```powershell
+docker compose -f dpp-sdk-demo/docker-compose.postgres.yml stop
+```
+
+```bash
+docker compose -f dpp-sdk-demo/docker-compose.postgres.yml stop
+```
+
+Remove its containers and network while retaining volumes:
+
+```powershell
+docker compose -f dpp-sdk-demo/docker-compose.postgres.yml down
+```
+
+```bash
+docker compose -f dpp-sdk-demo/docker-compose.postgres.yml down
+```
+
+Remove its containers, network, and database volumes:
 
 ```powershell
 docker compose -f dpp-sdk-demo/docker-compose.postgres.yml down -v
@@ -311,7 +347,7 @@ docker compose -f dpp-sdk-demo/docker-compose.postgres.yml down -v
 PostgreSQL volumes. Success: `docker compose -f dpp-sdk-demo/docker-compose.yml ps`
 (or the matching `-f dpp-sdk-demo/docker-compose.postgres.yml ps`) shows no services.
 
-## Ports and configuration
+## Common ports and runtime configuration
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
@@ -323,7 +359,7 @@ PostgreSQL volumes. Success: `docker compose -f dpp-sdk-demo/docker-compose.yml 
 | `MOCK_REGISTRY_POSTGRES_PORT` | 5434 | Host port for registry PostgreSQL |
 | `DEMO_REPO_VERIFICATION_BASE_URL` | public repository URL | Internal base URL used by registry `HEAD /internal/dpps/{dppId}` verification |
 
-Copy `.env.example` to `.env` only when you want persistent local overrides; never commit credentials. Compose forces both backends to PostgreSQL and supplies container-network JDBC URLs. Service names `dpp-repo-api`, `dpp-registry-api`, `dpp-repo-db`, and `dpp-registry-db` resolve only inside the Compose network; host tools use `localhost` and published ports.
+See [`.env.example`](.env.example) for the complete set of image, database, port, backend, and registry-verification variables. Copy it to `.env` only when you want persistent local overrides; never commit credentials. Compose forces both backends to PostgreSQL and supplies container-network JDBC URLs. Service names `dpp-repo-api`, `dpp-registry-api`, `dpp-repo-db`, and `dpp-registry-db` resolve only inside the Compose network; host tools use `localhost` and published ports.
 
 ## Swagger/OpenAPI
 
@@ -336,7 +372,7 @@ After either API starts, use:
 
 ## Postman
 
-Import all three JSON collections in `postman/`: `dpp-lifecycle-api.verified-export-shape.postman_collection.json`, `dpp-fine-granular-api.import-safe.postman_collection.json`, and `dpp-registry-api.verified-export-shape.postman_collection.json`. Set their base URL variables to the ports you selected; Postman does not read `.env` automatically.
+Import all three JSON collections from [`postman/`](postman/) (`dpp-sdk-demo/postman` from the repository root): `dpp-lifecycle-api.verified-export-shape.postman_collection.json`, `dpp-fine-granular-api.import-safe.postman_collection.json`, and `dpp-registry-api.verified-export-shape.postman_collection.json`. Set their base URL variables to the ports you selected; Postman does not read `.env` automatically.
 
 ## Troubleshooting and success checks
 
