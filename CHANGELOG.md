@@ -13,7 +13,8 @@ No unreleased changes.
 
 ### Changed
 - Bumped the monorepo and all published module artifacts from `0.4.0` to `0.5.0` for the breaking API and standards-alignment changes in this release.
-- Moved all demo-only repository and registry business endpoints to `/internal/...` in a hard cutover; `/v1` and conventional health, landing, and OpenAPI routes are unchanged.
+- Moved all demo-only repository and registry business endpoints to `/internal/...` in a hard cutover; `/v1` and conventional health and OpenAPI routes are unchanged.
+- Changed the mock repository and registry root URLs to redirect directly to `/swagger-ui/index.html`.
 
 ### Documentation
 - Audited root and module documentation against the current Maven reactor, source contracts, mock-service routes, runtime configuration, and implementation scope.

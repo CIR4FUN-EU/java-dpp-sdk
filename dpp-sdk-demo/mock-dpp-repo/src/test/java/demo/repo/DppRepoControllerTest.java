@@ -31,7 +31,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -659,14 +661,17 @@ class DppRepoControllerTest {
     }
 
     @Test
-    @DisplayName("GET / returns a simple repository landing page")
-    void rootReturnsRepositoryLandingPage() throws Exception {
+    @DisplayName("GET / redirects to the repository Swagger UI")
+    void rootRedirectsToSwaggerUi() throws Exception {
         mockMvc.perform(get("/"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
-                .andExpect(content().string(containsString("DPP Repository API")))
-                .andExpect(content().string(containsString("Service is running.")))
-                .andExpect(content().string(containsString("/swagger-ui/index.html")));
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", "/swagger-ui/index.html"))
+                .andExpect(redirectedUrl("/swagger-ui/index.html"))
+                .andExpect(content().string(not(containsString("Service is running."))))
+                .andExpect(content().string(not(containsString("window.location"))))
+                .andExpect(content().string(not(containsString("http-equiv"))))
+                .andExpect(content().string(not(containsString("<iframe"))))
+                .andExpect(result -> assertTrue(result.getModelAndView() == null));
     }
 
     @Test

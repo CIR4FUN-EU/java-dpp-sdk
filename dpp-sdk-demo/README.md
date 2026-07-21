@@ -123,12 +123,7 @@ docker compose -f dpp-sdk-demo/docker-compose.yml logs --tail=100 dpp-registry-a
 
 Success: both APIs are `running` in `docker compose -f dpp-sdk-demo/docker-compose.yml ps`, and each health request returns JSON with `status` `UP`. Use [Stop and clean](#stop-and-clean) for shutdown choices.
 
-Each service also exposes a minimal root landing page that confirms it is running and links to Swagger:
-
-- Repository: `http://localhost:8080/`
-- Registry: `http://localhost:8081/`
-
-These are simple demo conveniences, not production user interfaces. Use `/health` for machine-readable status, `/swagger-ui/index.html` for interactive documentation, and `/v3/api-docs` for OpenAPI JSON.
+Opening `http://localhost:8080/` or `http://localhost:8081/` redirects directly to the corresponding Swagger UI. Use `/health` for machine-readable status and `/v3/api-docs` for OpenAPI JSON.
 
 ### Compose files
 
@@ -365,10 +360,12 @@ See [`.env.example`](.env.example) for the complete set of image, database, port
 
 After either API starts, use:
 
-| Service | Landing page | Health | Swagger UI | OpenAPI JSON |
+| Service | API base | Health | Swagger UI | OpenAPI JSON |
 | --- | --- | --- | --- | --- |
-| Repository | `http://localhost:8080/` | `http://localhost:8080/health` | `http://localhost:8080/swagger-ui/index.html` | `http://localhost:8080/v3/api-docs` |
-| Registry | `http://localhost:8081/` | `http://localhost:8081/health` | `http://localhost:8081/swagger-ui/index.html` | `http://localhost:8081/v3/api-docs` |
+| Repository | `http://localhost:8080` | `http://localhost:8080/health` | `http://localhost:8080/swagger-ui/index.html` | `http://localhost:8080/v3/api-docs` |
+| Registry | `http://localhost:8081` | `http://localhost:8081/health` | `http://localhost:8081/swagger-ui/index.html` | `http://localhost:8081/v3/api-docs` |
+
+Opening either API base URL in a browser redirects to its Swagger UI.
 
 ## Postman
 

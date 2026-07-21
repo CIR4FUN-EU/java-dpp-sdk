@@ -1,11 +1,15 @@
 package demo.registry;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sun.net.httpserver.HttpExchange;
@@ -202,18 +206,17 @@ class DppRegistryControllerTest {
     }
 
     @Test
-    @DisplayName("GET / returns a simple registry landing page")
-    void rootReturnsRegistryLandingPage() throws Exception {
+    @DisplayName("GET / redirects to the registry Swagger UI")
+    void rootRedirectsToSwaggerUi() throws Exception {
         mockMvc.perform(get("/"))
-                .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .contentTypeCompatibleWith(MediaType.TEXT_HTML))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("DPP Registry API")))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("Service is running.")))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("/swagger-ui/index.html")));
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", "/swagger-ui/index.html"))
+                .andExpect(redirectedUrl("/swagger-ui/index.html"))
+                .andExpect(content().string(not(containsString("Service is running."))))
+                .andExpect(content().string(not(containsString("window.location"))))
+                .andExpect(content().string(not(containsString("http-equiv"))))
+                .andExpect(content().string(not(containsString("<iframe"))))
+                .andExpect(result -> assertTrue(result.getModelAndView() == null));
     }
 
     @Test

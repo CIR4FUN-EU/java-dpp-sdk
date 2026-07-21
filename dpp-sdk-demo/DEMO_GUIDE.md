@@ -9,7 +9,7 @@ the demo README uses root-relative Compose, JAR, and Maven-wrapper paths.
 
 - Build the demo JARs and start the chosen service mode by following the README.
 - Confirm `http://localhost:8080/health` and `http://localhost:8081/health` return `UP` for an HTTP demo.
-- Open `http://localhost:8080/` and `http://localhost:8081/` to confirm each service is running and to access its Swagger UI link.
+- Open `http://localhost:8080/` and `http://localhost:8081/`; each base URL redirects directly to its Swagger UI.
 - Open repository Swagger UI at `http://localhost:8080/swagger-ui/index.html` and registry Swagger UI at `http://localhost:8081/swagger-ui/index.html`.
 - Import the three collections in [`postman/`](postman/) and set their base URL variables.
 - Decide whether to demonstrate `sdk`, `http`, or `all`; use `all` for a complete walkthrough.
@@ -19,7 +19,7 @@ The runner modes are passed as the first argument to
 
 ## What to open
 
-Keep three views available: the integration-runner terminal, repository Swagger UI, and registry Swagger UI. Open each service root page first to confirm that it is running, then follow the Swagger UI link to demonstrate the API. Have Postman ready for the optional request-by-request sequence. The runner is the most reliable narrative spine because it prints each operation and expected error handling.
+Keep three views available: the integration-runner terminal, repository Swagger UI, and registry Swagger UI. Open either service base URL to reach its Swagger UI directly. Have Postman ready for the optional request-by-request sequence. The runner is the most reliable narrative spine because it prints each operation and expected error handling.
 
 ## Suggested flow
 

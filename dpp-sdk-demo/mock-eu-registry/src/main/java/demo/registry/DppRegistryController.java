@@ -2,6 +2,8 @@ package demo.registry;
 
 import static demo.registry.RegistrySwaggerExamples.*;
 
+import java.net.URI;
+
 import dpp.registry.payloads.DppApiResponse;
 import dpp.registry.payloads.DppStatusCode;
 import dpp.registry.payloads.RegisterDppRequest;
@@ -39,21 +41,6 @@ class DppRegistryController {
 
     private static final String INTERNAL_PREFIX = "/internal";
 
-    private static final String LANDING_PAGE = """
-            <!doctype html>
-            <html lang="en">
-            <head>
-              <meta charset="utf-8">
-              <title>DPP Registry API</title>
-            </head>
-            <body>
-              <h1>DPP Registry API</h1>
-              <p>Service is running.</p>
-              <p><a href="/swagger-ui/index.html">Open Swagger UI</a></p>
-            </body>
-            </html>
-            """;
-
     private static final String SEEDED_REGISTRY_ID = "8a5be5de-7c76-46ef-a1d5-4875d3f4a5dc";
     private static final String SEEDED_REGISTRY_DPP_ID = "e7d64b7b-18f2-4d77-9c41-2fa1d1d6b8aa";
 
@@ -66,9 +53,11 @@ class DppRegistryController {
     }
 
     @Hidden
-    @GetMapping(value = "/", produces = MediaType.TEXT_HTML_VALUE)
-    ResponseEntity<String> landingPage() {
-        return ResponseEntity.ok(LANDING_PAGE);
+    @GetMapping("/")
+    ResponseEntity<Void> root() {
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create("/swagger-ui/index.html"))
+                .build();
     }
 
     @Operation(

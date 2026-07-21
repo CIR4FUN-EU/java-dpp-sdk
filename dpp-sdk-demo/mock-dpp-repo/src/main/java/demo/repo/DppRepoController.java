@@ -2,6 +2,7 @@ package demo.repo;
 
 import static demo.repo.RepoSwaggerExamples.*;
 
+import java.net.URI;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -47,21 +48,6 @@ class DppRepoController {
     private static final String API_PREFIX = "/v1";
     private static final String INTERNAL_PREFIX = "/internal";
 
-    private static final String LANDING_PAGE = """
-            <!doctype html>
-            <html lang="en">
-            <head>
-              <meta charset="utf-8">
-              <title>DPP Repository API</title>
-            </head>
-            <body>
-              <h1>DPP Repository API</h1>
-              <p>Service is running.</p>
-              <p><a href="/swagger-ui/index.html">Open Swagger UI</a></p>
-            </body>
-            </html>
-            """;
-
     private static final String SEEDED_DPP_ID = "49192c87-20c8-4b6f-88de-48b56ca4c211";
     private static final String SEEDED_PRODUCT_ID = "04012345678901";
 
@@ -74,9 +60,11 @@ class DppRepoController {
     }
 
     @Hidden
-    @GetMapping(value = "/", produces = MediaType.TEXT_HTML_VALUE)
-    ResponseEntity<String> landingPage() {
-        return ResponseEntity.ok(LANDING_PAGE);
+    @GetMapping("/")
+    ResponseEntity<Void> root() {
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create("/swagger-ui/index.html"))
+                .build();
     }
 
     @Operation(

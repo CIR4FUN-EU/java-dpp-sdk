@@ -82,14 +82,9 @@ java -jar ./dpp-sdk-demo/dpp-integration-demo/target/dpp-integration-demo-0.5.0.
 
 Success signals are `status` `UP` from both health endpoints and `HTTP services demo complete` from the runner. The runner creates, reads, updates, registers, and deletes a demo DPP; registry registration verifies the active repository DPP internally.
 
-### Service landing pages
+### Service browser entry points
 
-Each mock service exposes a minimal landing page at its root URL. It confirms that the service is running and links to its Swagger UI; it is a demo convenience, not a production user interface.
-
-- Repository landing page: `http://localhost:8080/`
-- Registry landing page: `http://localhost:8081/`
-
-The available entry points are: `/` for the human-readable landing page, `/health` for the machine-readable health check, `/swagger-ui/index.html` for interactive API documentation, and `/v3/api-docs` for OpenAPI JSON.
+Opening `http://localhost:8080/` or `http://localhost:8081/` redirects directly to the corresponding Swagger UI. Use `/health` for machine-readable status and `/v3/api-docs` for OpenAPI JSON.
 
 ## Stop and clean
 
@@ -218,12 +213,13 @@ The root reactor builds `dpp-datamodel`, `dpp-postgres`, `dpp-sdk-clients`, and 
 
 With the Docker stack running:
 
-- Repository landing page: `http://localhost:8080/`
-- Registry landing page: `http://localhost:8081/`
+- Repository API base: `http://localhost:8080`
+- Registry API base: `http://localhost:8081`
 - Repository Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 - Repository OpenAPI: `http://localhost:8080/v3/api-docs`
 - Registry Swagger UI: `http://localhost:8081/swagger-ui/index.html`
 - Registry OpenAPI: `http://localhost:8081/v3/api-docs`
+- Opening either API base URL in a browser redirects to its Swagger UI.
 - Postman collections: [`dpp-sdk-demo/postman`](dpp-sdk-demo/postman/)
 
 ## Current limitations
