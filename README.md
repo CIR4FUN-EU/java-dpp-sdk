@@ -1,5 +1,13 @@
 # DPP SDK
 
+**Standards alignment**
+
+- **EN 18222:2026:** Selected DPP repository and registry API shapes are implemented; this is not a formal compliance implementation.
+- **Backup operator:** The registry request does not implement a backup-operator field or operation.
+- **Compression:** The compressed representation is project-defined and is not claimed as a formally validated EN representation.
+- **Patch and paths:** RFC 7396-style Merge Patch uses `application/json` with object-root restrictions; fine-granular paths support only a bounded RFC 9535-compatible subset.
+- **Operations:** Authentication, backup/recovery, and other production-operational requirements are outside the project scope.
+
 ![DPP SDK architecture](docs/dpp-sdk-architecture.drawio.png)
 
 ## Overview

@@ -56,7 +56,7 @@ No unreleased changes.
 - Initial public release of the DPP SDK, a Java toolkit for building and validating Digital Product Passports.
 - `dpp-datamodel`, reusable DPP domain model and payload DTOs.
 - `dpp-sdk-clients`, client library for DPP services.
-- `dpp-sdk-demo`, runnable Spring Boot example showing end-to-end usage including mocked services for dpp-registry and dpp-repository conforming to the draft standardisation documents published by the JTC24 of CEN/CENELEC.
+- `dpp-sdk-demo`, runnable Spring Boot example showing end-to-end usage including mocked services for dpp-registry and dpp-repository based on selected API shapes from the draft standardisation documents published by the JTC24 of CEN/CENELEC.
 
 ### Documentation
 - Root README describing the monorepo split across the three modules.

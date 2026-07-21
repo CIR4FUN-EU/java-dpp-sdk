@@ -191,6 +191,12 @@ Dpp4Fun updated = repoClient.updateDppById(stored.getDppId(), patch);
 DeleteDppResponse deleted = repoClient.deleteDppById(updated.getDppId());
 ```
 
+The repository applies this as RFC 7396-style JSON Merge Patch: the patch root
+must be an object, `null` removes a property, nested objects merge recursively,
+and arrays or other non-object values replace the existing value. The HTTP
+media type is currently `application/json`, not
+`application/merge-patch+json`.
+
 ## Full and compressed reads
 
 `readDppById`, `readDppByProductId`, and `readDppVersionByIdAndDate` explicitly request `representation=full` and decode the wrapper payload through `DppCodec<T>`. `readCompressedDppById` explicitly requests `representation=compressed` and returns the wrapper payload as neutral `JsonNode`; it never decodes a compressed representation as `T`.

@@ -226,7 +226,7 @@
           "request": {
             "method": "GET",
             "header": [{"key": "Accept", "value": "application/json"}],
-            "description": "EN 18222 Clause 8.1 default. The compressed payload is a project-defined provisional summary pending EN 18223.",
+            "description": "EN 18222-facing default. The compressed payload is a project-defined provisional summary; formal EN payload conformity is not claimed.",
             "url": {
               "raw": "http://localhost:8080/v1/dpps/{{dppId}}",
               "protocol": "http",
