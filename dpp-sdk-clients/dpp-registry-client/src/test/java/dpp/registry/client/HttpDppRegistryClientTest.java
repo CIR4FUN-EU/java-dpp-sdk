@@ -23,17 +23,17 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class HttpDppRegistryClientTest {
     @Test
-    void postNewDppToRegistryUsesDraftAlignedPathAndSystemIntegrationFields() throws IOException {
+    void postNewDppToRegistryUsesEn18222PathAndSupportedFieldNames() throws IOException {
         try (TestServer server = TestServer.start()) {
             AtomicInteger hits = new AtomicInteger();
-            server.httpServer().createContext("/registerDPP", exchange -> {
+            server.httpServer().createContext("/v1/registerDPP", exchange -> {
                 hits.incrementAndGet();
                 assertEquals("POST", exchange.getRequestMethod());
                 assertEquals(
-                        "{\"productIdentifier\":\"product-1\",\"dppIdentifier\":\"dpp-1\",\"operatorIdentifier\":\"operator-1\",\"repoUrl\":\"http://localhost:8082\"}",
+                        "{\"uniqueProductIdentifier\":\"product-1\",\"digitalProductPassportId\":\"dpp-1\",\"uniqueEconomicOperatorIdentifier\":\"operator-1\",\"dppApiEndpoint\":\"http://localhost:8082\"}",
                         requestBody(exchange)
                 );
-                respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{\"registryIdentifier\":\"registry-1\"},\"messages\":[]}");
+                respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{\"registrationId\":\"registry-1\"},\"messages\":[]}");
             });
 
             DppRegistryClient client = new HttpDppRegistryClient(server.baseUrl());
@@ -42,7 +42,7 @@ class HttpDppRegistryClientTest {
                     new RegisterDppRequest("product-1", "dpp-1", "operator-1", "http://localhost:8082")
             );
 
-            assertEquals("registry-1", response.getRegistryIdentifier());
+            assertEquals("registry-1", response.getRegistrationId());
             assertEquals(1, hits.get());
         }
     }
@@ -50,13 +50,13 @@ class HttpDppRegistryClientTest {
     @Test
     void registryRequestSerializationDoesNotIncludeRemovedBackupFields() {
         try (TestServer server = TestServer.start()) {
-            server.httpServer().createContext("/registerDPP", exchange -> {
+            server.httpServer().createContext("/v1/registerDPP", exchange -> {
                 String body = requestBody(exchange);
                 assertFalse(body.contains("backupOperatorIdentifier"));
                 assertFalse(body.contains("backupProviderIdentifier"));
                 assertFalse(body.contains("backupProvider"));
                 assertFalse(body.contains("backupId"));
-                respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{\"registryIdentifier\":\"registry-1\"},\"messages\":[]}");
+                respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{\"registrationId\":\"registry-1\"},\"messages\":[]}");
             });
             DppRegistryClient client = new HttpDppRegistryClient(server.baseUrl());
 
@@ -64,14 +64,14 @@ class HttpDppRegistryClientTest {
                     new RegisterDppRequest("product-1", "dpp-1", "operator-1", "http://localhost:8082")
             );
 
-            assertEquals("registry-1", response.getRegistryIdentifier());
+            assertEquals("registry-1", response.getRegistrationId());
         }
     }
 
     @Test
-    void postNewDppToRegistryRequiresRegistryIdentifier() {
+    void postNewDppToRegistryRequiresRegistrationId() {
         try (TestServer server = TestServer.start()) {
-            server.httpServer().createContext("/registerDPP", exchange ->
+            server.httpServer().createContext("/v1/registerDPP", exchange ->
                     respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{},\"messages\":[]}"));
             DppRegistryClient client = new HttpDppRegistryClient(server.baseUrl());
 
@@ -80,14 +80,29 @@ class HttpDppRegistryClientTest {
                     () -> client.postNewDppToRegistry(new RegisterDppRequest("product-1", "dpp-1", "operator-1", "http://localhost:8082"))
             );
 
-            assertEquals("Missing required response field: payload.registryIdentifier", ex.getMessage());
+            assertEquals("Missing required response field: payload.registrationId", ex.getMessage());
+        }
+    }
+
+    @Test
+    void postNewDppToRegistryAcceptsLegacyRegistryIdentifierDuringTransition() {
+        try (TestServer server = TestServer.start()) {
+            server.httpServer().createContext("/v1/registerDPP", exchange ->
+                    respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{\"registryIdentifier\":\"registry-1\"},\"messages\":[]}"));
+            DppRegistryClient client = new HttpDppRegistryClient(server.baseUrl());
+
+            RegisterDppResponse response = client.postNewDppToRegistry(
+                    new RegisterDppRequest("product-1", "dpp-1", "operator-1", "http://localhost:8082")
+            );
+
+            assertEquals("registry-1", response.getRegistrationId());
         }
     }
 
     @Test
     void wrapperApiErrorsExposeRegistryStatus() {
         try (TestServer server = TestServer.start()) {
-            server.httpServer().createContext("/registerDPP", exchange ->
+            server.httpServer().createContext("/v1/registerDPP", exchange ->
                     respond(exchange, 200, "{\"statusCode\":\"ClientResourceConflict\",\"payload\":null,\"messages\":[{\"messageType\":\"Error\",\"text\":\"duplicate\"}]}"));
             DppRegistryClient client = new HttpDppRegistryClient(server.baseUrl());
 

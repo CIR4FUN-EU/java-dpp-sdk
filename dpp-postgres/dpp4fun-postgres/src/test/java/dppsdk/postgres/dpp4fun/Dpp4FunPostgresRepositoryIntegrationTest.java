@@ -93,8 +93,9 @@ class Dpp4FunPostgresRepositoryIntegrationTest {
 
         assertEquals(updated, repository.findCurrentByDppId(original.getDppId()).orElseThrow());
         assertEquals(Optional.of(2L), repository.findCurrentVersionNoByDppId(original.getDppId()));
-        assertEquals(original, repository.findByProductIdAt(original.getProductId(), Instant.parse("2026-02-05T00:00:00Z")).orElseThrow());
-        assertEquals(updated, repository.findByProductIdAt(original.getProductId(), Instant.parse("2026-02-15T00:00:00Z")).orElseThrow());
+        assertEquals(original, repository.findByDppIdAt(original.getDppId(), Instant.parse("2026-02-05T00:00:00Z")).orElseThrow());
+        assertEquals(updated, repository.findByDppIdAt(original.getDppId(), Instant.parse("2026-02-15T00:00:00Z")).orElseThrow());
+        assertEquals(List.of(original.getDppId()), repository.findAllActiveDppIds());
         assertThrows(PostgresDppVersionConflictException.class, () ->
                 repository.appendVersion(updated, 1L, new PostgresDppOperationContext("stale-history", Instant.parse("2026-02-20T09:00:00Z"))));
 
@@ -125,8 +126,9 @@ class Dpp4FunPostgresRepositoryIntegrationTest {
         assertEquals(Optional.empty(), repository.findCurrentByDppId(dpp.getDppId()));
         assertEquals(Optional.empty(), repository.findCurrentByProductId(dpp.getProductId()));
         assertEquals(Optional.empty(), repository.findCurrentVersionNoByDppId(dpp.getDppId()));
-        assertEquals(updated, repository.findByProductIdAt(dpp.getProductId(), Instant.parse("2026-03-02T12:00:00Z")).orElseThrow());
-        assertEquals(Optional.empty(), repository.findByProductIdAt(dpp.getProductId(), Instant.parse("2026-03-04T00:00:00Z")));
+        assertEquals(updated, repository.findByDppIdAt(dpp.getDppId(), Instant.parse("2026-03-02T12:00:00Z")).orElseThrow());
+        assertEquals(Optional.empty(), repository.findByDppIdAt(dpp.getDppId(), Instant.parse("2026-03-04T00:00:00Z")));
+        assertFalse(repository.findAllActiveDppIds().contains(dpp.getDppId()));
 
         List<Dpp4FunVersionSummary> history = repository.findHistoryByDppId(dpp.getDppId());
         assertEquals(2, history.size());

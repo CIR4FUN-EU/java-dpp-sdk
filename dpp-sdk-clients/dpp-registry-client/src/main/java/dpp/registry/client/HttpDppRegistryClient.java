@@ -18,7 +18,7 @@ import java.util.Optional;
  * Java {@link HttpClient}-based implementation of the registry registration client.
  */
 public class HttpDppRegistryClient implements DppRegistryClient {
-    private static final String REGISTER_PATH = "/registerDPP";
+    private static final String REGISTER_PATH = "/v1/registerDPP";
 
     private final String baseUrl;
     private final HttpClient httpClient;
@@ -53,8 +53,20 @@ public class HttpDppRegistryClient implements DppRegistryClient {
         String body = HttpSupport.serializeJson(objectMapper, request);
         DppApiResponse<JsonNode> response = sendForApiResponse("POST", REGISTER_PATH, Optional.of(body));
         JsonNode payload = response.getPayload();
-        HttpSupport.requireTextField(payload, "registryIdentifier", "payload.registryIdentifier");
+        requireRegistrationId(payload);
         return HttpSupport.deserializeJson(objectMapper, payload, RegisterDppResponse.class);
+    }
+
+    private static void requireRegistrationId(JsonNode payload) {
+        if (payload != null && payload.hasNonNull("registrationId") && payload.get("registrationId").isTextual()) {
+            HttpSupport.requireTextField(payload, "registrationId", "payload.registrationId");
+            return;
+        }
+        if (payload != null && payload.hasNonNull("registryIdentifier") && payload.get("registryIdentifier").isTextual()) {
+            HttpSupport.requireTextField(payload, "registryIdentifier", "payload.registryIdentifier");
+            return;
+        }
+        HttpSupport.requireTextField(payload, "registrationId", "payload.registrationId");
     }
 
     private DppApiResponse<JsonNode> sendForApiResponse(String method, String path, Optional<String> body) {

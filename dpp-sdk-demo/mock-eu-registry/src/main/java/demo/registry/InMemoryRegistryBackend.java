@@ -1,6 +1,7 @@
 package demo.registry;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -38,6 +39,11 @@ final class InMemoryRegistryBackend implements RegistryBackend {
     @Override
     public boolean existsByDppId(String dppId) {
         return store.existsByDppId(dppId);
+    }
+
+    @Override
+    public List<String> findAllRegisteredDppIds() {
+        return store.findAllRegisteredDppIds();
     }
 
     @Override

@@ -108,8 +108,17 @@ public final class Dpp4FunPostgresRepository {
                 .map(record -> readVersion(connection, record.versionId())));
     }
 
+    public Optional<Dpp4Fun> findByDppIdAt(String dppId, java.time.Instant timestamp) {
+        return withConnection(connection -> versionSupport.findByDppIdAt(connection, dppId, timestamp)
+                .map(record -> readVersion(connection, record.versionId())));
+    }
+
     public DppPage<String> findActiveDppIdsByProductIds(List<String> productIds, DppPageRequest pageRequest) {
         return withConnection(connection -> queryRepository.findActiveDppIdsByProductIds(connection, productIds, pageRequest));
+    }
+
+    public List<String> findAllActiveDppIds() {
+        return withConnection(versionSupport::findAllActiveDppIds);
     }
 
     public List<Dpp4FunVersionSummary> findHistoryByDppId(String dppId) {

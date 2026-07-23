@@ -43,7 +43,7 @@ final class ConsoleSupport {
     }
 
     static void registryResponse(RegisterDppResponse response) {
-        System.out.println("registryId : " + response.getRegistryIdentifier());
+        System.out.println("registryId : " + response.getRegistrationId());
     }
 
     static void registryRecord(RegistryRecordPayload response) {
@@ -63,8 +63,24 @@ final class ConsoleSupport {
                 + (dpp.getDocumentation() != null ? " + documentation" : ""));
     }
 
+    static void compressedDpp(JsonNode dpp) {
+        System.out.println("compressed representation : " + dpp.path("representation").asText());
+        System.out.println("summary fields            : dppId, productId, productName, productCategory, manufacturerName");
+        System.out.println("product name              : " + dpp.path("productName").asText());
+    }
+
+    static void fullDpp(Dpp4Fun dpp) {
+        System.out.println("full representation       : complete DPP JSON decoded into Dpp4Fun");
+        dpp(dpp);
+    }
+
     static void jsonValue(String label, JsonNode payload) {
         System.out.println(label + " : " + payload);
+    }
+
+    static void jsonPathValue(String label, String path, JsonNode payload) {
+        System.out.println(label + " path  : " + path);
+        System.out.println(label + " value : " + payload);
     }
 
     static void clientError(RuntimeException exception) {

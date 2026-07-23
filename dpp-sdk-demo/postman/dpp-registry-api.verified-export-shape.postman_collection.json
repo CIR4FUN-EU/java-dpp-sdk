@@ -60,11 +60,12 @@
           }
         },
         "url": {
-          "raw": "{{repoBaseUrl}}/dpps",
+          "raw": "{{repoBaseUrl}}/v1/dpps",
           "host": [
             "{{repoBaseUrl}}"
           ],
           "path": [
+            "v1",
             "dpps"
           ]
         },
@@ -83,8 +84,8 @@
               "const json = pm.response.json();",
               "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
               "pm.test('wrapper status is SuccessCreated', function () { pm.expect(json.statusCode).to.eql('SuccessCreated'); });",
-              "pm.test('payload.registryIdentifier is present', function () { pm.expect(json.payload.registryIdentifier).to.be.a('string').and.not.empty; });",
-              "pm.collectionVariables.set('registryId', json.payload.registryIdentifier);"
+              "pm.test('payload.registrationId is present', function () { pm.expect(json.payload.registrationId).to.be.a('string').and.not.empty; });",
+              "pm.collectionVariables.set('registryId', json.payload.registrationId);"
             ]
           }
         }
@@ -99,7 +100,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"productIdentifier\": \"{{productId}}\",\n  \"dppIdentifier\": \"{{dppId}}\",\n  \"operatorIdentifier\": \"operator-123\",\n  \"repoUrl\": \"{{repoBaseUrl}}\"\n}",
+          "raw": "{\n  \"uniqueProductIdentifier\": \"{{productId}}\",\n  \"digitalProductPassportId\": \"{{dppId}}\",\n  \"uniqueEconomicOperatorIdentifier\": \"operator-123\",\n  \"dppApiEndpoint\": \"{{repoBaseUrl}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -107,15 +108,16 @@
           }
         },
         "url": {
-          "raw": "{{registryBaseUrl}}/registerDPP",
+          "raw": "{{registryBaseUrl}}/v1/registerDPP",
           "host": [
             "{{registryBaseUrl}}"
           ],
           "path": [
+            "v1",
             "registerDPP"
           ]
         },
-        "description": "Registration succeeds only if the registry can verify {{repoBaseUrl}}/dpps/{{dppId}} through its configured internal HEAD verification path."
+        "description": "Registration succeeds only if the registry can verify {{repoBaseUrl}}/internal/dpps/{{dppId}} through its configured internal HEAD verification path."
       },
       "response": []
     },
@@ -144,7 +146,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"productIdentifier\": \" \",\n  \"dppIdentifier\": \"{{dppId}}\",\n  \"operatorIdentifier\": \"operator-123\",\n  \"repoUrl\": \"{{repoBaseUrl}}\"\n}",
+          "raw": "{\n  \"uniqueProductIdentifier\": \" \",\n  \"digitalProductPassportId\": \"{{dppId}}\",\n  \"uniqueEconomicOperatorIdentifier\": \"operator-123\",\n  \"dppApiEndpoint\": \"{{repoBaseUrl}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -152,11 +154,12 @@
           }
         },
         "url": {
-          "raw": "{{registryBaseUrl}}/registerDPP",
+          "raw": "{{registryBaseUrl}}/v1/registerDPP",
           "host": [
             "{{registryBaseUrl}}"
           ],
           "path": [
+            "v1",
             "registerDPP"
           ]
         }
@@ -188,7 +191,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"productIdentifier\": \"{{productId}}\",\n  \"dppIdentifier\": \"00000000-0000-0000-0000-000000000000\",\n  \"operatorIdentifier\": \"operator-123\",\n  \"repoUrl\": \"{{repoBaseUrl}}\"\n}",
+          "raw": "{\n  \"uniqueProductIdentifier\": \"{{productId}}\",\n  \"digitalProductPassportId\": \"00000000-0000-0000-0000-000000000000\",\n  \"uniqueEconomicOperatorIdentifier\": \"operator-123\",\n  \"dppApiEndpoint\": \"{{repoBaseUrl}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -196,15 +199,16 @@
           }
         },
         "url": {
-          "raw": "{{registryBaseUrl}}/registerDPP",
+          "raw": "{{registryBaseUrl}}/v1/registerDPP",
           "host": [
             "{{registryBaseUrl}}"
           ],
           "path": [
+            "v1",
             "registerDPP"
           ]
         },
-        "description": "Expected: ClientErrorResourceNotFound because the registry verifies repoUrl + HEAD /dpps/00000000-0000-0000-0000-000000000000 before storing metadata."
+        "description": "Expected: ClientErrorResourceNotFound because the registry verifies dppApiEndpoint + HEAD /internal/dpps/00000000-0000-0000-0000-000000000000 before storing metadata."
       },
       "response": []
     },
@@ -233,7 +237,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"productIdentifier\": \"{{productId}}\",\n  \"dppIdentifier\": \"11111111-1111-1111-1111-111111111111\",\n  \"operatorIdentifier\": \"operator-123\",\n  \"repoUrl\": \"{{unreachableRepoUrl}}\"\n}",
+          "raw": "{\n  \"uniqueProductIdentifier\": \"{{productId}}\",\n  \"digitalProductPassportId\": \"11111111-1111-1111-1111-111111111111\",\n  \"uniqueEconomicOperatorIdentifier\": \"operator-123\",\n  \"dppApiEndpoint\": \"{{unreachableRepoUrl}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -241,11 +245,12 @@
           }
         },
         "url": {
-          "raw": "{{registryBaseUrl}}/registerDPP",
+          "raw": "{{registryBaseUrl}}/v1/registerDPP",
           "host": [
             "{{registryBaseUrl}}"
           ],
           "path": [
+            "v1",
             "registerDPP"
           ]
         },
@@ -273,12 +278,12 @@
       "request": {
         "method": "GET",
         "url": {
-          "raw": "{{registryBaseUrl}}/registry/dpps/{{registryId}}",
+          "raw": "{{registryBaseUrl}}/internal/dpps/{{registryId}}",
           "host": [
             "{{registryBaseUrl}}"
           ],
           "path": [
-            "registry",
+            "internal",
             "dpps",
             "{{registryId}}"
           ]
@@ -305,12 +310,12 @@
       "request": {
         "method": "GET",
         "url": {
-          "raw": "{{registryBaseUrl}}/registry/dpps/{{missingRegistryId}}",
+          "raw": "{{registryBaseUrl}}/internal/dpps/{{missingRegistryId}}",
           "host": [
             "{{registryBaseUrl}}"
           ],
           "path": [
-            "registry",
+            "internal",
             "dpps",
             "{{missingRegistryId}}"
           ]
@@ -339,12 +344,12 @@
       "request": {
         "method": "GET",
         "url": {
-          "raw": "{{registryBaseUrl}}/registry/dpps/by-dpp-id/{{dppId}}",
+          "raw": "{{registryBaseUrl}}/internal/dpps/by-dpp-id/{{dppId}}",
           "host": [
             "{{registryBaseUrl}}"
           ],
           "path": [
-            "registry",
+            "internal",
             "dpps",
             "by-dpp-id",
             "{{dppId}}"
@@ -378,11 +383,12 @@
           }
         ],
         "url": {
-          "raw": "{{repoBaseUrl}}/dpps/{{deleteDppId}}",
+          "raw": "{{repoBaseUrl}}/v1/dpps/{{deleteDppId}}",
           "host": [
             "{{repoBaseUrl}}"
           ],
           "path": [
+            "v1",
             "dpps",
             "{{deleteDppId}}"
           ]

@@ -28,11 +28,11 @@ final class MockRegistryLookupClient {
     }
 
     Optional<RegistryRecordPayload> readByRegistryId(String registryId) {
-        return read("/registry/dpps/" + registryId);
+        return read("/internal/dpps/" + registryId);
     }
 
     Optional<RegistryRecordPayload> readByDppId(String dppId) {
-        return read("/registry/dpps/by-dpp-id/" + dppId);
+        return read("/internal/dpps/by-dpp-id/" + dppId);
     }
 
     private Optional<RegistryRecordPayload> read(String path) {

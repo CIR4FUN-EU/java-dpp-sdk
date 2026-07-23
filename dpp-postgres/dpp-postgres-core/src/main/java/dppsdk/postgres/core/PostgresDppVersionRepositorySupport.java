@@ -70,6 +70,30 @@ public final class PostgresDppVersionRepositorySupport {
         }
     }
 
+    public Optional<VersionRecord> findByDppIdAt(Connection connection, String dppId, Instant timestamp) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                select p.id as passport_id, p.dpp_id, p.product_id, p.passport_type,
+                       v.id as version_id, v.version_no, v.status, v.valid_from, v.valid_to, v.operation_id
+                from dpp_passports p
+                join dpp_versions v on v.passport_id = p.id
+                where p.dpp_id = ?
+                  and v.valid_from <= ?
+                  and (v.valid_to is null or v.valid_to > ?)
+                order by v.valid_from desc, v.version_no desc
+                limit 1
+                """)) {
+            statement.setString(1, dppId);
+            statement.setTimestamp(2, Timestamp.from(timestamp));
+            statement.setTimestamp(3, Timestamp.from(timestamp));
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return Optional.empty();
+                }
+                return Optional.of(mapVersion(resultSet));
+            }
+        }
+    }
+
     public boolean existsActiveByDppId(Connection connection, String dppId) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 select 1
@@ -112,6 +136,23 @@ public final class PostgresDppVersionRepositorySupport {
                 return Optional.of(resultSet.getLong("version_no"));
             }
         }
+    }
+
+    public List<String> findAllActiveDppIds(Connection connection) throws SQLException {
+        List<String> dppIds = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement("""
+                select p.dpp_id
+                from dpp_passports p
+                join dpp_versions v on v.passport_id = p.id
+                where v.status = 'ACTIVE'
+                order by p.dpp_id
+                """);
+             ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                dppIds.add(resultSet.getString("dpp_id"));
+            }
+        }
+        return dppIds;
     }
 
     public List<VersionRecord> findHistoryByDppId(Connection connection, String dppId) throws SQLException {

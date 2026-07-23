@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+No unreleased changes.
+
+## [0.5.0] - 2026-07-14
+
+### Changed
+- Bumped the monorepo and all published module artifacts from `0.4.0` to `0.5.0` for the breaking API and standards-alignment changes in this release.
+- Moved all demo-only repository and registry business endpoints to `/internal/...` in a hard cutover; `/v1` and conventional health and OpenAPI routes are unchanged.
+- Changed the mock repository and registry root URLs to redirect directly to `/swagger-ui/index.html`.
+
+### Documentation
+- Audited root and module documentation against the current Maven reactor, source contracts, mock-service routes, runtime configuration, and implementation scope.
+- Corrected standards overclaims, registry payload wording, internal Docker build commands, stale version references, and guidance for the non-buildable `dpp-persistence` path.
+
+### Validation
+- Revalidated the root and module Maven coordinates, generated JAR naming, and documented commands for the `0.5.0` release.
+
 ## [0.4.0] - 2026-07-02
 
 ### Added
@@ -41,11 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial public release of the DPP SDK, a Java toolkit for building and validating Digital Product Passports.
 - `dpp-datamodel`, reusable DPP domain model and payload DTOs.
 - `dpp-sdk-clients`, client library for DPP services.
-- `dpp-sdk-demo`, runnable Spring Boot example showing end-to-end usage including mocked services for dpp-registry and dpp-repository conforming to the draft standardisation documents published by the JTC24 of CEN/CENELEC.
+- `dpp-sdk-demo`, runnable Spring Boot example showing end-to-end usage including mocked services for dpp-registry and dpp-repository based on selected API shapes from the draft standardisation documents published by the JTC24 of CEN/CENELEC.
 
 ### Documentation
 - Root README describing the monorepo split across the three modules.
 - Architecture diagram under `docs/`.
 
 [0.4.0]: https://github.com/CIR4FUN-EU/dpp-sdk/releases/tag/v0.4.0
+[0.5.0]: https://github.com/CIR4FUN-EU/dpp-sdk/releases/tag/v0.5.0
 [0.3.0]: https://github.com/CIR4FUN-EU/dpp-sdk/releases/tag/v0.3.0

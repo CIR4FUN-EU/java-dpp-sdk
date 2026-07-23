@@ -71,7 +71,8 @@ class RepoConfiguration {
     }
 
     @Bean
-    ApplicationRunner seedDefaultPostmanDpp(DppRepoService repoService, Dpp4FunJsonCodec dppJsonCodec) {
+    ApplicationRunner seedDefaultPostmanDpp(DppRepoService repoService, DppRepoBackend backend,
+                                             Dpp4FunJsonCodec dppJsonCodec) {
         return args -> {
             seedIfMissing(repoService, dppJsonCodec, PostmanSeedData.DPP_ID, PostmanSeedData.createSeedDpp());
             seedIfMissing(repoService, dppJsonCodec, PostmanSeedData.DELETE_EXAMPLE_DPP_ID, PostmanSeedData.createDeleteExampleDpp());
@@ -80,12 +81,20 @@ class RepoConfiguration {
             seedIfMissing(repoService, dppJsonCodec, PostmanSeedData.FINE_GRAINED_DEFAULT_DPP_ID, PostmanSeedData.createFineGrainedDefaultDpp());
             seedIfMissing(repoService, dppJsonCodec, PostmanSeedData.FINE_GRAINED_DELETE_DPP_ID, PostmanSeedData.createFineGrainedDeleteDpp());
             seedIfMissing(repoService, dppJsonCodec, PostmanSeedData.REGISTRY_DELETE_DPP_ID, PostmanSeedData.createRegistryDeleteDpp());
+            seedHistoricalSwaggerDppIfMissing(repoService, backend);
         };
     }
 
     private static void seedIfMissing(DppRepoService repoService, Dpp4FunJsonCodec dppJsonCodec, String dppId, Dpp4Fun dpp) {
         if (!repoService.hasAnyDpp(dppId)) {
             repoService.create(dppJsonCodec.toJson(dpp));
+        }
+    }
+
+    private static void seedHistoricalSwaggerDppIfMissing(DppRepoService repoService, DppRepoBackend backend) {
+        if (!repoService.hasAnyDpp(PostmanSeedData.HISTORICAL_SWAGGER_DPP_ID)) {
+            backend.create(PostmanSeedData.createHistoricalSwaggerDpp(),
+                    PostmanSeedData.HISTORICAL_SWAGGER_VALID_FROM);
         }
     }
 }

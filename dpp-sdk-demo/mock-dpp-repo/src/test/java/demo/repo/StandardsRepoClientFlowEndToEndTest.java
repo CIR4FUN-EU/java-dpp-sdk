@@ -81,8 +81,8 @@ class StandardsRepoClientFlowEndToEndTest {
     @DisplayName("Real repo service plus registry stub exercises the standard client flow end to end")
     void clientCanExerciseStandardsRepoFlowWithRegistryStub() throws Exception {
         registryServer = HttpServer.create(new InetSocketAddress(0), 0);
-        registryServer.createContext("/registerDPP", this::handleRegisterDpp);
-        registryServer.createContext("/registry/dpps", this::handleRegistryRead);
+        registryServer.createContext("/v1/registerDPP", this::handleRegisterDpp);
+        registryServer.createContext("/internal/dpps", this::handleRegistryRead);
         registryServer.start();
         int registryPort = registryServer.getAddress().getPort();
 
@@ -109,21 +109,21 @@ class StandardsRepoClientFlowEndToEndTest {
         patch.putObject("characteristics").put("productName", "Updated End To End Name");
         assertEquals("Updated End To End Name", repoClient.updateDppById(dppId, patch).getCharacteristics().getProductName());
 
-        assertEquals("Updated End To End Name", repoClient.readDataElement(dppId, "characteristics.productName").asText());
+        assertEquals("Updated End To End Name", repoClient.readDataElement(dppId, "$.characteristics.productName").asText());
         assertEquals("Granular E2E Name",
-                repoClient.updateDataElement(dppId, "characteristics.productName",
+                repoClient.updateDataElement(dppId, "$.characteristics.productName",
                         objectMapper.getNodeFactory().textNode("Granular E2E Name")).asText());
 
         assertEquals("Granular E2E Name",
-                repoClient.readDppVersionByProductIdAndDate(productId, Instant.now()).getCharacteristics().getProductName());
+                repoClient.readDppVersionByIdAndDate(dppId, Instant.now()).getCharacteristics().getProductName());
 
         assertEquals(List.of(dppId), repoClient.readDppIdsByProductIds(List.of(productId), 10, "0").getDppIdentifiers());
 
         RegisterDppRequest request = new RegisterDppRequest(productId, dppId, "operator-123", repoUrl);
-        String registryIdentifier = registryClient.postNewDppToRegistry(request).getRegistryIdentifier();
+        String registryIdentifier = registryClient.postNewDppToRegistry(request).getRegistrationId();
         assertFalse(registryIdentifier.isBlank());
-        assertNotNull(readRegistryRecord(rawHttpClient, registryUrl, "/registry/dpps/" + registryIdentifier));
-        assertNotNull(readRegistryRecord(rawHttpClient, registryUrl, "/registry/dpps/by-dpp-id/" + dppId));
+        assertNotNull(readRegistryRecord(rawHttpClient, registryUrl, "/internal/dpps/" + registryIdentifier));
+        assertNotNull(readRegistryRecord(rawHttpClient, registryUrl, "/internal/dpps/by-dpp-id/" + dppId));
 
         assertEquals(DppStatusCode.SuccessNoContent, repoClient.deleteDppById(dppId).getStatusCode());
         assertThrows(DppHttpClientException.class, () -> repoClient.readDppById(dppId));
@@ -146,23 +146,28 @@ class StandardsRepoClientFlowEndToEndTest {
         assertFalse(body.has("backupOperatorIdentifier"));
         Set<String> fieldNames = new HashSet<>();
         body.fieldNames().forEachRemaining(fieldNames::add);
-        assertEquals(Set.of("productIdentifier", "dppIdentifier", "operatorIdentifier", "repoUrl"), fieldNames);
+        assertEquals(Set.of(
+                "uniqueProductIdentifier",
+                "digitalProductPassportId",
+                "uniqueEconomicOperatorIdentifier",
+                "dppApiEndpoint"
+        ), fieldNames);
         String registryId = UUID.randomUUID().toString();
         JsonNode record = objectMapper.createObjectNode()
                 .put("registryIdentifier", registryId)
-                .put("dppIdentifier", body.get("dppIdentifier").asText())
-                .put("productIdentifier", body.get("productIdentifier").asText())
-                .put("operatorIdentifier", body.get("operatorIdentifier").asText())
-                .put("repoUrl", body.get("repoUrl").asText())
+                .put("dppIdentifier", body.get("digitalProductPassportId").asText())
+                .put("productIdentifier", body.get("uniqueProductIdentifier").asText())
+                .put("operatorIdentifier", body.get("uniqueEconomicOperatorIdentifier").asText())
+                .put("repoUrl", body.get("dppApiEndpoint").asText())
                 .put("registeredAt", Instant.now().toString())
                 .put("lastUpdatedAt", Instant.now().toString());
 
         registryRecordsByRegistryId.put(registryId, record);
-        registryIdsByDppId.put(body.get("dppIdentifier").asText(), registryId);
+        registryIdsByDppId.put(body.get("digitalProductPassportId").asText(), registryId);
 
         JsonNode response = objectMapper.createObjectNode()
                 .put("statusCode", "SuccessCreated")
-                .set("payload", objectMapper.createObjectNode().put("registryIdentifier", registryId));
+                .set("payload", objectMapper.createObjectNode().put("registrationId", registryId));
         writeJson(exchange, 201, response.toString());
     }
 
@@ -173,12 +178,12 @@ class StandardsRepoClientFlowEndToEndTest {
         }
         String path = exchange.getRequestURI().getPath();
         JsonNode payload;
-        if (path.startsWith("/registry/dpps/by-dpp-id/")) {
-            String dppId = path.substring("/registry/dpps/by-dpp-id/".length());
+        if (path.startsWith("/internal/dpps/by-dpp-id/")) {
+            String dppId = path.substring("/internal/dpps/by-dpp-id/".length());
             String registryId = registryIdsByDppId.get(dppId);
             payload = registryId == null ? null : registryRecordsByRegistryId.get(registryId);
         } else {
-            String registryId = path.substring("/registry/dpps/".length());
+            String registryId = path.substring("/internal/dpps/".length());
             payload = registryRecordsByRegistryId.get(registryId);
         }
 
@@ -197,7 +202,7 @@ class StandardsRepoClientFlowEndToEndTest {
 
     private JsonNode readEvents(HttpClient client, String repoUrl, String dppId) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(repoUrl + "/dpps/" + dppId + "/events"))
+                .uri(URI.create(repoUrl + "/internal/dpps/" + dppId + "/events"))
                 .GET()
                 .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());

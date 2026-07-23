@@ -31,6 +31,7 @@ class DppRepoServiceClockTest {
                 new DppIdentifierExtractor(),
                 new DppMergePatchService(),
                 new DppElementPathService(),
+                new CompressedDppMapper(),
                 Clock.fixed(fixedNow, ZoneOffset.UTC)
         );
 
@@ -85,13 +86,18 @@ class DppRepoServiceClockTest {
         }
 
         @Override
-        public Optional<Dpp4Fun> findByProductIdAt(String productId, Instant timestamp) {
+        public Optional<Dpp4Fun> findByDppIdAt(String dppId, Instant timestamp) {
             return Optional.ofNullable(current);
         }
 
         @Override
         public DppIdPage findActiveDppIdsByProductIds(List<String> productIds, int offset, int limit) {
             return new DppIdPage(List.of(), null);
+        }
+
+        @Override
+        public List<String> findAllActiveDppIds() {
+            return current == null ? List.of() : List.of(current.getDppId());
         }
 
         @Override

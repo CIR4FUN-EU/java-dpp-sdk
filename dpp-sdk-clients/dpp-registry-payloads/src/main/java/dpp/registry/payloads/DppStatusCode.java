@@ -16,6 +16,7 @@ public enum DppStatusCode {
     ClientMethodNotAllowed,
     ClientErrorResourceNotFound,
     ClientResourceConflict,
+    ServerNotImplemented,
     ServerInternalError,
     ServerErrorBadGateway;
 

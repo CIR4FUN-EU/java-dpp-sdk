@@ -1,109 +1,76 @@
 # DPP Data Model
 
-## Purpose
+`dpp-datamodel` is the Java SDK area for immutable Digital Product Passport (DPP) domain objects. It provides builders, validation, payload mapping, and JSON transport for the furniture-specific `Dpp4Fun` model. It does not provide HTTP clients, runtime services, or persistence.
 
-`dpp-datamodel` is the Java SDK area for building, validating, mapping, and serializing DPP domain objects. It does not own HTTP clients, mock services, or database persistence.
+## Architecture at a glance
 
-Parent coordinates from `dpp-datamodel/pom.xml`:
-
-- `groupId`: `dpp.datamodel`
-- `artifactId`: `dpp-datamodel`
-- `version`: `0.4.0`
-- packaging: `pom`
-
-## Module Map
-
-| Module | Coordinates | What it provides |
-| --- | --- | --- |
-| `dpp-core` | `dpp.datamodel:dpp-core:0.4.0` | Reusable core models, validators, payload DTOs, mappers, identifier helpers |
-| `dpp4fun` | `dpp.datamodel:dpp4fun:0.4.0` | Furniture-specific models, validators, payload DTOs, mappers, JSON codec |
-
-## Build And Install
-
-Run from `dpp-datamodel`.
-
-Build all datamodel modules:
-
-```powershell
-.\mvnw.cmd test
-.\mvnw.cmd clean install
+```mermaid
+flowchart TD
+    D["Dpp (abstract)"] -->|implemented by| F["Dpp4Fun"]
+    F --> C["DppCore"]
+    F --> PC["ProductClassification"]
+    F --> CH["Characteristics"]
+    F -. optional .-> B["BillOfMaterials"]
+    C --> M["PassportMetadata"]
+    C --> N["Nameplate"]
+    C -. optional .-> DOC["Documentation"]
+    N -. manufacturer / supplier .-> O["Organization"]
+    CH -. optional .-> DIM["Dimensions"]
+    B -. optional .-> BOM["Materials, components, and parts"]
+    C --> CV["DppCoreValidator"]
+    C --> CM["DppCoreMapper"]
+    CM <--> CP["DppCorePayload"]
+    F --> FV["Dpp4FunValidationService"]
+    FV -. layers on core validation .-> CV
+    F --> FM["Dpp4FunMapper"]
+    FM <--> FP["Dpp4FunPayload"]
+    FM --> CM
+    FP --> CP
+    FP <--> JSON["JSON via Dpp4FunJsonCodec"]
 ```
 
-```bash
-./mvnw test
-./mvnw clean install
-```
+The builders create immutable domain objects. Both model layers have their own
+validation, mapper, and payload responsibilities: `DppCoreValidator`,
+`DppCoreMapper`, and `DppCorePayload` cover reusable core fields, while
+`Dpp4FunValidationService`, `Dpp4FunMapper`, and `Dpp4FunPayload` cover the full
+furniture aggregate. JSON transport is aggregate-level: `Dpp4FunJsonCodec`
+serializes and parses `Dpp4Fun`, including its nested core payload. There is no
+standalone `dpp-core` JSON codec in the current API. The result is consumed by
+the HTTP clients or persistence modules; those modules are outside this
+datamodel boundary.
 
-Build only `dpp-core`:
+## Choose a module
 
-```powershell
-.\mvnw.cmd -pl "dpp-core" -am test
-```
+| Need | Dependency |
+| --- | --- |
+| Reusable DPP identity, metadata, nameplate, documentation, validation, payload DTOs, and core mappers | `dpp.datamodel:dpp-core:0.5.0` |
+| A furniture DPP aggregate (`Dpp4Fun`), furniture validation, furniture payload mapping, or JSON transport | `dpp.datamodel:dpp4fun:0.5.0` |
 
-```bash
-./mvnw -pl "dpp-core" -am test
-```
+Choose the dependency that matches your use case. Applications using `dpp4fun` do not need to declare `dpp-core` separately because it is included transitively.
 
-Build only `dpp4fun`:
-
-```powershell
-.\mvnw.cmd -pl "dpp4fun" -am test
-```
-
-```bash
-./mvnw -pl "dpp4fun" -am test
-```
-
-## Maven Consumption
-
-Consume `dpp-core` when you only need the reusable core layer:
+### Reusable core only
 
 ```xml
 <dependency>
     <groupId>dpp.datamodel</groupId>
     <artifactId>dpp-core</artifactId>
-    <version>0.4.0</version>
+    <version>0.5.0</version>
 </dependency>
 ```
 
-Consume `dpp4fun` when you need the furniture-specific aggregate on top of `dpp-core`:
+### Furniture-specific DPP
 
 ```xml
 <dependency>
     <groupId>dpp.datamodel</groupId>
     <artifactId>dpp4fun</artifactId>
-    <version>0.4.0</version>
+    <version>0.5.0</version>
 </dependency>
 ```
 
-## Main Entry Points
+## Practical usage
 
-- `dppsdk.core.model.Dpp`
-- `dppsdk.core.model.DppCore`
-- `dppsdk.core.validation.ValidationService`
-- `dppsdk.core.validation.DppCoreValidator`
-- `dppsdk.core.util.DppIdentifiers`
-- `dppsdk.core.mapper.DppCoreMapper`
-- `dppsdk.dpp4fun.model.Dpp4Fun`
-- `dppsdk.dpp4fun.validation.Dpp4FunValidationService`
-- `dppsdk.dpp4fun.mapper.Dpp4FunMapper`
-- `dppsdk.dpp4fun.transport.Dpp4FunJsonCodec`
-
-## Package Responsibilities
-
-- `dppsdk.core.model`: reusable immutable core domain objects and builders
-- `dppsdk.core.validation`: core semantic validation and the core-safe `ValidationService`
-- `dppsdk.core.mapper`: domain-to-payload conversion for the core layer
-- `dppsdk.core.payload`: transport-oriented DTOs for reusable core concepts
-- `dppsdk.dpp4fun.model`: furniture-specific domain objects headed by `Dpp4Fun`
-- `dppsdk.dpp4fun.validation`: furniture-specific validators and `Dpp4FunValidationService`
-- `dppsdk.dpp4fun.mapper`: furniture-specific mapping on top of the core layer
-- `dppsdk.dpp4fun.payload`: furniture-specific transport DTOs
-- `dppsdk.dpp4fun.transport`: JSON transport entry points such as `Dpp4FunJsonCodec`
-
-## Usage
-
-### Build Reusable Core DPP Structure
+### Build the reusable core
 
 ```java
 import dppsdk.core.model.DppCore;
@@ -137,7 +104,7 @@ DppCore core = new DppCore.Builder()
         .build();
 ```
 
-### Build A Full `Dpp4Fun`
+### Build a full `Dpp4Fun`
 
 ```java
 import dppsdk.dpp4fun.model.Characteristics;
@@ -175,38 +142,38 @@ Dpp4Fun dpp = new Dpp4Fun.Builder()
 
 ### Validate
 
-Core validation:
+Use `ValidationService` for reusable core model types. Use `Dpp4FunValidationService` for the complete `Dpp4Fun` aggregate and its furniture-specific model types. Validation is fail-fast and throws `dppsdk.core.validation.ValidationException` for semantic errors.
 
 ```java
 import dppsdk.core.validation.ValidationService;
-
-ValidationService coreValidation = new ValidationService();
-coreValidation.validate(core);
-```
-
-`Dpp4Fun` validation:
-
-```java
 import dppsdk.dpp4fun.validation.Dpp4FunValidationService;
 
-Dpp4FunValidationService validation = new Dpp4FunValidationService();
-validation.validate(dpp);
+new ValidationService().validate(core);
+new Dpp4FunValidationService().validate(dpp);
 ```
 
-### Map Domain Objects To Payload DTOs
+### Map domain objects and payload DTOs
+
+Mappers return `null` for a `null` input. During payload-to-domain conversion, structurally invalid payload data is reported as a `MappingException`, including cases where a domain builder rejects the supplied values.
 
 ```java
+import dppsdk.core.mapper.DppCoreMapper;
+import dppsdk.core.payload.DppCorePayload;
 import dppsdk.dpp4fun.mapper.Dpp4FunMapper;
 import dppsdk.dpp4fun.payload.Dpp4FunPayload;
 
-Dpp4FunMapper mapper = new Dpp4FunMapper();
-Dpp4FunPayload payload = mapper.toPayload(dpp);
-Dpp4Fun roundTripped = mapper.toDomain(payload);
+DppCoreMapper coreMapper = new DppCoreMapper();
+DppCorePayload corePayload = coreMapper.toPayload(core);
+DppCore mappedCore = coreMapper.toDomain(corePayload);
+
+Dpp4FunMapper dppMapper = new Dpp4FunMapper();
+Dpp4FunPayload payload = dppMapper.toPayload(dpp);
+Dpp4Fun mappedDpp = dppMapper.toDomain(payload);
 ```
 
-### Serialize And Deserialize JSON
+### Serialize and deserialize `Dpp4Fun` JSON
 
-`Dpp4FunJsonCodec` flattens `passportMetadata`, `nameplate`, and `documentation` for transport, while still accepting both nested and flat inbound shapes.
+`Dpp4FunJsonCodec` maps through `Dpp4FunPayload`. Outbound JSON places `passportMetadata`, `nameplate`, and `documentation` at the top level instead of under `coreDpp`. Inbound JSON accepts either that flat transport shape or a nested `coreDpp` object. `fromJson` maps only; `fromJsonAndValidate` maps and then validates.
 
 ```java
 import dppsdk.dpp4fun.transport.Dpp4FunJsonCodec;
@@ -217,11 +184,14 @@ Dpp4Fun parsed = codec.fromJson(json);
 Dpp4Fun parsedAndValidated = codec.fromJsonAndValidate(json);
 ```
 
-### Immutable Edit / Copy Pattern
+### Make an immutable edit
 
-The model layer supports `toBuilder()` on the domain objects.
+Models have no setters. `toBuilder()` copies the current value into a builder; collections expose add/remove operations on their builders.
+
+The following example continues from the `dpp` object constructed above.
 
 ```java
+// Copy the immutable object, change one nested value, and build a new instance.
 Dpp4Fun updated = dpp.toBuilder()
         .characteristics(dpp.getCharacteristics().toBuilder()
                 .productName("Cir4Fun Platform Bed - Updated")
@@ -229,7 +199,9 @@ Dpp4Fun updated = dpp.toBuilder()
         .build();
 ```
 
-### Extract DPP And Product Identifiers
+### Extract identifiers
+
+`DppIdentifiers` accepts any `Dpp` aggregate. It rejects a null aggregate; the delegated convenience accessors reject a missing unique product identifier or GTIN.
 
 ```java
 import dppsdk.core.util.DppIdentifiers;
@@ -238,21 +210,91 @@ String dppId = DppIdentifiers.dppId(dpp);
 String productId = DppIdentifiers.productId(dpp);
 ```
 
-## Recommended Usage Pattern
+For every field, builder constraint, and semantic validation rule, see [MODEL_GUIDE.md](MODEL_GUIDE.md).
 
-1. Build the domain object with the model builders.
-2. Validate it with `ValidationService` or `Dpp4FunValidationService`, depending on scope.
-3. Use `Dpp4FunMapper` when you need payload DTO conversion.
-4. Use `Dpp4FunJsonCodec` when you need JSON transport conversion.
+## Build and install for contributors
 
-## What This Module Does Not Provide
+Requires JDK 17. The Maven wrapper is at the repository root. The commands below keep the working directory at the repository root and select the datamodel reactor with `-f`.
 
-- no HTTP endpoints or HTTP client behavior
-- no registry submission logic
-- no database or persistence implementation
-- no mock-service or demo runtime orchestration
-- no production security, compliance, certification, or regulatory-completeness claim
+Required working directory: repository root.
 
-## Related Docs
+### Run all datamodel tests
 
-- [`MODEL_GUIDE.md`](MODEL_GUIDE.md): consolidated model structure and validation reference
+PowerShell:
+
+```powershell
+.\mvnw.cmd -f .\dpp-datamodel\pom.xml test
+```
+
+Linux/macOS Bash:
+
+```bash
+./mvnw -f ./dpp-datamodel/pom.xml test
+```
+
+### Install the artifacts locally
+
+PowerShell:
+
+```powershell
+.\mvnw.cmd -f .\dpp-datamodel\pom.xml clean install
+```
+
+Linux/macOS Bash:
+
+```bash
+./mvnw -f ./dpp-datamodel/pom.xml clean install
+```
+
+### Run focused module tests
+
+`dpp-core` from the repository root — PowerShell:
+
+```powershell
+.\mvnw.cmd -f .\dpp-datamodel\pom.xml -pl dpp-core -am test
+```
+
+`dpp-core` from the repository root — Linux/macOS Bash:
+
+```bash
+./mvnw -f ./dpp-datamodel/pom.xml -pl dpp-core -am test
+```
+
+`dpp4fun` from the repository root — PowerShell:
+
+```powershell
+.\mvnw.cmd -f .\dpp-datamodel\pom.xml -pl dpp4fun -am test
+```
+
+`dpp4fun` from the repository root — Linux/macOS Bash:
+
+```bash
+./mvnw -f ./dpp-datamodel/pom.xml -pl dpp4fun -am test
+```
+
+## Module boundaries
+
+This module provides:
+
+- domain models and builders
+- semantic validation
+- payload mapping
+- `Dpp4Fun` JSON transport
+
+It does not provide:
+
+- HTTP clients or endpoints
+- mock services or runtime orchestration
+- PostgreSQL persistence
+- production compliance or certification guarantees
+
+Related modules:
+
+- [DPP SDK clients](../dpp-sdk-clients/README.md) — HTTP clients and payload contracts
+- [DPP PostgreSQL](../dpp-postgres/README.md) — relational persistence
+- [DPP SDK demo](../dpp-sdk-demo/README.md) — runnable services and Docker
+
+## Aggregator POM
+
+The module aggregator is `dpp.datamodel:dpp-datamodel:0.5.0`. It has
+`pom` packaging and is not a runtime library dependency.

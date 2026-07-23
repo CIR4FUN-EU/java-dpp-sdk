@@ -11,23 +11,23 @@ class RegistryPayloadContractTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void registerRequestAndResponseRoundTripWithCurrentFieldNames() throws Exception {
+    void registerRequestAndResponseRoundTripWithEn18222FieldNames() throws Exception {
         RegisterDppRequest request = new RegisterDppRequest("product-1", "dpp-1", "operator-1", "http://localhost:8082");
 
         String written = objectMapper.writeValueAsString(request);
         JsonNode writtenJson = objectMapper.readTree(written);
 
-        assertEquals("product-1", writtenJson.get("productIdentifier").textValue());
-        assertEquals("dpp-1", writtenJson.get("dppIdentifier").textValue());
-        assertEquals("operator-1", writtenJson.get("operatorIdentifier").textValue());
-        assertEquals("http://localhost:8082", writtenJson.get("repoUrl").textValue());
+        assertEquals("product-1", writtenJson.get("uniqueProductIdentifier").textValue());
+        assertEquals("dpp-1", writtenJson.get("digitalProductPassportId").textValue());
+        assertEquals("operator-1", writtenJson.get("uniqueEconomicOperatorIdentifier").textValue());
+        assertEquals("http://localhost:8082", writtenJson.get("dppApiEndpoint").textValue());
 
         RegisterDppResponse response = objectMapper.readValue(
-                "{\"registryIdentifier\":\"registry-1\"}",
+                "{\"registrationId\":\"registry-1\"}",
                 RegisterDppResponse.class
         );
 
-        assertEquals("registry-1", response.getRegistryIdentifier());
+        assertEquals("registry-1", response.getRegistrationId());
     }
 
     @Test
@@ -35,7 +35,7 @@ class RegistryPayloadContractTest {
         String json = """
                 {
                   "statusCode":"SuccessCreated",
-                  "payload":{"registryIdentifier":"registry-1"},
+                  "payload":{"registrationId":"registry-1"},
                   "messages":[
                     {
                       "messageType":"Info",
@@ -54,8 +54,9 @@ class RegistryPayloadContractTest {
         );
 
         assertEquals(DppStatusCode.SuccessCreated, response.getStatusCode());
-        assertEquals("registry-1", response.getPayload().getRegistryIdentifier());
+        assertEquals("registry-1", response.getPayload().getRegistrationId());
         assertEquals(MessageType.Info, response.getMessages().get(0).getMessageType());
+        assertEquals("\"ServerNotImplemented\"", objectMapper.writeValueAsString(DppStatusCode.ServerNotImplemented));
         assertEquals("\"SuccessNoContent\"", objectMapper.writeValueAsString(DppStatusCode.SuccessNoContent));
         assertEquals("\"Info\"", objectMapper.writeValueAsString(MessageType.Info));
     }
@@ -64,5 +65,15 @@ class RegistryPayloadContractTest {
     void registryStatusCodeAliasesDeserializeToCurrentEnumValues() throws Exception {
         assertEquals(DppStatusCode.ClientNotAuthorized, objectMapper.readValue("\"ClientErrorNotAuthorized\"", DppStatusCode.class));
         assertEquals(DppStatusCode.ClientForbidden, objectMapper.readValue("\"ClientErrorForbidden\"", DppStatusCode.class));
+    }
+
+    @Test
+    void registryResponseAcceptsLegacyFieldNameDuringTransition() throws Exception {
+        RegisterDppResponse response = objectMapper.readValue(
+                "{\"registryIdentifier\":\"registry-1\"}",
+                RegisterDppResponse.class
+        );
+
+        assertEquals("registry-1", response.getRegistrationId());
     }
 }

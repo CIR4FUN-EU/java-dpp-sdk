@@ -19,6 +19,9 @@ import dpp.registry.payloads.DppStatusCode;
 import dpp.registry.payloads.RegisterDppRequest;
 import dpp.repo.client.HttpDppRepoClient;
 import dppsdk.dpp4fun.model.Dpp4Fun;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -75,10 +78,36 @@ class RealServicesSmokeTest {
         String productId = dpp.getProductId();
 
         assertEquals(dppId, repoClient.createDpp(dpp).getDppId());
+        assertEquals("Cir4Fun Platform Bed", repoClient.readDataElement(dppId,
+                "$.characteristics.productName").asText());
+        assertEquals("FSC certified wood", repoClient.readDataElement(dppId,
+                "$.billOfMaterials.materials[0].name").asText());
+        assertEquals("Fine-granular smoke update", repoClient.updateDataElement(dppId,
+                "$.characteristics.productName",
+                new com.fasterxml.jackson.databind.ObjectMapper().getNodeFactory()
+                        .textNode("Fine-granular smoke update")).asText());
+        assertEquals("Fine-granular smoke update", repoClient.readDataElement(dppId,
+                "$.characteristics.productName").asText());
+
+        dpp.repo.client.exception.DppHttpClientException malformedPath = assertThrows(
+                dpp.repo.client.exception.DppHttpClientException.class,
+                () -> repoClient.readDataElement(dppId, "characteristics.productName")
+        );
+        assertEquals(400, malformedPath.statusCode());
+        dpp.repo.client.exception.DppHttpClientException noMatch = assertThrows(
+                dpp.repo.client.exception.DppHttpClientException.class,
+                () -> repoClient.readDataElement(dppId, "$.characteristics.missing")
+        );
+        assertEquals(404, noMatch.statusCode());
+        dpp.repo.client.exception.DppHttpClientException unsupportedWildcard = assertThrows(
+                dpp.repo.client.exception.DppHttpClientException.class,
+                () -> repoClient.readDataElement(dppId, "$.billOfMaterials.materials[*]")
+        );
+        assertEquals(501, unsupportedWildcard.statusCode());
 
         String registryIdentifier = registryClient.postNewDppToRegistry(
                 new RegisterDppRequest(productId, dppId, "operator-123", repoUrl)
-        ).getRegistryIdentifier();
+        ).getRegistrationId();
         assertFalse(registryIdentifier.isBlank());
 
         RegistryRecordPayload registryRecord = mockRegistryLookupClient.readByDppId(dppId).orElseThrow();
@@ -124,7 +153,14 @@ class RealServicesSmokeTest {
         String productId = dpp.getProductId();
         repoClient.createDpp(dpp);
 
-        assertDoesNotThrow(() -> new HttpServiceDemoRunner().run(registryUrl, repoUrl));
+        String demoOutput = captureStandardOut(() ->
+                assertDoesNotThrow(() -> new HttpServiceDemoRunner().run(registryUrl, repoUrl)));
+
+        assertTrue(demoOutput.contains("-- Compare compressed and full DPP representations --"));
+        assertTrue(demoOutput.contains("compressed representation : compressed"));
+        assertTrue(demoOutput.contains("full representation       : complete DPP JSON decoded into Dpp4Fun"));
+        assertTrue(demoOutput.contains("$.characteristics.productName"));
+        assertTrue(demoOutput.contains("$.billOfMaterials.materials[0].name"));
 
         dpp.repo.client.exception.DppHttpClientException missingOldDpp = assertThrows(
                 dpp.repo.client.exception.DppHttpClientException.class,
@@ -167,5 +203,17 @@ class RealServicesSmokeTest {
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Failed to reset seeded in-memory store " + beanName, exception);
         }
+    }
+
+    private String captureStandardOut(Runnable action) {
+        PrintStream original = System.out;
+        ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        try (PrintStream replacement = new PrintStream(captured, true, StandardCharsets.UTF_8)) {
+            System.setOut(replacement);
+            action.run();
+        } finally {
+            System.setOut(original);
+        }
+        return captured.toString(StandardCharsets.UTF_8);
     }
 }

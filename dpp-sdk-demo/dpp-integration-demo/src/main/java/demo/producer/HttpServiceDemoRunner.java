@@ -67,44 +67,50 @@ class HttpServiceDemoRunner {
         String productId = dpp.getProductId();
         deleteStaleDemoDppIfPresent(repoClient, productId);
 
-        // Demonstrates createDpp -> POST /dpps and the SuccessCreated wrapper payload with dppId.
+        // Demonstrates createDpp -> POST /v1/dpps and the SuccessCreated wrapper payload with dppId.
         ConsoleSupport.step("CreateDPP");
         ConsoleSupport.createResponse(repoClient.createDpp(dpp));
 
-        // Demonstrates readDppById -> GET /dpps/{dppId} using full DPP JSON decoded by the client codec.
-        ConsoleSupport.step("ReadDPPById");
-        ConsoleSupport.dpp(repoClient.readDppById(dppId));
+        // Shows the project-defined compressed summary next to the complete DPP decoded by the typed client.
+        ConsoleSupport.step("Compare compressed and full DPP representations");
+        ConsoleSupport.compressedDpp(repoClient.readCompressedDppById(dppId));
+        ConsoleSupport.fullDpp(repoClient.readDppById(dppId));
 
-        // Demonstrates readDppByProductId -> GET /dppsByProductId/{productId} for the active product mapping.
+        // Demonstrates readDppByProductId -> GET /v1/dppsByProductId/{productId} for the active product mapping.
         ConsoleSupport.step("ReadDPPByProductId");
         ConsoleSupport.dpp(repoClient.readDppByProductId(productId));
 
-        // Demonstrates updateDppById -> PATCH /dpps/{dppId} with a raw merge-patch payload.
+        // Demonstrates updateDppById -> PATCH /v1/dpps/{dppId} with a raw merge-patch payload.
         ConsoleSupport.step("UpdateDPPById");
         ObjectNode patch = objectMapper.createObjectNode();
         patch.putObject("characteristics").put("productName", "Updated via standards demo");
         ConsoleSupport.dpp(repoClient.updateDppById(dppId, patch));
 
-        // Demonstrates fine-granular read/write helpers against the controlled element-path API.
-        ConsoleSupport.step("ReadDataElement and UpdateDataElement");
-        ConsoleSupport.jsonValue("readElement ", repoClient.readDataElement(dppId, "characteristics.productName"));
-        ConsoleSupport.jsonValue("updatedElement", repoClient.updateDataElement(
+        // Demonstrates a dot-member selector, an array-index selector, and a replacement of one singular target.
+        ConsoleSupport.step("Fine-granular JSONPath read and update");
+        String productNamePath = "$.characteristics.productName";
+        String firstMaterialNamePath = "$.billOfMaterials.materials[0].name";
+        ConsoleSupport.jsonPathValue("before update", productNamePath,
+                repoClient.readDataElement(dppId, productNamePath));
+        ConsoleSupport.jsonPathValue("array example", firstMaterialNamePath,
+                repoClient.readDataElement(dppId, firstMaterialNamePath));
+        ConsoleSupport.jsonPathValue("after update", productNamePath, repoClient.updateDataElement(
                 dppId,
-                "characteristics.productName",
+                productNamePath,
                 objectMapper.getNodeFactory().textNode("Updated element value")
         ));
 
-        // Demonstrates snapshot lookup by repository history time, not by any DPP metadata version field.
-        ConsoleSupport.step("ReadDPPVersionByProductIdAndDate");
-        ConsoleSupport.dpp(repoClient.readDppVersionByProductIdAndDate(productId, Instant.now()));
+        // Demonstrates snapshot lookup by DPP identifier and repository history time, not by any DPP metadata version field.
+        ConsoleSupport.step("ReadDPPVersionByIdAndDate");
+        ConsoleSupport.dpp(repoClient.readDppVersionByIdAndDate(dppId, Instant.now()));
 
-        // Demonstrates batched identifier lookup via POST /dppsByProductIds.
+        // Demonstrates batched identifier lookup via POST /v1/dppsByProductIds.
         ConsoleSupport.step("ReadDPPIdsByProductIds");
         ConsoleSupport.idsResponse(repoClient.readDppIdsByProductIds(List.of(productId), 10, "0"));
 
         // Demonstrates registry metadata registration and lookup; the registry verifies the repo reference by HEAD.
         ConsoleSupport.step("Register stored DPP in Registry");
-        System.out.println("repoVerification : HEAD /dpps/" + dppId);
+        System.out.println("repoVerification : HEAD /internal/dpps/" + dppId);
         RegisterDppRequest registerRequest = new RegisterDppRequest(
                 productId,
                 dppId,
@@ -150,7 +156,7 @@ class HttpServiceDemoRunner {
             ConsoleSupport.clientError(exception);
         }
 
-        // Demonstrates soft delete via DELETE /dpps/{dppId}; lifecycle history remains a mock internal concern.
+        // Demonstrates soft delete via DELETE /v1/dpps/{dppId}; lifecycle history remains a mock internal concern.
         ConsoleSupport.step("DeleteDPPById");
         ConsoleSupport.deleteResponse(repoClient.deleteDppById(dppId));
 

@@ -104,10 +104,14 @@ class PostgresCoreIntegrationTest {
         try (Connection connection = dataSource.getConnection()) {
             DppCore reloaded = coreMapper.readVersionData(connection, 1L);
             List<DppLifecycleEventRecord> events = lifecycleRepository.findByDppId(connection, dpp.getDppId());
+            PostgresDppVersionRepositorySupport.VersionRecord historical =
+                    versionSupport.findByDppIdAt(connection, dpp.getDppId(), createdAt.plusSeconds(60)).orElseThrow();
             assertEquals(core, reloaded);
             assertEquals(1, events.size());
             assertEquals(DppLifecycleEventType.DPP_CREATED, events.get(0).eventType());
             assertEquals(Map.of("productId", dpp.getProductId()), events.get(0).data());
+            assertEquals(dpp.getDppId(), historical.dppId());
+            assertEquals(List.of(dpp.getDppId()), versionSupport.findAllActiveDppIds(connection));
         }
     }
 

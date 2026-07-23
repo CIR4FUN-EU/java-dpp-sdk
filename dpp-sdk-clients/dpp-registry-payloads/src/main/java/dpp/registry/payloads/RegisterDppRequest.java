@@ -1,18 +1,28 @@
 package dpp.registry.payloads;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
- * Request payload sent to {@code POST /registerDPP}.
- *
- * <p>{@code productIdentifier} and {@code operatorIdentifier} are draft-aligned registry fields.
- * {@code dppIdentifier} and {@code repoUrl} are intentional system/demo integration fields used by
- * the current repo-backed registration flow to verify that the referenced DPP is present before a
- * registry entry is accepted.</p>
+ * Request payload sent to {@code POST /v1/registerDPP}.
  */
 public class RegisterDppRequest {
-    private String productIdentifier;
-    private String dppIdentifier;
-    private String operatorIdentifier;
-    private String repoUrl;
+    @JsonProperty("uniqueProductIdentifier")
+    @JsonAlias("productIdentifier")
+    private String uniqueProductIdentifier;
+
+    @JsonProperty("digitalProductPassportId")
+    @JsonAlias("dppIdentifier")
+    private String digitalProductPassportId;
+
+    @JsonProperty("uniqueEconomicOperatorIdentifier")
+    @JsonAlias("operatorIdentifier")
+    private String uniqueEconomicOperatorIdentifier;
+
+    @JsonProperty("dppApiEndpoint")
+    @JsonAlias("repoUrl")
+    private String dppApiEndpoint;
 
     public RegisterDppRequest() {
     }
@@ -23,41 +33,113 @@ public class RegisterDppRequest {
             String operatorIdentifier,
             String repoUrl
     ) {
-        this.productIdentifier = productIdentifier;
-        this.dppIdentifier = dppIdentifier;
-        this.operatorIdentifier = operatorIdentifier;
-        this.repoUrl = repoUrl;
+        this.uniqueProductIdentifier = productIdentifier;
+        this.digitalProductPassportId = dppIdentifier;
+        this.uniqueEconomicOperatorIdentifier = operatorIdentifier;
+        this.dppApiEndpoint = repoUrl;
     }
 
+    public String getUniqueProductIdentifier() {
+        return uniqueProductIdentifier;
+    }
+
+    public void setUniqueProductIdentifier(String uniqueProductIdentifier) {
+        this.uniqueProductIdentifier = uniqueProductIdentifier;
+    }
+
+    public String getDigitalProductPassportId() {
+        return digitalProductPassportId;
+    }
+
+    public void setDigitalProductPassportId(String digitalProductPassportId) {
+        this.digitalProductPassportId = digitalProductPassportId;
+    }
+
+    public String getUniqueEconomicOperatorIdentifier() {
+        return uniqueEconomicOperatorIdentifier;
+    }
+
+    public void setUniqueEconomicOperatorIdentifier(String uniqueEconomicOperatorIdentifier) {
+        this.uniqueEconomicOperatorIdentifier = uniqueEconomicOperatorIdentifier;
+    }
+
+    public String getDppApiEndpoint() {
+        return dppApiEndpoint;
+    }
+
+    public void setDppApiEndpoint(String dppApiEndpoint) {
+        this.dppApiEndpoint = dppApiEndpoint;
+    }
+
+    /**
+     * @deprecated Transitional source-compatibility alias.
+     */
+    @Deprecated
+    @JsonIgnore
     public String getProductIdentifier() {
-        return productIdentifier;
+        return uniqueProductIdentifier;
     }
 
+    /**
+     * @deprecated Transitional source-compatibility alias.
+     */
+    @Deprecated
+    @JsonIgnore
     public void setProductIdentifier(String productIdentifier) {
-        this.productIdentifier = productIdentifier;
+        this.uniqueProductIdentifier = productIdentifier;
     }
 
+    /**
+     * @deprecated Transitional source-compatibility alias.
+     */
+    @Deprecated
+    @JsonIgnore
     public String getDppIdentifier() {
-        return dppIdentifier;
+        return digitalProductPassportId;
     }
 
+    /**
+     * @deprecated Transitional source-compatibility alias.
+     */
+    @Deprecated
+    @JsonIgnore
     public void setDppIdentifier(String dppIdentifier) {
-        this.dppIdentifier = dppIdentifier;
+        this.digitalProductPassportId = dppIdentifier;
     }
 
+    /**
+     * @deprecated Transitional source-compatibility alias.
+     */
+    @Deprecated
+    @JsonIgnore
     public String getOperatorIdentifier() {
-        return operatorIdentifier;
+        return uniqueEconomicOperatorIdentifier;
     }
 
+    /**
+     * @deprecated Transitional source-compatibility alias.
+     */
+    @Deprecated
+    @JsonIgnore
     public void setOperatorIdentifier(String operatorIdentifier) {
-        this.operatorIdentifier = operatorIdentifier;
+        this.uniqueEconomicOperatorIdentifier = operatorIdentifier;
     }
 
+    /**
+     * @deprecated Transitional source-compatibility alias.
+     */
+    @Deprecated
+    @JsonIgnore
     public String getRepoUrl() {
-        return repoUrl;
+        return dppApiEndpoint;
     }
 
+    /**
+     * @deprecated Transitional source-compatibility alias.
+     */
+    @Deprecated
+    @JsonIgnore
     public void setRepoUrl(String repoUrl) {
-        this.repoUrl = repoUrl;
+        this.dppApiEndpoint = repoUrl;
     }
 }

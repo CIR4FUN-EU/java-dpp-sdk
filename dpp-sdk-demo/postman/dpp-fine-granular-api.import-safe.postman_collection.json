@@ -57,11 +57,12 @@
           }
         ],
         "url": {
-          "raw": "{{repoBaseUrl}}/dpps",
+          "raw": "{{repoBaseUrl}}/v1/dpps",
           "host": [
             "{{repoBaseUrl}}"
           ],
           "path": [
+            "v1",
             "dpps"
           ]
         },
@@ -112,18 +113,19 @@
           }
         ],
         "url": {
-          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}/elements/characteristics.productName",
+          "raw": "{{repoBaseUrl}}/v1/dpps/{{dppId}}/elements/%24.characteristics.productName",
           "host": [
             "{{repoBaseUrl}}"
           ],
           "path": [
+            "v1",
             "dpps",
             "{{dppId}}",
             "elements",
-            "characteristics.productName"
+            "%24.characteristics.productName"
           ]
         },
-        "description": "Reads a supported simple data element from the collection-created DPP."
+        "description": "Reads a bounded singular JSONPath data element from the collection-created DPP."
       },
       "response": []
     },
@@ -163,21 +165,22 @@
           }
         ],
         "url": {
-          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}/elements/characteristics.productName",
+          "raw": "{{repoBaseUrl}}/v1/dpps/{{dppId}}/elements/%24.characteristics.productName",
           "host": [
             "{{repoBaseUrl}}"
           ],
           "path": [
+            "v1",
             "dpps",
             "{{dppId}}",
             "elements",
-            "characteristics.productName"
+            "%24.characteristics.productName"
           ]
         },
-        "description": "Updates a supported simple data element on the collection-created DPP.",
+        "description": "Updates a bounded singular JSONPath data element on the collection-created DPP.",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"payload\": \"Updated Product Name from Postman\"\n}",
+          "raw": "\"Updated Product Name from Postman\"",
           "options": {
             "raw": {
               "language": "json"
@@ -189,7 +192,7 @@
     },
     {
       "id": "7b06c0f3-7ed4-4c11-871a-09692a4c2f6e",
-      "name": "ReadDataElement coreDpp.nameplate.gtinCode",
+      "name": "ReadDataElement quoted bracket members",
       "event": [
         {
           "listen": "test",
@@ -220,18 +223,19 @@
           }
         ],
         "url": {
-          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}/elements/coreDpp.nameplate.gtinCode",
+          "raw": "{{repoBaseUrl}}/v1/dpps/{{dppId}}/elements/%24%5B%27nameplate%27%5D%5B%22gtinCode%22%5D",
           "host": [
             "{{repoBaseUrl}}"
           ],
           "path": [
+            "v1",
             "dpps",
             "{{dppId}}",
             "elements",
-            "coreDpp.nameplate.gtinCode"
+            "%24%5B%27nameplate%27%5D%5B%22gtinCode%22%5D"
           ]
         },
-        "description": "Reads the supported coreDpp alias path for the GTIN/product identifier."
+        "description": "Reads the GTIN/product identifier using quoted bracket-member selectors."
       },
       "response": []
     },
@@ -267,15 +271,16 @@
           }
         ],
         "url": {
-          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}/elements/billOfMaterials",
+          "raw": "{{repoBaseUrl}}/v1/dpps/{{dppId}}/elements/%24.billOfMaterials",
           "host": [
             "{{repoBaseUrl}}"
           ],
           "path": [
+            "v1",
             "dpps",
             "{{dppId}}",
             "elements",
-            "billOfMaterials"
+            "%24.billOfMaterials"
           ]
         },
         "description": "Reads a supported object/collection element from the DPP."
@@ -315,15 +320,16 @@
           }
         ],
         "url": {
-          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}/elements/billOfMaterials.materials%5B0%5D.name",
+          "raw": "{{repoBaseUrl}}/v1/dpps/{{dppId}}/elements/%24.billOfMaterials.materials%5B0%5D.name",
           "host": [
             "{{repoBaseUrl}}"
           ],
           "path": [
+            "v1",
             "dpps",
             "{{dppId}}",
             "elements",
-            "billOfMaterials.materials%5B0%5D.name"
+            "%24.billOfMaterials.materials%5B0%5D.name"
           ]
         },
         "description": "Reads a supported nested array-index element path."
@@ -332,7 +338,7 @@
     },
     {
       "id": "83373d5e-15eb-4a91-adc0-701c4634f641",
-      "name": "ReadDataElement unsupported path",
+      "name": "ReadDataElement unsupported wildcard (501)",
       "event": [
         {
           "listen": "test",
@@ -340,11 +346,11 @@
             "type": "text/javascript",
             "exec": [
               "const json = pm.response.json();",
-              "pm.test(\"HTTP 400\", function () {",
-              "  pm.response.to.have.status(400);",
+              "pm.test(\"HTTP 501\", function () {",
+              "  pm.response.to.have.status(501);",
               "});",
-              "pm.test(\"wrapper status is ClientErrorBadRequest\", function () {",
-              "  pm.expect(json.statusCode).to.eql(\"ClientErrorBadRequest\");",
+              "pm.test(\"wrapper status is ServerNotImplemented\", function () {",
+              "  pm.expect(json.statusCode).to.eql(\"ServerNotImplemented\");",
               "});",
               "pm.test(\"messages are present\", function () {",
               "  pm.expect(json.messages).to.be.an(\"array\").and.not.empty;",
@@ -362,24 +368,25 @@
           }
         ],
         "url": {
-          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}/elements/unsupported.field",
+          "raw": "{{repoBaseUrl}}/v1/dpps/{{dppId}}/elements/%24.billOfMaterials.materials%5B%2A%5D",
           "host": [
             "{{repoBaseUrl}}"
           ],
           "path": [
+            "v1",
             "dpps",
             "{{dppId}}",
             "elements",
-            "unsupported.field"
+            "%24.billOfMaterials.materials%5B%2A%5D"
           ]
         },
-        "description": "Attempts to read an unsupported element path."
+        "description": "Shows that a valid RFC 9535 wildcard outside the singular subset returns 501."
       },
       "response": []
     },
     {
       "id": "52e53fe1-725d-4dd9-a90a-5d24b1dbabae",
-      "name": "UpdateDataElement unsupported path",
+      "name": "UpdateDataElement root replacement (400)",
       "event": [
         {
           "listen": "test",
@@ -413,21 +420,22 @@
           }
         ],
         "url": {
-          "raw": "{{repoBaseUrl}}/dpps/{{dppId}}/elements/unsupported.field",
+          "raw": "{{repoBaseUrl}}/v1/dpps/{{dppId}}/elements/%24",
           "host": [
             "{{repoBaseUrl}}"
           ],
           "path": [
+            "v1",
             "dpps",
             "{{dppId}}",
             "elements",
-            "unsupported.field"
+            "%24"
           ]
         },
-        "description": "Attempts to update an unsupported element path.",
+        "description": "Shows that replacing the complete DPP through fine-granular PATCH is rejected.",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"payload\": \"Updated Product Name\"\n}",
+          "raw": "\"Updated Product Name\"",
           "options": {
             "raw": {
               "language": "json"
@@ -469,18 +477,104 @@
           }
         ],
         "url": {
-          "raw": "{{repoBaseUrl}}/dpps/{{missingDppId}}/elements/characteristics.productName",
+          "raw": "{{repoBaseUrl}}/v1/dpps/{{missingDppId}}/elements/%24.characteristics.productName",
           "host": [
             "{{repoBaseUrl}}"
           ],
           "path": [
+            "v1",
             "dpps",
             "{{missingDppId}}",
             "elements",
-            "characteristics.productName"
+            "%24.characteristics.productName"
           ]
         },
         "description": "Attempts to read an element from a valid UUID that should not exist."
+      },
+      "response": []
+    },
+    {
+      "id": "ae9d257e-081c-40b3-a9a0-568d486d6eb2",
+      "name": "ReadDataElement malformed path (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });",
+              "pm.test(\"wrapper status is ClientErrorBadRequest\", function () { pm.expect(json.statusCode).to.eql(\"ClientErrorBadRequest\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Accept", "value": "application/json"}],
+        "url": {
+          "raw": "{{repoBaseUrl}}/v1/dpps/{{dppId}}/elements/characteristics.productName",
+          "host": ["{{repoBaseUrl}}"],
+          "path": ["v1", "dpps", "{{dppId}}", "elements", "characteristics.productName"]
+        },
+        "description": "Missing the mandatory JSONPath root identifier, so the request is malformed."
+      },
+      "response": []
+    },
+    {
+      "id": "db5c5edc-1ae1-4c3d-a10f-974c0afb3d1b",
+      "name": "ReadDataElement supported no-match (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });",
+              "pm.test(\"wrapper status is ClientErrorResourceNotFound\", function () { pm.expect(json.statusCode).to.eql(\"ClientErrorResourceNotFound\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Accept", "value": "application/json"}],
+        "url": {
+          "raw": "{{repoBaseUrl}}/v1/dpps/{{dppId}}/elements/%24.characteristics.missing",
+          "host": ["{{repoBaseUrl}}"],
+          "path": ["v1", "dpps", "{{dppId}}", "elements", "%24.characteristics.missing"]
+        },
+        "description": "A valid supported singular path that selects no existing element."
+      },
+      "response": []
+    },
+    {
+      "id": "33cde349-384c-4b3c-b1a3-1f785e851d60",
+      "name": "UpdateDataElement validation failure (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });",
+              "pm.test(\"wrapper status is ClientErrorBadRequest\", function () { pm.expect(json.statusCode).to.eql(\"ClientErrorBadRequest\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [{"key": "Accept", "value": "application/json"}, {"key": "Content-Type", "value": "application/json"}],
+        "url": {
+          "raw": "{{repoBaseUrl}}/v1/dpps/{{dppId}}/elements/%24.characteristics.productName",
+          "host": ["{{repoBaseUrl}}"],
+          "path": ["v1", "dpps", "{{dppId}}", "elements", "%24.characteristics.productName"]
+        },
+        "description": "Direct JSON replacement that fails whole-DPP validation and therefore is not persisted.",
+        "body": {"mode": "raw", "raw": "\"\"", "options": {"raw": {"language": "json"}}}
       },
       "response": []
     },
@@ -513,11 +607,12 @@
           }
         ],
         "url": {
-          "raw": "{{repoBaseUrl}}/dpps/{{deleteDppId}}",
+          "raw": "{{repoBaseUrl}}/v1/dpps/{{deleteDppId}}",
           "host": [
             "{{repoBaseUrl}}"
           ],
           "path": [
+            "v1",
             "dpps",
             "{{deleteDppId}}"
           ]
@@ -554,8 +649,8 @@
       "type": "string"
     },
     {
-      "key": "elementPath",
-      "value": "characteristics.productName",
+      "key": "elementIdPath",
+       "value": "$.characteristics.productName",
       "type": "string"
     }
   ]

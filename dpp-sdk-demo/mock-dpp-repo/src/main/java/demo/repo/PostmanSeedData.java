@@ -14,6 +14,7 @@ import dppsdk.dpp4fun.model.Dimensions;
 import dppsdk.dpp4fun.model.Dpp4Fun;
 import dppsdk.dpp4fun.model.Material;
 import dppsdk.dpp4fun.model.ProductClassification;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -33,6 +34,10 @@ final class PostmanSeedData {
     static final String FINE_GRAINED_DELETE_PRODUCT_ID = "04012345678993";
     static final String REGISTRY_DELETE_DPP_ID = "66666666-6666-6666-6666-666666666666";
     static final String REGISTRY_DELETE_PRODUCT_ID = "04012345678995";
+    static final String HISTORICAL_SWAGGER_DPP_ID = "77777777-7777-7777-7777-777777777777";
+    static final String HISTORICAL_SWAGGER_PRODUCT_ID = "04012345678992";
+    static final Instant HISTORICAL_SWAGGER_VALID_FROM = Instant.parse("2026-06-08T10:00:00Z");
+    static final String HISTORICAL_SWAGGER_QUERY_AT = "2026-06-08T10:15:30Z";
 
     private PostmanSeedData() {
     }
@@ -69,6 +74,11 @@ final class PostmanSeedData {
     static Dpp4Fun createRegistryDeleteDpp() {
         return createSeedDpp(REGISTRY_DELETE_DPP_ID, REGISTRY_DELETE_PRODUCT_ID,
                 "Cir4Fun Registry Delete Cabinet", "Cabinets", "Cabinet", "Sand", "C4F-REG-DEL-001");
+    }
+
+    static Dpp4Fun createHistoricalSwaggerDpp() {
+        return createSeedDpp(HISTORICAL_SWAGGER_DPP_ID, HISTORICAL_SWAGGER_PRODUCT_ID,
+                "Cir4Fun Historical Swagger Desk", "Desks", "Desk", "Natural oak", "C4F-SWAGGER-HISTORY-001");
     }
 
     private static Dpp4Fun createSeedDpp(String dppId, String productId, String productName, String category,

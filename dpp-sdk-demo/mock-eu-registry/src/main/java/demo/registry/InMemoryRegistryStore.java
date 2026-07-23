@@ -3,6 +3,7 @@ package demo.registry;
 import dpp.registry.payloads.DppStatusCode;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -57,6 +58,10 @@ class InMemoryRegistryStore {
 
     boolean existsByDppId(String dppId) {
         return registryIdByDppId.containsKey(dppId);
+    }
+
+    List<String> findAllRegisteredDppIds() {
+        return registryIdByDppId.keySet().stream().sorted().toList();
     }
 
     synchronized void seed(

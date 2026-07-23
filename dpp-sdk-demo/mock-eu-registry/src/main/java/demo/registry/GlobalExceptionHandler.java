@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
@@ -29,6 +30,12 @@ class GlobalExceptionHandler {
                 exception.errorCode(), exception.getMessage());
     }
 
+    @ExceptionHandler(NoResourceFoundException.class)
+    ResponseEntity<DppApiResponse<Void>> routeNotFound(NoResourceFoundException exception) {
+        return responseFactory.error(HttpStatus.NOT_FOUND, DppStatusCode.ClientErrorResourceNotFound,
+                "ROUTE_NOT_FOUND", "Registry route not found");
+    }
+
     @ExceptionHandler(Exception.class)
     ResponseEntity<DppApiResponse<Void>> unexpected(Exception exception) {
         return responseFactory.error(HttpStatus.INTERNAL_SERVER_ERROR, DppStatusCode.ServerInternalError,
@@ -44,6 +51,7 @@ class GlobalExceptionHandler {
             case ClientMethodNotAllowed -> HttpStatus.METHOD_NOT_ALLOWED;
             case ClientErrorResourceNotFound -> HttpStatus.NOT_FOUND;
             case ClientResourceConflict -> HttpStatus.CONFLICT;
+            case ServerNotImplemented -> HttpStatus.NOT_IMPLEMENTED;
             case ServerErrorBadGateway -> HttpStatus.BAD_GATEWAY;
             case ServerInternalError -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
