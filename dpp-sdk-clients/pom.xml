@@ -22,7 +22,7 @@
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jackson.version>2.18.2</jackson.version>
+        <jackson.version>2.18.9</jackson.version>
         <junit.jupiter.version>5.10.2</junit.jupiter.version>
         <maven.surefire.version>3.2.5</maven.surefire.version>
     </properties>
