@@ -266,21 +266,25 @@ Linux/macOS Bash:
 ./mvnw -f ./dpp-postgres/pom.xml clean install
 ```
 
-Focused `dpp-postgres-core` tests from the repository root:
+Focused `dpp-postgres-core` tests from the repository root — PowerShell:
 
 ```powershell
 .\mvnw.cmd -f .\dpp-postgres\pom.xml -pl dpp-postgres-core -am test
 ```
 
+Linux/macOS Bash:
+
 ```bash
 ./mvnw -f ./dpp-postgres/pom.xml -pl dpp-postgres-core -am test
 ```
 
-Focused `dpp4fun-postgres` tests from the repository root:
+Focused `dpp4fun-postgres` tests from the repository root — PowerShell:
 
 ```powershell
 .\mvnw.cmd -f .\dpp-postgres\pom.xml -pl dpp4fun-postgres -am test
 ```
+
+Linux/macOS Bash:
 
 ```bash
 ./mvnw -f ./dpp-postgres/pom.xml -pl dpp4fun-postgres -am test

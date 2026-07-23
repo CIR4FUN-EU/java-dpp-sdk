@@ -191,11 +191,12 @@ Dpp4Fun updated = repoClient.updateDppById(stored.getDppId(), patch);
 DeleteDppResponse deleted = repoClient.deleteDppById(updated.getDppId());
 ```
 
-The repository applies this as RFC 7396-style JSON Merge Patch: the patch root
-must be an object, `null` removes a property, nested objects merge recursively,
-and arrays or other non-object values replace the existing value. The HTTP
-media type is currently `application/json`, not
-`application/merge-patch+json`.
+Partial-update support is only partially implemented. For an object-root patch,
+the repository follows RFC 7396 JSON Merge Patch behavior: `null` removes a
+property, nested objects merge recursively, and arrays or other non-object
+values replace the existing value. The API accepts only object-root patches and
+uses `application/json`, not `application/merge-patch+json`; therefore it does
+not implement every RFC 7396-valid patch document.
 
 ## Full and compressed reads
 
@@ -214,7 +215,10 @@ JsonNode compressed = repoClient.readCompressedDppById(dpp.getDppId());
 
 ## Fine-granular operations
 
-Fine-granular reads and updates use direct JSON values: `updateDataElement` sends the supplied `JsonNode` itself, not a wrapper. The client percent-encodes the DPP ID and element path.
+Fine-granular path support is only partially implemented. For the supported
+paths, reads and updates use direct JSON values: `updateDataElement` sends the
+supplied `JsonNode` itself, not a wrapper. The client percent-encodes the DPP ID
+and element path.
 
 ```java
 import com.fasterxml.jackson.databind.JsonNode;
@@ -230,7 +234,8 @@ JsonNode changed = repoClient.updateDataElement(
 );
 ```
 
-The connected mock repository supports this bounded RFC 9535-compatible absolute singular subset:
+The connected mock repository supports only this documented singular subset of
+RFC 9535 JSONPath:
 
 - root: `$`
 - dot member selectors, for example `$.characteristics.productName`
@@ -304,7 +309,8 @@ The mock repository and registry expose internal/demo endpoints for health check
 
 The behavior supported by this implementation is documented directly in this
 README. Compressed representations remain project-defined, and fine-granular
-operations support only the documented singular JSONPath subset.
+operations are partially implemented and support only the documented singular
+JSONPath subset.
 
 No formal specification compliance is claimed.
 
@@ -314,21 +320,25 @@ Requires JDK 17. The Maven wrapper is at the repository root. The commands below
 
 Required working directory: repository root.
 
-Run the tests:
+Run the tests — PowerShell:
 
 ```powershell
 .\mvnw.cmd -f .\dpp-sdk-clients\pom.xml test
 ```
 
+Linux/macOS Bash:
+
 ```bash
 ./mvnw -f ./dpp-sdk-clients/pom.xml test
 ```
 
-Build, test, and install all client artifacts locally:
+Build, test, and install all client artifacts locally — PowerShell:
 
 ```powershell
 .\mvnw.cmd -f .\dpp-sdk-clients\pom.xml clean install
 ```
+
+Linux/macOS Bash:
 
 ```bash
 ./mvnw -f ./dpp-sdk-clients/pom.xml clean install
@@ -340,21 +350,25 @@ The payload modules are ordinary Maven modules. A full client build compiles
 them transitively, or they can be tested independently from the repository
 root:
 
-Test `dpp-repo-payloads`:
+Test `dpp-repo-payloads` — PowerShell:
 
 ```powershell
 .\mvnw.cmd -f .\dpp-sdk-clients\pom.xml -pl dpp-repo-payloads -am test
 ```
 
+Linux/macOS Bash:
+
 ```bash
 ./mvnw -f ./dpp-sdk-clients/pom.xml -pl dpp-repo-payloads -am test
 ```
 
-Test `dpp-registry-payloads`:
+Test `dpp-registry-payloads` — PowerShell:
 
 ```powershell
 .\mvnw.cmd -f .\dpp-sdk-clients\pom.xml -pl dpp-registry-payloads -am test
 ```
+
+Linux/macOS Bash:
 
 ```bash
 ./mvnw -f ./dpp-sdk-clients/pom.xml -pl dpp-registry-payloads -am test
@@ -367,19 +381,25 @@ commands only.
 
 ### Focused module tests
 
-Run any of these focused reactors from the repository root:
+Run the `dpp-repo-client` focused reactor from the repository root — PowerShell:
 
 ```powershell
 .\mvnw.cmd -f .\dpp-sdk-clients\pom.xml -pl dpp-repo-client -am test
 ```
 
+Linux/macOS Bash:
+
 ```bash
 ./mvnw -f ./dpp-sdk-clients/pom.xml -pl dpp-repo-client -am test
 ```
 
+Run the `dpp-registry-client` focused reactor from the repository root — PowerShell:
+
 ```powershell
 .\mvnw.cmd -f .\dpp-sdk-clients\pom.xml -pl dpp-registry-client -am test
 ```
+
+Linux/macOS Bash:
 
 ```bash
 ./mvnw -f ./dpp-sdk-clients/pom.xml -pl dpp-registry-client -am test

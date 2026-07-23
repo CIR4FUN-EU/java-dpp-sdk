@@ -1,11 +1,17 @@
 # DPP SDK
 
-**Standards alignment**
+## Standards alignment
 
 - **EN 18222:2026:** Selected DPP repository and registry API shapes are implemented; this is not a formal compliance implementation.
+- **Lifecycle management:** The SDK supports DPP lifecycle operations, historical access, and lifecycle-event recording. EN 18222 covers APIs for DPP lifecycle management and searchability. SDK-specific lifecycle-event representations or operations that are not directly prescribed by the standard are documented as extensions.
+- DPP lifecycle operations and historical lookup are aligned with the lifecycle-management scope of EN 18222.
+
+## Known standards misalignments
+
 - **Backup operator:** The registry request does not implement a backup-operator field or operation.
 - **Compression:** The compressed representation is project-defined and is not claimed as a formally validated EN representation.
-- **Patch and paths:** RFC 7396-style Merge Patch uses `application/json` with object-root restrictions; fine-granular paths support only a bounded RFC 9535-compatible subset.
+- **Merge Patch and element paths:** Partial-update support is only partially implemented. For JSON objects, the API follows RFC 7396 JSON Merge Patch behavior, but it uses `application/json` instead of `application/merge-patch+json` and rejects valid non-object patch documents. Fine-grained element paths are also partially implemented: they support only the documented singular subset of RFC 9535 JSONPath, not the complete standard.
+- The SDK's lifecycle-event model and event-history representation are project-specific extensions where EN 18222 does not prescribe the same payload or operation.
 - **Operations:** Authentication, backup/recovery, and other production-operational requirements are outside the project scope.
 
 ![DPP SDK architecture](docs/dpp-sdk-architecture.drawio.png)
@@ -28,6 +34,8 @@ claim is made.
 
 Run these from the repository root to verify the prerequisites:
 
+PowerShell:
+
 ```powershell
 $env:JAVA_HOME
 java -version
@@ -36,6 +44,8 @@ Get-Command java
 docker --version
 docker compose version
 ```
+
+Linux/macOS Bash:
 
 ```bash
 printf '%s\n' "$JAVA_HOME"
@@ -50,16 +60,20 @@ docker compose version
 
 Run from the repository root. The package command creates the demo JARs. Compose then builds and starts the repository API, registry API, and their separate PostgreSQL 16 databases.
 
+PowerShell:
+
 ```powershell
 .\mvnw.cmd clean package
-docker compose -f dpp-sdk-demo\docker-compose.yml up -d --build
-docker compose -f dpp-sdk-demo\docker-compose.yml ps
+docker compose -f .\dpp-sdk-demo\docker-compose.yml up -d --build
+docker compose -f .\dpp-sdk-demo\docker-compose.yml ps
 ```
+
+Linux/macOS Bash:
 
 ```bash
 ./mvnw clean package
-docker compose -f dpp-sdk-demo/docker-compose.yml up -d --build
-docker compose -f dpp-sdk-demo/docker-compose.yml ps
+docker compose -f ./dpp-sdk-demo/docker-compose.yml up -d --build
+docker compose -f ./dpp-sdk-demo/docker-compose.yml ps
 ```
 
 Compose publishes repository API port `8080`, registry API port `8081`, repository PostgreSQL port `5433`, and registry PostgreSQL port `5434`. Both APIs run with PostgreSQL backends in this Docker configuration.
@@ -68,11 +82,15 @@ Compose publishes repository API port `8080`, registry API port `8081`, reposito
 
 From the repository root, wait until both services report `UP`, then run the HTTP walkthrough:
 
+PowerShell:
+
 ```powershell
 Invoke-WebRequest http://localhost:8080/health | Select-Object -ExpandProperty Content
 Invoke-WebRequest http://localhost:8081/health | Select-Object -ExpandProperty Content
 java -jar .\dpp-sdk-demo\dpp-integration-demo\target\dpp-integration-demo-0.5.0.jar http http://localhost:8081 http://localhost:8080 --debug=false
 ```
+
+Linux/macOS Bash:
 
 ```bash
 curl --fail http://localhost:8080/health
@@ -90,22 +108,30 @@ Opening `http://localhost:8080/` or `http://localhost:8081/` redirects directly 
 
 Run from the repository root. Stop the environment while retaining the PostgreSQL volumes:
 
+PowerShell:
+
 ```powershell
-docker compose -f dpp-sdk-demo\docker-compose.yml down
+docker compose -f .\dpp-sdk-demo\docker-compose.yml down
 ```
 
+Linux/macOS Bash:
+
 ```bash
-docker compose -f dpp-sdk-demo/docker-compose.yml down
+docker compose -f ./dpp-sdk-demo/docker-compose.yml down
 ```
 
 Stop the environment and delete persisted demo data:
 
+PowerShell:
+
 ```powershell
-docker compose -f dpp-sdk-demo/docker-compose.yml down -v
+docker compose -f .\dpp-sdk-demo\docker-compose.yml down -v
 ```
 
+Linux/macOS Bash:
+
 ```bash
-docker compose -f dpp-sdk-demo/docker-compose.yml down -v
+docker compose -f ./dpp-sdk-demo/docker-compose.yml down -v
 ```
 
 ## Local execution and advanced control
@@ -199,9 +225,13 @@ The method validates the object, supplies the concrete codec and validator to th
 
 Run from the repository root:
 
+PowerShell:
+
 ```powershell
 .\mvnw.cmd clean verify
 ```
+
+Linux/macOS Bash:
 
 ```bash
 ./mvnw clean verify
@@ -225,7 +255,7 @@ With the Docker stack running:
 ## Current limitations
 
 - The mock repository and registry are demo services, not production services; the registry stores metadata only, while the repository stores complete DPPs.
-- Fine-granular paths implement only a bounded RFC 9535-compatible singular subset, not full JSONPath.
+- Fine-granular paths are only partially implemented: they support the documented singular subset of RFC 9535 JSONPath, not full JSONPath.
 - Full-DPP GET routes default to a project-defined compressed summary; formal payload-specification conformity is not claimed.
 - Public client routes are under `/v1/...`; demo-only support routes are under `/internal/...` and are not client methods.
 - Some public API contracts were designed with reference to confidential external technical specifications that are not included in this repository.

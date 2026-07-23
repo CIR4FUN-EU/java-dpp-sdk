@@ -56,13 +56,15 @@ the working directory never changes.
 - The upstream artifacts in the local Maven repository when building this subproject alone
 
 For an isolated demo build, install the upstream reactors in the following
-order from the repository root:
+order from the repository root — PowerShell:
 
 ```powershell
 .\mvnw.cmd -f .\dpp-datamodel\pom.xml clean install
 .\mvnw.cmd -f .\dpp-postgres\pom.xml clean install
 .\mvnw.cmd -f .\dpp-sdk-clients\pom.xml clean install
 ```
+
+Linux/macOS Bash:
 
 ```bash
 ./mvnw -f ./dpp-datamodel/pom.xml clean install
@@ -74,11 +76,13 @@ An existing `.env` can override backend and port defaults. The documented
 memory-mode commands pass explicit backend properties so the result remains
 reproducible.
 
-Then build the runnable JARs:
+Then build the runnable JARs — PowerShell:
 
 ```powershell
 .\mvnw.cmd -f .\dpp-sdk-demo\pom.xml clean package
 ```
+
+Linux/macOS Bash:
 
 ```bash
 ./mvnw -f ./dpp-sdk-demo/pom.xml clean package
@@ -92,16 +96,20 @@ Use this for the complete PostgreSQL-backed stack. `dpp-sdk-demo/docker-compose.
 
 **Working directory:** repository root.
 
+PowerShell:
+
 ```powershell
-docker compose -f dpp-sdk-demo/docker-compose.yml up -d --build
-docker compose -f dpp-sdk-demo/docker-compose.yml ps
+docker compose -f .\dpp-sdk-demo\docker-compose.yml up -d --build
+docker compose -f .\dpp-sdk-demo\docker-compose.yml ps
 Invoke-WebRequest http://localhost:8080/health | Select-Object -ExpandProperty Content
 Invoke-WebRequest http://localhost:8081/health | Select-Object -ExpandProperty Content
 ```
 
+Linux/macOS Bash:
+
 ```bash
-docker compose -f dpp-sdk-demo/docker-compose.yml up -d --build
-docker compose -f dpp-sdk-demo/docker-compose.yml ps
+docker compose -f ./dpp-sdk-demo/docker-compose.yml up -d --build
+docker compose -f ./dpp-sdk-demo/docker-compose.yml ps
 curl --fail http://localhost:8080/health
 curl --fail http://localhost:8081/health
 ```
@@ -109,19 +117,23 @@ curl --fail http://localhost:8081/health
 Wait until both API containers are healthy or running before executing the
 health requests. If a request initially fails, inspect:
 
+PowerShell:
+
 ```powershell
-docker compose -f dpp-sdk-demo/docker-compose.yml ps
-docker compose -f dpp-sdk-demo/docker-compose.yml logs --tail=100 dpp-repo-api
-docker compose -f dpp-sdk-demo/docker-compose.yml logs --tail=100 dpp-registry-api
+docker compose -f .\dpp-sdk-demo\docker-compose.yml ps
+docker compose -f .\dpp-sdk-demo\docker-compose.yml logs --tail=100 dpp-repo-api
+docker compose -f .\dpp-sdk-demo\docker-compose.yml logs --tail=100 dpp-registry-api
 ```
+
+Linux/macOS Bash:
 
 ```bash
-docker compose -f dpp-sdk-demo/docker-compose.yml ps
-docker compose -f dpp-sdk-demo/docker-compose.yml logs --tail=100 dpp-repo-api
-docker compose -f dpp-sdk-demo/docker-compose.yml logs --tail=100 dpp-registry-api
+docker compose -f ./dpp-sdk-demo/docker-compose.yml ps
+docker compose -f ./dpp-sdk-demo/docker-compose.yml logs --tail=100 dpp-repo-api
+docker compose -f ./dpp-sdk-demo/docker-compose.yml logs --tail=100 dpp-registry-api
 ```
 
-Success: both APIs are `running` in `docker compose -f dpp-sdk-demo/docker-compose.yml ps`, and each health request returns JSON with `status` `UP`. Use [Stop and clean](#stop-and-clean) for shutdown choices.
+Success: both APIs are `running` in the default Compose stack, and each health request returns JSON with `status` `UP`. Use [Stop and clean](#stop-and-clean) for shutdown choices.
 
 Opening `http://localhost:8080/` or `http://localhost:8081/` redirects directly to the corresponding Swagger UI. Use `/health` for machine-readable status and `/v3/api-docs` for OpenAPI JSON.
 
@@ -141,22 +153,30 @@ Use this for disposable local development. Memory is the code default only when 
 
 Start the repository in one terminal:
 
+PowerShell:
+
 ```powershell
-java -jar dpp-sdk-demo\mock-dpp-repo\target\mock-dpp-repo-0.5.0-exec.jar --dpp.repo.backend=memory --server.port=8080 --debug=false
+java -jar .\dpp-sdk-demo\mock-dpp-repo\target\mock-dpp-repo-0.5.0-exec.jar --dpp.repo.backend=memory --server.port=8080 --debug=false
 ```
 
+Linux/macOS Bash:
+
 ```bash
-java -jar dpp-sdk-demo/mock-dpp-repo/target/mock-dpp-repo-0.5.0-exec.jar --dpp.repo.backend=memory --server.port=8080 --debug=false
+java -jar ./dpp-sdk-demo/mock-dpp-repo/target/mock-dpp-repo-0.5.0-exec.jar --dpp.repo.backend=memory --server.port=8080 --debug=false
 ```
 
 Then start the registry in another terminal:
 
+PowerShell:
+
 ```powershell
-java -jar dpp-sdk-demo\mock-eu-registry\target\mock-eu-registry-0.5.0-exec.jar --dpp.registry.backend=memory --server.port=8081 --demo.repo.public-base-url=http://localhost:8080 --demo.repo.verification-base-url=http://localhost:8080 --debug=false
+java -jar .\dpp-sdk-demo\mock-eu-registry\target\mock-eu-registry-0.5.0-exec.jar --dpp.registry.backend=memory --server.port=8081 --demo.repo.public-base-url=http://localhost:8080 --demo.repo.verification-base-url=http://localhost:8080 --debug=false
 ```
 
+Linux/macOS Bash:
+
 ```bash
-java -jar dpp-sdk-demo/mock-eu-registry/target/mock-eu-registry-0.5.0-exec.jar --dpp.registry.backend=memory --server.port=8081 --demo.repo.public-base-url=http://localhost:8080 --demo.repo.verification-base-url=http://localhost:8080 --debug=false
+java -jar ./dpp-sdk-demo/mock-eu-registry/target/mock-eu-registry-0.5.0-exec.jar --dpp.registry.backend=memory --server.port=8081 --demo.repo.public-base-url=http://localhost:8080 --demo.repo.verification-base-url=http://localhost:8080 --debug=false
 ```
 
 Success: `GET /health` at both addresses returns `UP`. Stop each service with `Ctrl+C` in its terminal.
@@ -174,13 +194,13 @@ Use this local-JAR PostgreSQL mode when the APIs should run on the host but the 
 PowerShell:
 
 ```powershell
-docker compose -f dpp-sdk-demo/docker-compose.postgres.yml up -d dpp-repo-db dpp-registry-db
+docker compose -f .\dpp-sdk-demo\docker-compose.postgres.yml up -d dpp-repo-db dpp-registry-db
 ```
 
 Linux/macOS Bash:
 
 ```bash
-docker compose -f dpp-sdk-demo/docker-compose.postgres.yml up -d dpp-repo-db dpp-registry-db
+docker compose -f ./dpp-sdk-demo/docker-compose.postgres.yml up -d dpp-repo-db dpp-registry-db
 ```
 
 ### 2. Start the repository in a separate terminal
@@ -188,13 +208,13 @@ docker compose -f dpp-sdk-demo/docker-compose.postgres.yml up -d dpp-repo-db dpp
 PowerShell:
 
 ```powershell
-java -jar dpp-sdk-demo\mock-dpp-repo\target\mock-dpp-repo-0.5.0-exec.jar --dpp.repo.backend=postgres --spring.datasource.url=jdbc:postgresql://localhost:5433/dpp_repo --spring.datasource.username=dpp_repo --spring.datasource.password=dpp_repo --server.port=8080 --debug=false
+java -jar .\dpp-sdk-demo\mock-dpp-repo\target\mock-dpp-repo-0.5.0-exec.jar --dpp.repo.backend=postgres --spring.datasource.url=jdbc:postgresql://localhost:5433/dpp_repo --spring.datasource.username=dpp_repo --spring.datasource.password=dpp_repo --server.port=8080 --debug=false
 ```
 
 Linux/macOS Bash:
 
 ```bash
-java -jar dpp-sdk-demo/mock-dpp-repo/target/mock-dpp-repo-0.5.0-exec.jar --dpp.repo.backend=postgres --spring.datasource.url=jdbc:postgresql://localhost:5433/dpp_repo --spring.datasource.username=dpp_repo --spring.datasource.password=dpp_repo --server.port=8080 --debug=false
+java -jar ./dpp-sdk-demo/mock-dpp-repo/target/mock-dpp-repo-0.5.0-exec.jar --dpp.repo.backend=postgres --spring.datasource.url=jdbc:postgresql://localhost:5433/dpp_repo --spring.datasource.username=dpp_repo --spring.datasource.password=dpp_repo --server.port=8080 --debug=false
 ```
 
 ### 3. Start the registry in another terminal
@@ -202,13 +222,13 @@ java -jar dpp-sdk-demo/mock-dpp-repo/target/mock-dpp-repo-0.5.0-exec.jar --dpp.r
 PowerShell:
 
 ```powershell
-java -jar dpp-sdk-demo\mock-eu-registry\target\mock-eu-registry-0.5.0-exec.jar --dpp.registry.backend=postgres --spring.datasource.url=jdbc:postgresql://localhost:5434/dpp_registry --spring.datasource.username=dpp_registry --spring.datasource.password=dpp_registry --server.port=8081 --demo.repo.public-base-url=http://localhost:8080 --demo.repo.verification-base-url=http://localhost:8080 --debug=false
+java -jar .\dpp-sdk-demo\mock-eu-registry\target\mock-eu-registry-0.5.0-exec.jar --dpp.registry.backend=postgres --spring.datasource.url=jdbc:postgresql://localhost:5434/dpp_registry --spring.datasource.username=dpp_registry --spring.datasource.password=dpp_registry --server.port=8081 --demo.repo.public-base-url=http://localhost:8080 --demo.repo.verification-base-url=http://localhost:8080 --debug=false
 ```
 
 Linux/macOS Bash:
 
 ```bash
-java -jar dpp-sdk-demo/mock-eu-registry/target/mock-eu-registry-0.5.0-exec.jar --dpp.registry.backend=postgres --spring.datasource.url=jdbc:postgresql://localhost:5434/dpp_registry --spring.datasource.username=dpp_registry --spring.datasource.password=dpp_registry --server.port=8081 --demo.repo.public-base-url=http://localhost:8080 --demo.repo.verification-base-url=http://localhost:8080 --debug=false
+java -jar ./dpp-sdk-demo/mock-eu-registry/target/mock-eu-registry-0.5.0-exec.jar --dpp.registry.backend=postgres --spring.datasource.url=jdbc:postgresql://localhost:5434/dpp_registry --spring.datasource.username=dpp_registry --spring.datasource.password=dpp_registry --server.port=8081 --demo.repo.public-base-url=http://localhost:8080 --demo.repo.verification-base-url=http://localhost:8080 --debug=false
 ```
 
 Success: both local health URLs return `UP`. Created database records remain
@@ -216,7 +236,7 @@ available across JAR restarts while the PostgreSQL containers and volumes are
 retained. Stop the JARs with `Ctrl+C`, then use the PostgreSQL cleanup commands
 in [Stop and clean](#stop-and-clean).
 
-For a full prebuilt-image PostgreSQL stack, use `docker compose -f dpp-sdk-demo/docker-compose.postgres.yml up -d` after publishing or pulling the configured images. The default `dpp-sdk-demo/docker-compose.yml` and `dpp-sdk-demo/docker-compose.build.yml` are the buildable full-stack definitions.
+For a full prebuilt-image PostgreSQL stack, start the configured-image Compose stack after publishing or pulling the configured images. The default `dpp-sdk-demo/docker-compose.yml` and `dpp-sdk-demo/docker-compose.build.yml` are the buildable full-stack definitions.
 
 ## Individual service control
 
@@ -224,16 +244,20 @@ Use this while debugging one service. Docker starts required dependencies automa
 
 **Working directory:** repository root.
 
+PowerShell:
+
 ```powershell
-docker compose -f dpp-sdk-demo/docker-compose.yml up -d dpp-repo-api
-docker compose -f dpp-sdk-demo/docker-compose.yml logs -f dpp-repo-api
-docker compose -f dpp-sdk-demo/docker-compose.yml stop dpp-repo-api
+docker compose -f .\dpp-sdk-demo\docker-compose.yml up -d dpp-repo-api
+docker compose -f .\dpp-sdk-demo\docker-compose.yml logs -f dpp-repo-api
+docker compose -f .\dpp-sdk-demo\docker-compose.yml stop dpp-repo-api
 ```
 
+Linux/macOS Bash:
+
 ```bash
-docker compose -f dpp-sdk-demo/docker-compose.yml up -d dpp-repo-api
-docker compose -f dpp-sdk-demo/docker-compose.yml logs -f dpp-repo-api
-docker compose -f dpp-sdk-demo/docker-compose.yml stop dpp-repo-api
+docker compose -f ./dpp-sdk-demo/docker-compose.yml up -d dpp-repo-api
+docker compose -f ./dpp-sdk-demo/docker-compose.yml logs -f dpp-repo-api
+docker compose -f ./dpp-sdk-demo/docker-compose.yml stop dpp-repo-api
 ```
 
 The `logs -f` command follows the logs until you press `Ctrl+C`; it does not
@@ -241,7 +265,7 @@ stop the service. Run the subsequent `stop` command afterward when needed.
 
 The registry expects a reachable repository for new registration verification. In Docker, its internal verifier uses `http://dpp-repo-api:8080`; the registration's public `dppApiEndpoint` can remain a host-reachable URL such as `http://localhost:8080`.
 
-Success: `docker compose -f dpp-sdk-demo/docker-compose.yml logs` shows the service started and its `/health` endpoint returns `UP`. The last command above stops the selected service; use `docker compose -f dpp-sdk-demo/docker-compose.yml start dpp-repo-api` to start it again.
+Success: the selected service's Compose logs show it started and its `/health` endpoint returns `UP`. The last command above stops the selected service; start that service again with the matching platform-specific Compose command.
 
 ## Integration-demo modes
 
@@ -257,18 +281,22 @@ Optional positional URLs are `registryUrl` then `repoUrl`.
 
 **Working directory:** repository root.
 
+PowerShell:
+
 ```powershell
-java -jar dpp-sdk-demo\dpp-integration-demo\target\dpp-integration-demo-0.5.0.jar sdk --debug=false
-java -jar dpp-sdk-demo\dpp-integration-demo\target\dpp-integration-demo-0.5.0.jar http --debug=false
-java -jar dpp-sdk-demo\dpp-integration-demo\target\dpp-integration-demo-0.5.0.jar all --debug=false
-java -jar dpp-sdk-demo\dpp-integration-demo\target\dpp-integration-demo-0.5.0.jar http http://localhost:8081 http://localhost:8080 --debug=false
+java -jar .\dpp-sdk-demo\dpp-integration-demo\target\dpp-integration-demo-0.5.0.jar sdk --debug=false
+java -jar .\dpp-sdk-demo\dpp-integration-demo\target\dpp-integration-demo-0.5.0.jar http --debug=false
+java -jar .\dpp-sdk-demo\dpp-integration-demo\target\dpp-integration-demo-0.5.0.jar all --debug=false
+java -jar .\dpp-sdk-demo\dpp-integration-demo\target\dpp-integration-demo-0.5.0.jar http http://localhost:8081 http://localhost:8080 --debug=false
 ```
 
+Linux/macOS Bash:
+
 ```bash
-java -jar dpp-sdk-demo/dpp-integration-demo/target/dpp-integration-demo-0.5.0.jar sdk --debug=false
-java -jar dpp-sdk-demo/dpp-integration-demo/target/dpp-integration-demo-0.5.0.jar http --debug=false
-java -jar dpp-sdk-demo/dpp-integration-demo/target/dpp-integration-demo-0.5.0.jar all --debug=false
-java -jar dpp-sdk-demo/dpp-integration-demo/target/dpp-integration-demo-0.5.0.jar http http://localhost:8081 http://localhost:8080 --debug=false
+java -jar ./dpp-sdk-demo/dpp-integration-demo/target/dpp-integration-demo-0.5.0.jar sdk --debug=false
+java -jar ./dpp-sdk-demo/dpp-integration-demo/target/dpp-integration-demo-0.5.0.jar http --debug=false
+java -jar ./dpp-sdk-demo/dpp-integration-demo/target/dpp-integration-demo-0.5.0.jar all --debug=false
+java -jar ./dpp-sdk-demo/dpp-integration-demo/target/dpp-integration-demo-0.5.0.jar http http://localhost:8081 http://localhost:8080 --debug=false
 ```
 
 Success for `sdk`: `SDK capability demo complete`. Success for HTTP modes: `HTTP services demo complete`; it creates, reads, updates, registers, exercises expected failures, and soft-deletes a DPP. The runner exits itself when complete.
@@ -277,70 +305,93 @@ Success for `sdk`: `SDK capability demo complete`. Success for HTTP modes: `HTTP
 
 Run these from the **repository root** after any Docker-based mode. Stop local JAR processes with `Ctrl+C` in the terminal that started each process.
 
+PowerShell:
+
 ```powershell
-docker compose -f dpp-sdk-demo/docker-compose.yml stop
+docker compose -f .\dpp-sdk-demo\docker-compose.yml stop
 ```
 
+Linux/macOS Bash:
+
 ```bash
-docker compose -f dpp-sdk-demo/docker-compose.yml stop
+docker compose -f ./dpp-sdk-demo/docker-compose.yml stop
 ```
 
 The command above stops the default stack while retaining its volumes. To
 remove the default stack while retaining its volumes, run instead:
 
+PowerShell:
+
 ```powershell
-docker compose -f dpp-sdk-demo/docker-compose.yml down
+docker compose -f .\dpp-sdk-demo\docker-compose.yml down
 ```
 
+Linux/macOS Bash:
+
 ```bash
-docker compose -f dpp-sdk-demo/docker-compose.yml down
+docker compose -f ./dpp-sdk-demo/docker-compose.yml down
 ```
 
 To remove the default stack and its persisted PostgreSQL data, run instead:
 
+PowerShell:
+
 ```powershell
-docker compose -f dpp-sdk-demo/docker-compose.yml down -v
+docker compose -f .\dpp-sdk-demo\docker-compose.yml down -v
 ```
 
+Linux/macOS Bash:
+
 ```bash
-docker compose -f dpp-sdk-demo/docker-compose.yml down -v
+docker compose -f ./dpp-sdk-demo/docker-compose.yml down -v
 ```
 
 For the PostgreSQL-only Compose file, choose one of these alternatives:
 
 Stop its containers while retaining volumes:
 
+PowerShell:
+
 ```powershell
-docker compose -f dpp-sdk-demo/docker-compose.postgres.yml stop
+docker compose -f .\dpp-sdk-demo\docker-compose.postgres.yml stop
 ```
 
+Linux/macOS Bash:
+
 ```bash
-docker compose -f dpp-sdk-demo/docker-compose.postgres.yml stop
+docker compose -f ./dpp-sdk-demo/docker-compose.postgres.yml stop
 ```
 
 Remove its containers and network while retaining volumes:
 
+PowerShell:
+
 ```powershell
-docker compose -f dpp-sdk-demo/docker-compose.postgres.yml down
+docker compose -f .\dpp-sdk-demo\docker-compose.postgres.yml down
 ```
 
+Linux/macOS Bash:
+
 ```bash
-docker compose -f dpp-sdk-demo/docker-compose.postgres.yml down
+docker compose -f ./dpp-sdk-demo/docker-compose.postgres.yml down
 ```
 
 Remove its containers, network, and database volumes:
 
+PowerShell:
+
 ```powershell
-docker compose -f dpp-sdk-demo/docker-compose.postgres.yml down -v
+docker compose -f .\dpp-sdk-demo\docker-compose.postgres.yml down -v
 ```
 
+Linux/macOS Bash:
+
 ```bash
-docker compose -f dpp-sdk-demo/docker-compose.postgres.yml down -v
+docker compose -f ./dpp-sdk-demo/docker-compose.postgres.yml down -v
 ```
 
 `down -v` removes the respective Compose containers, network, and named
-PostgreSQL volumes. Success: `docker compose -f dpp-sdk-demo/docker-compose.yml ps`
-(or the matching `-f dpp-sdk-demo/docker-compose.postgres.yml ps`) shows no services.
+PostgreSQL volumes. Success: the matching Compose `ps` command shows no services.
 
 ## Common ports and runtime configuration
 
@@ -374,7 +425,7 @@ Import all three JSON collections from [`postman/`](postman/) (`dpp-sdk-demo/pos
 ## Troubleshooting and success checks
 
 - **Port already in use:** change the relevant `MOCK_*_PORT` or `--server.port`, then pass matching URLs to the integration runner.
-- **PostgreSQL start fails:** check `docker compose -f dpp-sdk-demo/docker-compose.yml ps` and database logs; verify the chosen host ports are free.
+- **PostgreSQL start fails:** check the default Compose stack's `ps` output and database logs; verify the chosen host ports are free.
 - **Local JAR unexpectedly seeks PostgreSQL:** an `.env` may set a backend. Pass `--dpp.repo.backend=memory` and `--dpp.registry.backend=memory` as above.
 - **Registry registration fails:** create the DPP in the repository first and make `DEMO_REPO_VERIFICATION_BASE_URL` reach that repository from the registry process. A 404 means the DPP is absent or deleted; a verification connectivity failure is a 502.
 - **Integration runner cannot reach services:** it probes `/health`, preferring Docker service names and then `localhost`. Supply the two explicit URLs when running from another network namespace.
