@@ -7,14 +7,14 @@
     <parent>
         <groupId>dpp.client</groupId>
         <artifactId>dpp-sdk-clients</artifactId>
-        <version>0.5.1</version>
+        <version>0.6.0</version>
     </parent>
 
     <artifactId>dpp-repo-payloads</artifactId>
     <packaging>jar</packaging>
 
     <name>dpp-repo-payloads</name>
-    <description>Repository API payload contracts for draft-prEN-18222-aligned DPP repository endpoints.</description>
+    <description>JSON response and request contracts for EN 18222 repository endpoints.</description>
 
     <dependencies>
         <dependency>

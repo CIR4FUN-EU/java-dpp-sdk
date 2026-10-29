@@ -7,22 +7,26 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import demo.producer.support.DemoDppFactory;
-import demo.producer.support.Dpp4FunDppCodecAdapter;
-import demo.producer.support.Dpp4FunDppValidatorAdapter;
 import demo.producer.support.RegistryRecordPayload;
 import dpp.registry.client.DppRegistryClient;
 import demo.registry.MockEuRegistryApplication;
-import demo.repo.MockRepoApplication;
+import demo.repo.DemoRepoApplication;
 import dpp.registry.client.HttpDppRegistryClient;
-import dpp.registry.client.exception.DppHttpClientException;
-import dpp.registry.payloads.DppStatusCode;
 import dpp.registry.payloads.RegisterDppRequest;
 import dpp.repo.client.HttpDppRepoClient;
+import dpp.repo.client.exception.DppApiClientException;
+import dpp.repo.payloads.DppRepresentation;
 import dppsdk.dpp4fun.model.Dpp4Fun;
+import dppsdk.dpp4fun.transport.Dpp4FunJsonCodec;
+import dppsdk.dpp4fun.validation.Dpp4FunValidationService;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.ApplicationContextFactory;
@@ -31,8 +35,30 @@ import org.springframework.boot.WebApplicationType;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.boot.web.servlet.context.AnnotationConfigServletWebServerApplicationContext;
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext;
+import org.testcontainers.containers.PostgreSQLContainer;
 
 class RealServicesSmokeTest {
+
+    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+    private static final Map<String, String> ORIGINAL_DATASOURCE_PROPERTIES = new LinkedHashMap<>();
+
+    @BeforeAll
+    static void startPostgresWhenRequested() {
+        if (!"postgres".equalsIgnoreCase(System.getProperty("dpp.repo.backend", "memory"))) return;
+        POSTGRES.start();
+        setDatasourceProperty("spring.datasource.url", POSTGRES.getJdbcUrl());
+        setDatasourceProperty("spring.datasource.username", POSTGRES.getUsername());
+        setDatasourceProperty("spring.datasource.password", POSTGRES.getPassword());
+    }
+
+    @AfterAll
+    static void stopPostgresWhenStarted() {
+        if (POSTGRES.isRunning()) POSTGRES.stop();
+        ORIGINAL_DATASOURCE_PROPERTIES.forEach((key, value) -> {
+            if (value == null) System.clearProperty(key);
+            else System.setProperty(key, value);
+        });
+    }
 
     private final DemoDppFactory factory = new DemoDppFactory();
 
@@ -52,9 +78,9 @@ class RealServicesSmokeTest {
     }
 
     @Test
-    @DisplayName("Real repo and registry services support create then register with repo-backed HEAD verification")
+    @DisplayName("Real repo and registry services support creating a DPP and registering its metadata")
     void realRepoAndRegistrySupportCreateThenRegisterFlow() {
-        repoContext = startContext(MockRepoApplication.class);
+        repoContext = startContext(DemoRepoApplication.class);
         registryContext = startContext(MockEuRegistryApplication.class);
         clearInMemoryStore(repoContext, "inMemoryDppStore");
         clearInMemoryStore(registryContext, "inMemoryRegistryStore");
@@ -62,46 +88,45 @@ class RealServicesSmokeTest {
         String repoUrl = "http://localhost:" + localPort(repoContext);
         String registryUrl = "http://localhost:" + localPort(registryContext);
 
-        HttpDppRepoClient<Dpp4Fun> repoClient = new HttpDppRepoClient<>(
-                repoUrl,
-                new Dpp4FunDppCodecAdapter(),
-                new Dpp4FunDppValidatorAdapter()
-        );
+        HttpDppRepoClient repoClient = new HttpDppRepoClient(repoUrl);
         DppRegistryClient registryClient = new HttpDppRegistryClient(registryUrl);
         MockRegistryLookupClient mockRegistryLookupClient = new MockRegistryLookupClient(
                 registryUrl,
                 new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
         );
 
-        Dpp4Fun dpp = factory.createValidBedDpp();
-        String dppId = dpp.getDppId();
-        String productId = dpp.getProductId();
+        Dpp4Fun dpp = factory.withFreshDppId(factory.createValidBedDpp());
+        String dppId = DemoDppFactory.idOf(dpp);
+        String productId = dpp.getUniqueProductIdentifier();
 
-        assertEquals(dppId, repoClient.createDpp(dpp).getDppId());
-        assertEquals("Cir4Fun Platform Bed", repoClient.readDataElement(dppId,
-                "$.characteristics.productName").asText());
+        deleteExistingByProductId(repoClient, productId);
+        assertTrue(new Dpp4FunValidationService().validate(dpp).isValid());
+        assertEquals(dppId, repoClient.createDpp(toJson(dpp)).getDigitalProductPassportId());
+        assertEquals("Cir4Fun", repoClient.readDataElement(dppId,
+                DemoDppFactory.BRAND_PATH).getPayload().asText());
         assertEquals("FSC certified wood", repoClient.readDataElement(dppId,
-                "$.billOfMaterials.materials[0].name").asText());
+                DemoDppFactory.FIRST_MATERIAL_NAME_PATH).getPayload().asText());
+        com.fasterxml.jackson.databind.node.ObjectNode changedName = (com.fasterxml.jackson.databind.node.ObjectNode)
+                repoClient.readDataElement(dppId, DemoDppFactory.BRAND_PATH, DppRepresentation.FULL).getPayload();
+        changedName.put("value", "Fine-granular smoke update");
         assertEquals("Fine-granular smoke update", repoClient.updateDataElement(dppId,
-                "$.characteristics.productName",
-                new com.fasterxml.jackson.databind.ObjectMapper().getNodeFactory()
-                        .textNode("Fine-granular smoke update")).asText());
+                DemoDppFactory.BRAND_PATH, changedName, DppRepresentation.FULL).getPayload().path("value").asText());
         assertEquals("Fine-granular smoke update", repoClient.readDataElement(dppId,
-                "$.characteristics.productName").asText());
+                DemoDppFactory.BRAND_PATH).getPayload().asText());
 
-        dpp.repo.client.exception.DppHttpClientException malformedPath = assertThrows(
-                dpp.repo.client.exception.DppHttpClientException.class,
-                () -> repoClient.readDataElement(dppId, "characteristics.productName")
+        DppApiClientException malformedPath = assertThrows(
+                DppApiClientException.class,
+                () -> repoClient.readDataElement(dppId, "elements[3].elements[0].value")
         );
-        assertEquals(400, malformedPath.statusCode());
-        dpp.repo.client.exception.DppHttpClientException noMatch = assertThrows(
-                dpp.repo.client.exception.DppHttpClientException.class,
-                () -> repoClient.readDataElement(dppId, "$.characteristics.missing")
+        assertEquals(400, malformedPath.httpStatus());
+        DppApiClientException noMatch = assertThrows(
+                DppApiClientException.class,
+                () -> repoClient.readDataElement(dppId, "$.elements[3].elements[99]")
         );
-        assertEquals(404, noMatch.statusCode());
+        assertEquals(404, noMatch.httpStatus());
         dpp.repo.client.exception.DppHttpClientException unsupportedWildcard = assertThrows(
                 dpp.repo.client.exception.DppHttpClientException.class,
-                () -> repoClient.readDataElement(dppId, "$.billOfMaterials.materials[*]")
+                () -> repoClient.readDataElement(dppId, "$.elements[4].elements[0].value[*]")
         );
         assertEquals(501, unsupportedWildcard.statusCode());
 
@@ -118,62 +143,79 @@ class RealServicesSmokeTest {
         assertEquals(repoUrl, registryRecord.repoUrl());
         assertTrue(mockRegistryLookupClient.readByRegistryId(registryIdentifier).isPresent());
 
-        DppHttpClientException missingDpp = assertThrows(
-                DppHttpClientException.class,
-                () -> registryClient.postNewDppToRegistry(
-                        new RegisterDppRequest(productId, "missing-dpp-id", "operator-123", repoUrl)
-                )
-        );
-        assertEquals(404, missingDpp.statusCode());
-        assertTrue(missingDpp.responseBody().contains(DppStatusCode.ClientErrorResourceNotFound.name()));
+        String unreachableEndpoint = "http://127.0.0.1:1/v1";
+        String registrationForMissingDpp = registryClient.postNewDppToRegistry(
+                new RegisterDppRequest(productId, "missing-dpp-id", "operator-123", unreachableEndpoint)
+        ).getRegistrationId();
+        assertFalse(registrationForMissingDpp.isBlank());
+        RegistryRecordPayload missingDppMetadata = mockRegistryLookupClient.readByDppId("missing-dpp-id").orElseThrow();
+        assertEquals(unreachableEndpoint, missingDppMetadata.repoUrl());
     }
 
     @Test
     @DisplayName("HTTP demo rerun succeeds when a previous aborted run left the demo DPP in the repo")
     void httpDemoRerunSucceedsWhenPreviousRunLeftDemoDppInRepo() {
-        repoContext = startContext(MockRepoApplication.class);
+        repoContext = startContext(DemoRepoApplication.class);
         registryContext = startContext(MockEuRegistryApplication.class);
         clearInMemoryStore(repoContext, "inMemoryDppStore");
         clearInMemoryStore(registryContext, "inMemoryRegistryStore");
 
         String repoUrl = "http://localhost:" + localPort(repoContext);
         String registryUrl = "http://localhost:" + localPort(registryContext);
-        HttpDppRepoClient<Dpp4Fun> repoClient = new HttpDppRepoClient<>(
-                repoUrl,
-                new Dpp4FunDppCodecAdapter(),
-                new Dpp4FunDppValidatorAdapter()
-        );
+        HttpDppRepoClient repoClient = new HttpDppRepoClient(repoUrl);
         MockRegistryLookupClient mockRegistryLookupClient = new MockRegistryLookupClient(
                 registryUrl,
                 new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
         );
 
-        Dpp4Fun dpp = factory.createValidBedDpp();
-        String dppId = dpp.getDppId();
-        String productId = dpp.getProductId();
-        repoClient.createDpp(dpp);
+        Dpp4Fun dpp = factory.withFreshDppId(factory.createValidBedDpp());
+        String dppId = DemoDppFactory.idOf(dpp);
+        String productId = dpp.getUniqueProductIdentifier();
+        deleteExistingByProductId(repoClient, productId);
+        assertTrue(new Dpp4FunValidationService().validate(dpp).isValid());
+        repoClient.createDpp(toJson(dpp));
 
         String demoOutput = captureStandardOut(() ->
                 assertDoesNotThrow(() -> new HttpServiceDemoRunner().run(registryUrl, repoUrl)));
 
         assertTrue(demoOutput.contains("-- Compare compressed and full DPP representations --"));
-        assertTrue(demoOutput.contains("compressed representation : compressed"));
-        assertTrue(demoOutput.contains("full representation       : complete DPP JSON decoded into Dpp4Fun"));
-        assertTrue(demoOutput.contains("$.characteristics.productName"));
-        assertTrue(demoOutput.contains("$.billOfMaterials.materials[0].name"));
+        assertTrue(demoOutput.contains("COMPRESSED DPP (EN 18223 elementId-keyed JSON):"));
+        assertTrue(demoOutput.contains("FULL DPP (expanded JSON):"));
+        assertTrue(demoOutput.contains("Nameplate collection @ $.elements[1]:"));
+        assertTrue(demoOutput.contains("Brand DataElement (FULL) @ " + DemoDppFactory.BRAND_PATH + ":"));
+        assertTrue(demoOutput.contains(DemoDppFactory.BRAND_PATH));
+        assertTrue(demoOutput.contains(DemoDppFactory.FIRST_MATERIAL_NAME_PATH));
 
-        dpp.repo.client.exception.DppHttpClientException missingOldDpp = assertThrows(
-                dpp.repo.client.exception.DppHttpClientException.class,
+        DppApiClientException missingOldDpp = assertThrows(
+                DppApiClientException.class,
                 () -> repoClient.readDppById(dppId)
         );
-        assertEquals(404, missingOldDpp.statusCode());
+        assertEquals(404, missingOldDpp.httpStatus());
 
-        dpp.repo.client.exception.DppHttpClientException missingByProductAfterRun = assertThrows(
-                dpp.repo.client.exception.DppHttpClientException.class,
+        DppApiClientException missingByProductAfterRun = assertThrows(
+                DppApiClientException.class,
                 () -> repoClient.readDppByProductId(productId)
         );
-        assertEquals(404, missingByProductAfterRun.statusCode());
+        assertEquals(404, missingByProductAfterRun.httpStatus());
         assertTrue(mockRegistryLookupClient.readByDppId(dppId).isEmpty());
+    }
+
+    @Test
+    @DisplayName("HTTP demo first run succeeds when the repository has no matching DPP")
+    void httpDemoFirstRunSucceedsWhenRepositoryHasNoMatchingDpp() {
+        repoContext = startContext(DemoRepoApplication.class);
+        registryContext = startContext(MockEuRegistryApplication.class);
+        clearInMemoryStore(repoContext, "inMemoryDppStore");
+        clearInMemoryStore(registryContext, "inMemoryRegistryStore");
+
+        String repoUrl = "http://localhost:" + localPort(repoContext);
+        String registryUrl = "http://localhost:" + localPort(registryContext);
+        String demoProductId = factory.createValidBedDpp().getUniqueProductIdentifier();
+        HttpDppRepoClient repoClient = new HttpDppRepoClient(repoUrl);
+
+        assertDoesNotThrow(() -> new HttpServiceDemoRunner().run(registryUrl, repoUrl));
+        assertEquals(404, assertThrows(DppApiClientException.class,
+                () -> repoClient.readDppByProductId(demoProductId)).httpStatus());
     }
 
     private ConfigurableApplicationContext startContext(Class<?> applicationClass) {
@@ -188,6 +230,30 @@ class RealServicesSmokeTest {
                 "--logging.level.root=WARN",
                 "--logging.level.org.springframework=WARN"
         );
+    }
+
+    private static void setDatasourceProperty(String key, String value) {
+        ORIGINAL_DATASOURCE_PROPERTIES.putIfAbsent(key, System.getProperty(key));
+        System.setProperty(key, value);
+    }
+
+    private void deleteExistingByProductId(HttpDppRepoClient repoClient, String productId) {
+        try {
+            String existingId = repoClient.readDppByProductId(productId).getPayload()
+                    .path("digitalProductPassportId").asText();
+            repoClient.deleteDppById(existingId);
+        } catch (DppApiClientException exception) {
+            if (exception.httpStatus() != 404) throw exception;
+        }
+    }
+
+    private static com.fasterxml.jackson.databind.JsonNode toJson(Dpp4Fun dpp) {
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().readTree(
+                    new dppsdk.core.transport.json.DppJsonCodec().toCompressedJson(dpp.asDigitalProductPassport()));
+        } catch (java.io.IOException exception) {
+            throw new IllegalArgumentException("Could not encode Dpp4Fun JSON", exception);
+        }
     }
 
     private int localPort(ConfigurableApplicationContext context) {

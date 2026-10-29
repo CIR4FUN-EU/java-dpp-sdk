@@ -1,146 +1,58 @@
 # DPP SDK Clients
-
 ## Purpose and model independence
 
-`dpp-sdk-clients` provides generic Java HTTP clients and transport DTOs for DPP repository and registry APIs. It is model-independent: the repository client never depends on a concrete DPP model. A consumer supplies its own `DppCodec<T>` for full-DPP JSON conversion and a `DppValidator<T>` for validation before creates.
-
-The clients implement the routes and contracts documented here. Some `/v1`
-API contracts were designed with reference to confidential external technical
-specifications that are outside the scope of this public repository.
+`dpp-sdk-clients` provides generic Java HTTP clients and transport DTOs for DPP repository and registry APIs. Repository clients operate on JSON payloads. Domain validation and DPP encoding are handled by the datamodel/profile components before invoking the HTTP client.
 
 ```mermaid
-flowchart LR
-    A["Application<br/>Concrete DPP model"] --> V["DppValidator&lt;T&gt;"]
-    A --> C["DppCodec&lt;T&gt;"]
-
-    V --> R["DppRepoClient&lt;T&gt;"]
-    C --> R
-
-    RP["dpp-repo-payloads<br/>compile-time DTO contract"] -. dependency .-> R
-    R -->|"HTTP /v1/dpps..."| REPO["DPP Repository API"]
-    A --> RR["RegisterDppRequest"]
-    RR --> RC["DppRegistryClient"]
-    GP["dpp-registry-payloads<br/>compile-time DTO contract"] -. dependency .-> RC
-    RC -->|"POST /v1/registerDPP"| REG["DPP Registry API"]
-
-    REPO -->|"Full DPP JSON"| C
-    REPO -->|"Compressed / fine-granular JSON"| J["JsonNode"]
+flowchart TB
+    subgraph REPOSITORY["Repository JSON flow"]
+        direction LR
+        A1["Application<br/>optional model, validation and codec"] -->|"JsonNode"| R["dpp-repo-client"]
+        R <-->|"HTTP JSON"| REPO["External repository API"]
+        R -. "Maven dependency" .-> RP["dpp-repo-payloads"]
+    end
+    subgraph REGISTRY["Registry metadata flow"]
+        direction LR
+        A2["Application<br/>registration metadata"] -->|"RegisterDppRequest"| RC["dpp-registry-client"]
+        RC <-->|"HTTP JSON"| REG["External registry API"]
+        RC -. "Maven dependency" .-> GP["dpp-registry-payloads"]
+    end
+    A1 ~~~ A2
 ```
 
-The repository client remains model-independent by receiving validation and
-full-DPP JSON conversion as application-supplied adapters. Typed operations
-return `T`, while compressed and fine-granular operations return neutral
-`JsonNode` values. Registry registration uses metadata DTOs and does not
-transfer the complete DPP.
-
-The payload modules define the request, response, and wrapper DTO contract
-used at each HTTP boundary. They keep the JSON field names and response shape
-stable between the generic clients and the repository or registry services;
-they do not contain concrete DPP models, persistence, or service logic.
-
-## Module and artifact selection
-
-| Need | Artifact |
-| --- | --- |
-| Repository response/request DTOs only | `dpp.client:dpp-repo-payloads:0.5.1` |
-| Generic repository lifecycle and fine-granular HTTP client | `dpp.client:dpp-repo-client:0.5.1` |
-| Registry registration DTOs only | `dpp.client:dpp-registry-payloads:0.5.1` |
-| Registry registration HTTP client | `dpp.client:dpp-registry-client:0.5.1` |
-
-The parent is `dpp.client:dpp-sdk-clients:0.5.1` with `pom` packaging. Client artifacts depend on their matching payload artifact; they do not provide a concrete DPP model, codec, or validator.
-
-## Maven dependencies
-
-Most applications use one or both client artifacts. Their matching payload
-artifacts are included transitively and do not normally need to be declared
-separately.
+The application may validate and encode a core or DPP4Fun passport before passing JSON to the repository client, and it may decode the JSON response afterward. Each generic HTTP client depends on its matching payload artifact and talks to its external API; neither client depends on the domain model. The registry request carries registration metadata, not a complete passport.
 
 ```xml
 <dependency>
     <groupId>dpp.client</groupId>
     <artifactId>dpp-repo-client</artifactId>
-    <version>0.5.1</version>
+    <version>${dpp.version}</version>
 </dependency>
 
 <dependency>
     <groupId>dpp.client</groupId>
     <artifactId>dpp-registry-client</artifactId>
-    <version>0.5.1</version>
+    <version>${dpp.version}</version>
 </dependency>
 ```
 
-Use the payload artifacts directly only when an integration needs DTOs without the HTTP clients.
+The [root README](../README.md#consumer-maven-artifacts) gives the current version. Each client brings its payload artifact transitively; depend on `dpp-repo-payloads` or `dpp-registry-payloads` directly only for DTOs without the HTTP clients.
+## Payload DTOs without HTTP
 
-## Using payload artifacts without the clients
+The two `*-payloads` modules expose the request/response contracts independently of the HTTP clients. Use these only when another framework owns the transport. They contain no concrete domain model, validator or persistence code.
+## Prepare JSON before repository calls
 
-Use the payload artifacts independently when an integration needs the
-repository or registry request/response DTOs but supplies its own HTTP
-framework. This illustrative fragment shows the repository batch-lookup
-contract; the consuming application owns routing, lookup, storage, and HTTP
-response handling.
-
-```java
-import com.fasterxml.jackson.databind.ObjectMapper;
-import dpp.repo.payloads.ReadDppIdsRequest;
-import dpp.repo.payloads.ReadDppIdsResponse;
-
-ObjectMapper mapper = new ObjectMapper();
-ReadDppIdsRequest request = mapper.readValue(requestJson, ReadDppIdsRequest.class);
-ReadDppIdsResponse response = lookupDppIds(request);
-String responseJson = mapper.writeValueAsString(response);
-```
-
-The demo uses the same payload contracts in its repository and mock-registry
-controllers, with `DppApiResponse` as the shared response envelope. See the
-[demo README](../dpp-sdk-demo/README.md) for the actual service implementation.
-Use `dpp-repo-client` or `dpp-registry-client` when the provided HTTP clients
-are required.
-
-## Supply `DppCodec<T>` and `DppValidator<T>`
-
-The codec handles only full-DPP representation JSON. The validator is invoked by `createDpp` before any request is sent; it is deliberately not invoked for partial or fine-granular updates. Client-side validation cannot validate an incomplete DPP fragment. The target repository remains responsible for applying the update and validating the resulting complete DPP according to its implementation.
-
-```java
-import dpp.repo.client.core.DppCodec;
-import dpp.repo.client.core.DppValidator;
-import dppsdk.dpp4fun.model.Dpp4Fun;
-import dppsdk.dpp4fun.transport.Dpp4FunJsonCodec;
-import dppsdk.dpp4fun.validation.Dpp4FunValidationService;
-
-Dpp4FunJsonCodec sdkCodec = new Dpp4FunJsonCodec();
-Dpp4FunValidationService sdkValidation = new Dpp4FunValidationService();
-
-DppCodec<Dpp4Fun> codec = new DppCodec<>() {
-    @Override
-    public String toJson(Dpp4Fun dpp) {
-        return sdkCodec.toJson(dpp);
-    }
-
-    @Override
-    public Dpp4Fun fromJson(String json) {
-        return sdkCodec.fromJson(json);
-    }
-};
-
-// The client invokes this before createDpp.
-DppValidator<Dpp4Fun> validator = sdkValidation::validate;
-```
-
+Use the datamodel/profile validator and codec before calling the HTTP client.
 ## Repository client setup
 
 ```java
-import dpp.repo.client.DppRepoClient;
 import dpp.repo.client.HttpDppRepoClient;
-import dppsdk.dpp4fun.model.Dpp4Fun;
 
-// The client is generic; the supplied adapters define Dpp4Fun conversion.
-DppRepoClient<Dpp4Fun> repoClient = new HttpDppRepoClient<>(
-        "http://localhost:8080", codec, validator
-);
+var repoClient = new HttpDppRepoClient("http://localhost:8080");
 ```
 
-The public constructors are `HttpDppRepoClient(String, DppCodec<T>, DppValidator<T>)` and `HttpDppRepoClient(String, DppCodec<T>, DppValidator<T>, ObjectMapper)`. The base URL is normalized by removing trailing slashes. Use the `ObjectMapper` overload only when the application requires custom JSON configuration; otherwise, use the simpler constructor.
-
+The base URL must be an absolute HTTP or HTTPS URL with a host and is
+normalized by removing trailing slashes.
 ## Registry client setup
 
 ```java
@@ -152,101 +64,139 @@ DppRegistryClient registryClient = new HttpDppRegistryClient("http://localhost:8
 ```
 
 `HttpDppRegistryClient` also has a public `HttpDppRegistryClient(String, ObjectMapper)` constructor.
-
 ## Repository client API
 
-`DppRepoClient<T>` has the following public methods:
+`DppRepoClient` has the following public methods:
 
 ```java
-CreateDppResponse createDpp(T dpp);
-T readDppById(String dppId);
-JsonNode readCompressedDppById(String dppId);
-T readDppByProductId(String productId);
-T readDppVersionByIdAndDate(String dppId, Instant date);
-@Deprecated T readDppVersionByProductIdAndDate(String productId, Instant date);
+CreateDppResponse createDpp(JsonNode dpp);
+CreateDppResponse createDpp(JsonNode dpp, DppRepresentation representation);
+DppApiResponse<JsonNode> readDppById(String dppId);
+DppApiResponse<JsonNode> readDppById(String dppId, DppRepresentation representation);
+DppApiResponse<JsonNode> readDppByProductId(String productId);
+DppApiResponse<JsonNode> readDppByProductId(String productId, DppRepresentation representation);
+DppApiResponse<JsonNode> readDppVersionByIdAndDate(String dppId, Instant date);
+DppApiResponse<JsonNode> readDppVersionByIdAndDate(String dppId, Instant date, DppRepresentation representation);
 ReadDppIdsResponse readDppIdsByProductIds(List<String> productIds, Integer limit, String cursor);
-T updateDppById(String dppId, JsonNode partialDpp);
+DppApiResponse<JsonNode> updateDppById(String dppId, JsonNode partialDpp);
+DppApiResponse<JsonNode> updateDppById(String dppId, JsonNode partialDpp, DppRepresentation representation);
 DeleteDppResponse deleteDppById(String dppId);
-JsonNode readDataElement(String dppId, String elementIdPath);
-JsonNode updateDataElement(String dppId, String elementIdPath, JsonNode dataElement);
+DppApiResponse<JsonNode> readDataElement(String dppId, String elementIdPath);
+DppApiResponse<JsonNode> readDataElement(String dppId, String elementIdPath, DppRepresentation representation);
+DppApiResponse<JsonNode> updateDataElement(String dppId, String elementIdPath, JsonNode dataElement);
+DppApiResponse<JsonNode> updateDataElement(String dppId, String elementIdPath, JsonNode dataElement,
+        DppRepresentation representation);
 ```
 
-The deprecated product-ID historical read uses the legacy unversioned route and is retained only for transitional compatibility. New code should use the DPP-ID historical read.
+Create accepts a neutral `JsonNode`. The caller supplies JSON in the requested
+representation; omitted/null representation and `COMPRESSED` omit the query
+parameter, while `FULL` sends `representation=full`.
 
 ```java
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import dpp.repo.payloads.CreateDppResponse;
 import dpp.repo.payloads.DeleteDppResponse;
+import dpp.repo.payloads.DppRepresentation;
+import dppsdk.core.model.DigitalProductPassport;
+import dppsdk.core.transport.json.DppJsonCodec;
+import dppsdk.dpp4fun.model.Dpp4Fun;
+import dppsdk.dpp4fun.transport.Dpp4FunJsonCodec;
 
-CreateDppResponse created = repoClient.createDpp(dpp);
-Dpp4Fun stored = repoClient.readDppById(created.getDppId());
+ObjectMapper objectMapper = new ObjectMapper();
+JsonNode prepared = objectMapper.readTree(new Dpp4FunJsonCodec().toJson(dpp));
+CreateDppResponse created = repoClient.createDpp(prepared, DppRepresentation.FULL);
+String createdDppId = created.getDigitalProductPassportId();
+if (createdDppId == null)
+    throw new IllegalStateException("Create response omitted the DPP ID; check the repository's ID contract");
+var fullResponse = repoClient.readDppById(createdDppId, DppRepresentation.FULL);
+DigitalProductPassport expanded = new DppJsonCodec().fromExpandedJson(fullResponse.getPayload().toString());
+var header = new DppJsonCodec().readHeader(fullResponse.getPayload());
+Dpp4Fun stored = Dpp4Fun.from(expanded);
 
-// The partial JSON body updates the supplied nested field.
-ObjectNode patch = new ObjectMapper().createObjectNode()
-        .putObject("characteristics")
-        .put("productName", "Updated via client");
+// Merge-patch arrays replace the whole property. Build the changed profile,
+// serialize it through the canonical codec, then patch its complete elements array.
+Dpp4Fun changed = stored.toBuilder().nameplate(
+        stored.getNameplate().toBuilder().brand("Updated via client").build()
+).build();
+ObjectNode patch = objectMapper.createObjectNode();
+patch.set("elements", objectMapper.readTree(new Dpp4FunJsonCodec().toJson(changed)).get("elements"));
 
-Dpp4Fun updated = repoClient.updateDppById(stored.getDppId(), patch);
-DeleteDppResponse deleted = repoClient.deleteDppById(updated.getDppId());
+var updated = repoClient.updateDppById(
+        stored.getDigitalProductPassportId(), patch, DppRepresentation.FULL);
+DeleteDppResponse deleted = repoClient.deleteDppById(stored.getDigitalProductPassportId());
 ```
 
-Partial-update support is only partially implemented. For an object-root patch,
-the repository follows RFC 7396 JSON Merge Patch behavior: `null` removes a
-property, nested objects merge recursively, and arrays or other non-object
-values replace the existing value. The API accepts only object-root patches and
-uses `application/json`, not `application/merge-patch+json`; therefore it does
-not implement every RFC 7396-valid patch document.
+Delete returns an empty HTTP 204 response on the wire. `DeleteDppResponse` is a
+Java-side convenience containing the synthesized `SuccessNoContent` status;
+it is not parsed from a response body.
 
+For object-root updates, the repository follows RFC 7396 JSON Merge Patch
+behavior: `null` removes a property, nested objects merge recursively, and
+arrays or other non-object values replace the existing value. The API accepts
+object-root patches as `application/json`.
 ## Full and compressed reads
 
-`readDppById`, `readDppByProductId`, and `readDppVersionByIdAndDate` explicitly request `representation=full` and decode the wrapper payload through `DppCodec<T>`. `readCompressedDppById` explicitly requests `representation=compressed` and returns the wrapper payload as neutral `JsonNode`; it never decodes a compressed representation as `T`.
+GET/PATCH default to COMPRESSED unless explicitly requested FULL. The client does not decode a DPP; use `DppJsonCodec` to read FULL payloads. Compressed expansion is best-effort because some metadata is omitted.
+
+EN 18222 permits DPP payloads and create/registration identifiers to be absent on successful responses (cardinality 0..1). DPP operations preserve that optional payload in the response envelope; fine-granular DataElement responses require a non-null payload. Create and registration keep operation-specific results with status and their respective optional identifier.
 
 ```java
 import com.fasterxml.jackson.databind.JsonNode;
-import java.time.Instant;
+import dppsdk.core.model.DigitalProductPassport;
+import dppsdk.core.transport.json.DppJsonCodec;
+import dpp.repo.payloads.DppApiResponse;
+import dpp.repo.payloads.DppRepresentation;
 
-Dpp4Fun byProductId = repoClient.readDppByProductId(dpp.getProductId());
-Dpp4Fun historical = repoClient.readDppVersionByIdAndDate(
-        dpp.getDppId(), Instant.parse("2026-06-29T12:00:00Z")
+DppApiResponse<JsonNode> compressed = repoClient.readDppById(dpp.getDigitalProductPassportId());
+DppApiResponse<JsonNode> full = repoClient.readDppById(
+        dpp.getDigitalProductPassportId(), DppRepresentation.FULL
 );
-JsonNode compressed = repoClient.readCompressedDppById(dpp.getDppId());
+DigitalProductPassport expanded = new DppJsonCodec().fromExpandedJson(full.getPayload().toString());
+DigitalProductPassport bestEffort = new DppJsonCodec()
+        .expandCompressedJson(compressed.getPayload().toString()).passport();
 ```
-
 ## Fine-granular operations
 
-Fine-granular path support is only partially implemented. For the supported
-paths, reads and updates use direct JSON values: `updateDataElement` sends the
-supplied `JsonNode` itself, not a wrapper. The client percent-encodes the DPP ID
+Fine-granular path support uses the documented singular JSONPath subset. Calls
+without a representation use compressed operational values; pass
+`DppRepresentation.FULL` to read or amend expanded DataElement JSON. The connected demo repository validates the complete DPP before persisting a revision. Unsupported
+JSONPath features return a bodyless 501. The client percent-encodes the DPP ID
 and element path.
 
 ```java
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import dpp.repo.payloads.DppRepresentation;
 
-JsonNode productName = repoClient.readDataElement(
-        dpp.getDppId(), "$.characteristics.productName"
+// Example path from the demo repository test sample; the method returns the selected DataElement JSON.
+DppApiResponse<JsonNode> brand = repoClient.readDataElement(
+        dpp.getDigitalProductPassportId(), "$.elements[1].elements[0]", DppRepresentation.FULL
 );
-JsonNode changed = repoClient.updateDataElement(
-        dpp.getDppId(),
-        "$.characteristics.productName",
-        JsonNodeFactory.instance.textNode("Updated element value")
+((ObjectNode) brand.getPayload()).put("value", "Updated element value");
+DppApiResponse<JsonNode> changed = repoClient.updateDataElement(
+        dpp.getDigitalProductPassportId(),
+        "$.elements[1].elements[0]",
+        brand.getPayload(),
+        DppRepresentation.FULL
 );
 ```
 
-The connected mock repository supports only this documented singular subset of
+The connected demo repository supports only this documented singular subset of
 RFC 9535 JSONPath:
 
 - root: `$`
-- dot member selectors, for example `$.characteristics.productName`
-- quoted bracket member selectors, for example `$['billOfMaterials']`
-- non-negative array indexes, for example `$.billOfMaterials.materials[0]`
+- dot member selectors, for example `$.elements[3].elements[0]`
+- quoted bracket member selectors, for example `$['elements'][4]`
+- non-negative array indexes, for example `$.elements[4].elements[0].elements[0]`
 
-It does not implement wildcards, descendants, unions, slices, filters, functions, or negative indexes. The mock endpoint returns HTTP 400 for malformed paths, HTTP 404 when a supported path selects no node, and HTTP 501 for a valid JSONPath feature outside that subset. Replacing the root is also a 400. The client maps any non-2xx status to `DppHttpClientException`; it does not pre-evaluate paths.
-
+It does not implement wildcards, descendants, unions, slices, filters, functions, or negative indexes. The endpoint returns HTTP 400 for malformed paths, HTTP 404 when a supported path selects no node, and HTTP 501 for a valid JSONPath feature outside that subset. Replacing the root is also a 400. The client parses structured API errors and otherwise preserves non-2xx responses as `DppHttpClientException`; it does not pre-evaluate paths.
 ## Registry registration
 
 The only public registry-client method is `RegisterDppResponse postNewDppToRegistry(RegisterDppRequest request)`. It calls `POST /v1/registerDPP`.
+`RegisterDppResponse` exposes the returned status code, optional `registrationId`,
+and optional diagnostic `message` list.
 
 ```java
 import dpp.registry.payloads.RegisterDppRequest;
@@ -254,8 +204,8 @@ import dpp.registry.payloads.RegisterDppResponse;
 
 RegisterDppResponse registered = registryClient.postNewDppToRegistry(
         new RegisterDppRequest(
-                dpp.getProductId(),
-                dpp.getDppId(),
+                dpp.getUniqueProductIdentifier(),
+                dpp.getDigitalProductPassportId(),
                 "operator-123",
                 "http://localhost:8080"
         )
@@ -263,28 +213,29 @@ RegisterDppResponse registered = registryClient.postNewDppToRegistry(
 String registrationId = registered.getRegistrationId();
 ```
 
-Outbound request JSON uses `uniqueProductIdentifier`, `digitalProductPassportId`, `uniqueEconomicOperatorIdentifier`, and `dppApiEndpoint`. The response field is `registrationId`. The DTOs accept legacy aliases (`productIdentifier`, `dppIdentifier`, `operatorIdentifier`, `repoUrl`, and `registryIdentifier`) during deserialization/source transition, but those names are not emitted as current JSON fields. No backup-operator field is implemented.
+Outbound request JSON uses `uniqueProductIdentifier`, `digitalProductPassportId`, `uniqueEconomicOperatorIdentifier`, and `dppApiEndpoint`. The response field is `registrationId`. The DTOs accept legacy aliases (`productIdentifier`, `dppIdentifier`, `operatorIdentifier`, `repoUrl`, and `registryIdentifier`) during deserialization/source transition, but those names are not emitted as current JSON fields. The backup economic-operator identifier is not modeled by the current SDK or stored by the mock registry.
 
+`dppApiEndpoint` has the EN `Uri` type. The mock registry validates URI syntax
+and stores the endpoint as metadata; it does not resolve or contact it during
+registration.
 ## Exception handling
 
 Repository and registry clients have separate exception packages, even where
 the simple class names are identical. Catch the `DppClientException` base class
 from the client family being called, or catch a specific subtype:
 
-- `DppHttpClientException` for non-2xx responses (exposes HTTP status and response body)
-- `DppApiClientException` for a 2xx response whose API-wrapper status is an error (exposes status, messages, and raw body)
-- `DppMappingClientException` for JSON/codec mapping failures or missing required response fields
+- `DppApiClientException` for a structured API error, including non-2xx responses (exposes HTTP status, DPP status, messages, and raw body)
+- `DppHttpClientException` for a non-2xx response that is not a structured API error (exposes HTTP status, raw body, and parsing cause)
+- `DppMappingClientException` for JSON mapping failures or missing required response fields
 - `DppNetworkClientException` for I/O or interrupted HTTP requests
-- repository only: `DppValidationClientException` when `createDpp` validation fails before the request
 
 ```java
 try {
-    repoClient.createDpp(dpp);
+    repoClient.createDpp(preparedJson);
 } catch (dpp.repo.client.exception.DppClientException exception) {
     System.err.println(exception.getMessage());
 }
 ```
-
 ## Endpoint coverage
 
 | Public client method family | Route |
@@ -296,113 +247,20 @@ try {
 | Fine-granular read/update | `/v1/dpps/{dppId}/elements/{elementIdPath}` |
 | Registry registration | `POST /v1/registerDPP` |
 
-The mock repository and registry expose internal/demo endpoints for health checks, events, and registry lookup. They are not public `dpp-sdk-clients` methods and are intentionally not documented as client operations here.
+The demo repository and registry expose internal/demo endpoints for health checks, events, and registry lookup. They are not public `dpp-sdk-clients` methods and are intentionally not documented as client operations here.
+## Boundaries and standards alignment
 
-## Boundaries
+These modules own generic HTTP, wrapper parsing, DTOs and exception mapping — not models, codecs, validators, persistence or demo runtime behavior. They provide no auth, retries, async API, cache or production-operational guarantee.
 
-- Client modules own generic HTTP, wrapper parsing, DTOs, and exception mapping—not concrete models, codecs, validators, persistence, or mock runtime behavior.
-- The repository stores full DPPs; registry registration is metadata-only.
-- No auth, retries, asynchronous API, cache, or production-operational guarantee is provided.
-- This README does not claim full RFC 9535 support or formal specification compliance.
+They implement **selected EN 18222:2026** API shapes, not a complete lifecycle specification, and only the singular RFC 9535 JSONPath subset documented above. EN Result uses `message` on output (legacy `messages` accepted on input); HTTP 501 has no Result body.
+## Build and test
 
-## Specification status
-
-The behavior supported by this implementation is documented directly in this
-README. Compressed representations remain project-defined, and fine-granular
-operations are partially implemented and support only the documented singular
-JSONPath subset.
-
-No formal specification compliance is claimed.
-
-## Contributor build commands
-
-Requires JDK 17. The Maven wrapper is at the repository root. The commands below keep the working directory at the repository root and select the clients reactor with `-f`.
-
-Required working directory: repository root.
-
-Run the tests — PowerShell:
-
-```powershell
-.\mvnw.cmd -f .\dpp-sdk-clients\pom.xml test
-```
-
-Linux/macOS Bash:
+Requires JDK 17. Run from the repository root; on Windows use `mvnw.cmd`.
 
 ```bash
-./mvnw -f ./dpp-sdk-clients/pom.xml test
-```
-
-Build, test, and install all client artifacts locally — PowerShell:
-
-```powershell
-.\mvnw.cmd -f .\dpp-sdk-clients\pom.xml clean install
-```
-
-Linux/macOS Bash:
-
-```bash
-./mvnw -f ./dpp-sdk-clients/pom.xml clean install
-```
-
-### Build the payload modules
-
-The payload modules are ordinary Maven modules. A full client build compiles
-them transitively, or they can be tested independently from the repository
-root:
-
-Test `dpp-repo-payloads` — PowerShell:
-
-```powershell
-.\mvnw.cmd -f .\dpp-sdk-clients\pom.xml -pl dpp-repo-payloads -am test
-```
-
-Linux/macOS Bash:
-
-```bash
-./mvnw -f ./dpp-sdk-clients/pom.xml -pl dpp-repo-payloads -am test
-```
-
-Test `dpp-registry-payloads` — PowerShell:
-
-```powershell
-.\mvnw.cmd -f .\dpp-sdk-clients\pom.xml -pl dpp-registry-payloads -am test
-```
-
-Linux/macOS Bash:
-
-```bash
-./mvnw -f ./dpp-sdk-clients/pom.xml -pl dpp-registry-payloads -am test
-```
-
-Use `clean install` on the clients parent when another local Maven project
-needs the payload JARs. The payload usage examples are in the earlier
-“Using payload artifacts without the clients” section; this contributor section contains the build
-commands only.
-
-### Focused module tests
-
-Run the `dpp-repo-client` focused reactor from the repository root — PowerShell:
-
-```powershell
-.\mvnw.cmd -f .\dpp-sdk-clients\pom.xml -pl dpp-repo-client -am test
-```
-
-Linux/macOS Bash:
-
-```bash
-./mvnw -f ./dpp-sdk-clients/pom.xml -pl dpp-repo-client -am test
-```
-
-Run the `dpp-registry-client` focused reactor from the repository root — PowerShell:
-
-```powershell
-.\mvnw.cmd -f .\dpp-sdk-clients\pom.xml -pl dpp-registry-client -am test
-```
-
-Linux/macOS Bash:
-
-```bash
-./mvnw -f ./dpp-sdk-clients/pom.xml -pl dpp-registry-client -am test
+./mvnw -f dpp-sdk-clients/pom.xml clean test                     # whole reactor
+./mvnw -f dpp-sdk-clients/pom.xml clean install                  # install all artifacts locally
+./mvnw -f dpp-sdk-clients/pom.xml -pl dpp-repo-client -am test   # one module only
 ```
 
 ## Related documentation

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class RegistryPayloadContractTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -55,7 +55,7 @@ class RegistryPayloadContractTest {
 
         assertEquals(DppStatusCode.SuccessCreated, response.getStatusCode());
         assertEquals("registry-1", response.getPayload().getRegistrationId());
-        assertEquals(MessageType.Info, response.getMessages().get(0).getMessageType());
+        assertEquals(MessageType.Info, response.getMessage().get(0).getMessageType());
         assertEquals("\"ServerNotImplemented\"", objectMapper.writeValueAsString(DppStatusCode.ServerNotImplemented));
         assertEquals("\"SuccessNoContent\"", objectMapper.writeValueAsString(DppStatusCode.SuccessNoContent));
         assertEquals("\"Info\"", objectMapper.writeValueAsString(MessageType.Info));
@@ -75,5 +75,46 @@ class RegistryPayloadContractTest {
         );
 
         assertEquals("registry-1", response.getRegistrationId());
+    }
+
+    @Test
+    void rejectsMessagesWithoutRequiredFieldsButAllowsBlankTextAndNoMessages() throws Exception {
+        assertThrows(com.fasterxml.jackson.databind.JsonMappingException.class, () -> objectMapper.readValue(
+                "{\"text\":\"details\"}", DppApiMessage.class));
+        assertThrows(com.fasterxml.jackson.databind.JsonMappingException.class, () -> objectMapper.readValue(
+                "{\"messageType\":\"Error\"}", DppApiMessage.class));
+        assertThrows(com.fasterxml.jackson.databind.JsonMappingException.class, () -> objectMapper.readValue(
+                "{\"messageType\":null,\"text\":\"details\"}", DppApiMessage.class));
+        assertThrows(com.fasterxml.jackson.databind.JsonMappingException.class, () -> objectMapper.readValue(
+                "{\"messageType\":\"Error\",\"text\":null}", DppApiMessage.class));
+
+        DppApiMessage blankText = objectMapper.readValue(
+                "{\"messageType\":\"Info\",\"text\":\"\"}", DppApiMessage.class);
+        assertEquals("", blankText.getText());
+        assertNotNull(objectMapper.readValue("{}", DppApiResponse.class));
+        assertEquals(0, ((DppApiResponse<?>) objectMapper.readValue(
+                "{\"message\":[]}", DppApiResponse.class)).getMessage().size());
+        assertThrows(NullPointerException.class, () -> new DppApiMessage(null, "details"));
+        assertThrows(NullPointerException.class, () -> new DppApiMessage(MessageType.Info, null));
+    }
+
+    @Test
+    void responseMessageArrayRejectsNullItemsButKeepsTheCollectionOptional() throws Exception {
+        assertThrows(com.fasterxml.jackson.databind.JsonMappingException.class, () -> objectMapper.readValue(
+                "{\"statusCode\":\"Success\",\"message\":[null]}", DppApiResponse.class));
+
+        assertNull(objectMapper.readValue("{\"statusCode\":\"Success\"}", DppApiResponse.class).getMessage());
+        assertNull(objectMapper.readValue("{\"statusCode\":\"Success\",\"message\":null}",
+                DppApiResponse.class).getMessage());
+        assertTrue(objectMapper.readValue("{\"statusCode\":\"Success\",\"message\":[]}",
+                DppApiResponse.class).getMessage().isEmpty());
+    }
+
+    @Test
+    @SuppressWarnings("deprecation")
+    void legacyMessageSetterPreservesMessageItemInvariant() {
+        DppApiResponse<?> response = new DppApiResponse<>();
+        assertThrows(NullPointerException.class,
+                () -> response.setMessages(java.util.Arrays.asList((DppApiMessage) null)));
     }
 }

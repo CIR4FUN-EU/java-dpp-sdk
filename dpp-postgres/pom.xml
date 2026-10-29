@@ -5,7 +5,7 @@
 
     <groupId>dpp.postgres</groupId>
     <artifactId>dpp-postgres</artifactId>
-    <version>0.5.1</version>
+    <version>0.6.0</version>
     <packaging>pom</packaging>
 
     <name>DPP PostgreSQL Parent</name>
@@ -13,6 +13,8 @@
 
     <modules>
         <module>dpp-postgres-core</module>
+        <module>dpp-postgres-projections</module>
+        <module>dpp-postgres-events</module>
         <module>dpp4fun-postgres</module>
     </modules>
 

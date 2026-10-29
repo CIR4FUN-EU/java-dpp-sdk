@@ -2,6 +2,7 @@ package dpp.registry.client;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import dpp.registry.client.exception.DppApiClientException;
 import dpp.registry.client.exception.DppHttpClientException;
 import dpp.registry.client.exception.DppMappingClientException;
 import dpp.registry.client.exception.DppNetworkClientException;
@@ -12,6 +13,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -21,19 +23,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HttpDppRegistryClientNegativePathTest {
     @Test
-    void non2xxRegistryResponsesMapToHttpException() {
+    void constructorRejectsNonHttpAbsoluteBaseUrls() {
+        assertThrows(IllegalArgumentException.class, () -> new HttpDppRegistryClient("relative/path"));
+        assertThrows(IllegalArgumentException.class, () -> new HttpDppRegistryClient("ftp://example.test/api"));
+    }
+
+    @Test
+    void structuredNon2xxRegistryResponsesMapToApiException() {
         try (TestServer server = TestServer.start()) {
             server.httpServer().createContext("/v1/registerDPP", exchange ->
-                    respond(exchange, 503, "{\"statusCode\":\"ServerErrorBadGateway\",\"payload\":null,\"messages\":[]}"));
+                    respond(exchange, 502, "{\"statusCode\":\"ServerErrorBadGateway\",\"payload\":null,\"messages\":[]}"));
             DppRegistryClient client = new HttpDppRegistryClient(server.baseUrl());
 
-            DppHttpClientException ex = assertThrows(
-                    DppHttpClientException.class,
+            DppApiClientException ex = assertThrows(
+                    DppApiClientException.class,
                     () -> client.postNewDppToRegistry(new RegisterDppRequest("product-1", "dpp-1", "operator-1", "http://localhost:8082"))
             );
 
-            assertEquals(503, ex.statusCode());
-            assertTrue(ex.responseBody().contains("ServerErrorBadGateway"));
+            assertEquals(502, ex.httpStatus());
+            assertEquals(dpp.registry.payloads.DppStatusCode.ServerErrorBadGateway, ex.statusCode());
+            assertTrue(ex.rawResponseBody().contains("ServerErrorBadGateway"));
         }
     }
 
@@ -49,6 +58,66 @@ class HttpDppRegistryClientNegativePathTest {
             );
 
             assertEquals("DPP API response could not be mapped", ex.getMessage());
+        }
+    }
+
+    @Test
+    void malformedPresentMessagesRemainMappingFailuresForApiAndHttpErrors() {
+        try (TestServer server = TestServer.start()) {
+            String malformedApiError = "{\"statusCode\":\"ClientErrorBadRequest\",\"message\":[{\"messageType\":\"Error\"}]}";
+            String malformedHttpError = "{\"statusCode\":\"ServerErrorBadGateway\",\"message\":[{\"messageType\":\"Error\"}]}";
+            AtomicInteger requests = new AtomicInteger();
+            server.httpServer().createContext("/v1/registerDPP", exchange -> {
+                boolean apiError = requests.getAndIncrement() == 0;
+                respond(exchange, apiError ? 200 : 502, apiError ? malformedApiError : malformedHttpError);
+            });
+            DppRegistryClient client = new HttpDppRegistryClient(server.baseUrl());
+
+            DppMappingClientException apiFailure = assertThrows(DppMappingClientException.class,
+                    () -> client.postNewDppToRegistry(request()));
+            assertEquals("DPP API response could not be mapped", apiFailure.getMessage());
+
+            DppHttpClientException httpFailure = assertThrows(DppHttpClientException.class,
+                    () -> client.postNewDppToRegistry(request()));
+            assertEquals(502, httpFailure.statusCode());
+            assertEquals(malformedHttpError, httpFailure.responseBody());
+            assertTrue(httpFailure.getCause() instanceof DppMappingClientException);
+        }
+    }
+
+    @Test
+    void malformedNonJsonHttpErrorsKeepRawBodyAndParseCause() {
+        try (TestServer server = TestServer.start()) {
+            server.httpServer().createContext("/v1/registerDPP", exchange ->
+                    respond(exchange, 502, "bad gateway"));
+            DppRegistryClient client = new HttpDppRegistryClient(server.baseUrl());
+
+            DppHttpClientException ex = assertThrows(DppHttpClientException.class,
+                    () -> client.postNewDppToRegistry(
+                            new RegisterDppRequest("product-1", "dpp-1", "operator-1", "http://localhost:8082")));
+
+            assertEquals(502, ex.statusCode());
+            assertEquals("bad gateway", ex.responseBody());
+            assertTrue(ex.getCause() instanceof DppMappingClientException);
+        }
+    }
+
+    @Test
+    void bodyless501IsHandledWithoutAResultObject() {
+        try (TestServer server = TestServer.start()) {
+            server.httpServer().createContext("/v1/registerDPP", exchange -> {
+                exchange.sendResponseHeaders(501, -1);
+                exchange.close();
+            });
+            DppRegistryClient client = new HttpDppRegistryClient(server.baseUrl());
+
+            DppHttpClientException ex = assertThrows(DppHttpClientException.class,
+                    () -> client.postNewDppToRegistry(
+                            new RegisterDppRequest("product-1", "dpp-1", "operator-1", "http://localhost:8082")));
+
+            assertEquals(501, ex.statusCode());
+            assertEquals("", ex.responseBody());
+            assertTrue(ex.getCause() instanceof DppMappingClientException);
         }
     }
 
@@ -70,6 +139,10 @@ class HttpDppRegistryClientNegativePathTest {
         exchange.sendResponseHeaders(status, bytes.length);
         exchange.getResponseBody().write(bytes);
         exchange.close();
+    }
+
+    private static RegisterDppRequest request() {
+        return new RegisterDppRequest("product-1", "dpp-1", "operator-1", "http://localhost:8082");
     }
 
     private static final class TestServer implements AutoCloseable {

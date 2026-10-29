@@ -1,11 +1,13 @@
 /**
- * JSON transport orchestration for the DPP SDK.
+ * Convenience JSON transport over the frozen core codec.
  *
- * <p>This package contains codec-level entry points that coordinate Jackson,
- * payload POJOs, mappers, and validation services without embedding
- * field-by-field mapping logic.</p>
+ * <p>Dpp4Fun views contain no serializer or payload mapping. The facade delegates
+ * expanded JSON parsing and writing to {@code DppJsonCodec}.</p>
  */
 package dppsdk.dpp4fun.transport;
+import dppsdk.dpp4fun.model.composite.*;
+import dppsdk.dpp4fun.model.characteristics.*;
+import dppsdk.dpp4fun.model.unit.*;
 
 
 

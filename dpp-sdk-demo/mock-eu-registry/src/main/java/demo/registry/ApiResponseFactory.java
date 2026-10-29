@@ -27,17 +27,18 @@ class ApiResponseFactory {
     }
 
     ResponseEntity<DppApiResponse<Void>> error(HttpStatus httpStatus, DppStatusCode statusCode, String code, String message) {
+        if (httpStatus == HttpStatus.NOT_IMPLEMENTED) {
+            return ResponseEntity.status(httpStatus).build();
+        }
         // Error responses include correlation IDs for traceability across client logs and server logs.
-        DppApiMessage apiMessage = new DppApiMessage();
-        apiMessage.setMessageType(MessageType.Error);
-        apiMessage.setText(message);
+        DppApiMessage apiMessage = new DppApiMessage(MessageType.Error, message);
         apiMessage.setCode(code);
         apiMessage.setCorrelationId(CorrelationIdHolder.get());
         apiMessage.setTimestamp(Instant.now());
 
         DppApiResponse<Void> response = new DppApiResponse<>();
         response.setStatusCode(statusCode);
-        response.setMessages(List.of(apiMessage));
+        response.setMessage(List.of(apiMessage));
         return ResponseEntity.status(httpStatus).body(response);
     }
 }

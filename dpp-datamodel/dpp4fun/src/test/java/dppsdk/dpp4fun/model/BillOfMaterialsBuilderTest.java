@@ -1,4 +1,8 @@
 package dppsdk.dpp4fun.model;
+import dppsdk.dpp4fun.model.aspect.*;
+import dppsdk.dpp4fun.model.composite.*;
+import dppsdk.dpp4fun.model.characteristics.*;
+import dppsdk.dpp4fun.model.unit.*;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
@@ -10,25 +14,25 @@ class BillOfMaterialsBuilderTest {
 
     @Test
     void build_emptyBom_succeeds() {
-        BillOfMaterials bom = new BillOfMaterials.Builder().build();
+        BillOfMaterials bom = BillOfMaterials.builder().build();
         assertTrue(bom.getMaterials().isEmpty());
         assertTrue(bom.getComponents().isEmpty());
         assertTrue(bom.getParts().isEmpty());
     }
 
     @Test
-    void getMaterials_returnsDefensiveCopy() {
+    void getMaterials_returnsUnmodifiableDefensiveCopy() {
         Material steel = new Material.Builder().name("Steel").portion(2.0).build();
-        BillOfMaterials bom = new BillOfMaterials.Builder().addMaterial(steel).build();
+        BillOfMaterials bom = BillOfMaterials.builder().addMaterial(steel).build();
 
-        bom.getMaterials().clear(); // mutate returned list
+        assertThrows(UnsupportedOperationException.class, () -> bom.getMaterials().clear());
         assertEquals(1, bom.getMaterials().size()); // original still intact
     }
 
     @Test
     void toBuilder_addMaterial_doesNotAffectOriginal() {
         Material steel = new Material.Builder().name("Steel").portion(2.0).build();
-        BillOfMaterials original = new BillOfMaterials.Builder().addMaterial(steel).build();
+        BillOfMaterials original = BillOfMaterials.builder().addMaterial(steel).build();
 
         BillOfMaterials updated = original.toBuilder()
                 .addMaterial(new Material.Builder().name("Foam").portion(1.0).build())
@@ -42,7 +46,7 @@ class BillOfMaterialsBuilderTest {
     void toBuilder_removeMaterial_doesNotAffectOriginal() {
         Material steel = new Material.Builder().name("Steel").portion(2.0).build();
         Material foam  = new Material.Builder().name("Foam").portion(1.0).build();
-        BillOfMaterials original = new BillOfMaterials.Builder()
+        BillOfMaterials original = BillOfMaterials.builder()
                 .addMaterial(steel).addMaterial(foam).build();
 
         BillOfMaterials updated = original.toBuilder().removeMaterial(foam).build();

@@ -1,50 +1,40 @@
 package dppsdk.dpp4fun.validation;
+import dppsdk.dpp4fun.model.composite.*;
+import dppsdk.dpp4fun.model.characteristics.*;
+import dppsdk.dpp4fun.model.unit.*;
 
-import dppsdk.core.model.Dpp;
-import dppsdk.core.validation.ValidationException;
-import dppsdk.core.validation.ValidationService;
-import dppsdk.dpp4fun.model.BillOfMaterials;
-import dppsdk.dpp4fun.model.Characteristics;
+import dppsdk.core.validation.ValidationIssue;
+import dppsdk.core.validation.ValidationResult;
+import dppsdk.core.validation.DppValidator;
+import dppsdk.core.validation.format.DataFormatValidator;
+import dppsdk.core.validation.identifier.IdentifierValidationContext;
+import dppsdk.core.validation.identifier.IdentifierValidator;
 import dppsdk.dpp4fun.model.Dpp4Fun;
-import dppsdk.dpp4fun.model.Component;
-import dppsdk.dpp4fun.model.Dimensions;
-import dppsdk.dpp4fun.model.Material;
-import dppsdk.dpp4fun.model.Part;
-import dppsdk.dpp4fun.model.ProductClassification;
 
-/**
- * Product-specific validation facade that layers DPP4Fun validators on top of the core service.
- */
+import java.util.ArrayList;
+import java.util.List;
+
+/** Stateless orchestration facade for core and Dpp4Fun profile validation. */
 public final class Dpp4FunValidationService {
+    private final DppValidator dppValidator = new DppValidator();
+    private final DataFormatValidator formatValidator = new DataFormatValidator();
+    private final IdentifierValidator identifierValidator = new IdentifierValidator();
+    private final Dpp4FunValidator profileValidator = new Dpp4FunValidator();
 
-    private final ValidationService validationService;
+    /** Runs generic core semantics, generic format rules, and Dpp4Fun profile rules. */
+    public ValidationResult validate(Dpp4Fun value) { return validate(value, null); }
 
-    public Dpp4FunValidationService() {
-        this.validationService = new ValidationService()
-                .register(Dimensions.class, new DimensionsValidator())
-                .register(Material.class, new MaterialValidator())
-                .register(Component.class, new ComponentValidator())
-                .register(Part.class, new PartValidator())
-                .register(ProductClassification.class, new ProductClassificationValidator())
-                .register(Characteristics.class, new CharacteristicsValidator())
-                .register(BillOfMaterials.class, new BillOfMaterialsValidator())
-                .register(Dpp4Fun.class, new Dpp4FunValidator())
-                .register(Dpp.class, value -> {
-                    if (value instanceof Dpp4Fun dpp) {
-                        new Dpp4FunValidator().validate(dpp);
-                        return;
-                    }
-                    throw new ValidationException(
-                            "No concrete validator available for Dpp subtype: " + value.getClass().getName());
-                });
+    /** Also runs core identifier validation using the exact caller-selected methods. */
+    public ValidationResult validate(Dpp4Fun value, IdentifierValidationContext context) {
+        if (value == null) return profileValidator.validate(null);
+        List<ValidationIssue> issues = new ArrayList<>();
+        issues.addAll(dppValidator.validate(value.asDigitalProductPassport()).issues());
+        issues.addAll(formatValidator.validate(value.asDigitalProductPassport()).issues());
+        if (context != null) issues.addAll(identifierValidator.validate(value.getHeader(), context).issues());
+        issues.addAll(profileValidator.validate(value).issues());
+        return ValidationResult.of(issues);
     }
 
-    public void validate(Object value) {
-        validationService.validate(value);
-    }
-
-    public ValidationService coreService() {
-        return validationService;
-    }
+    /** Runs only Dpp4Fun-specific profile rules; useful when identifier context is not available. */
+    public ValidationResult validateProfile(Dpp4Fun value) { return profileValidator.validate(value); }
 }
-

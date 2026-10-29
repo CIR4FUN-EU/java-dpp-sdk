@@ -3,41 +3,47 @@ package dpp.repo.client;
 import com.fasterxml.jackson.databind.JsonNode;
 import dpp.repo.payloads.CreateDppResponse;
 import dpp.repo.payloads.DeleteDppResponse;
+import dpp.repo.payloads.DppApiResponse;
+import dpp.repo.payloads.DppRepresentation;
 import dpp.repo.payloads.ReadDppIdsResponse;
 
 import java.time.Instant;
 import java.util.List;
 
-/**
- * Public client interface for repository lifecycle and fine-granular DPP operations.
- *
- * @param <T> caller-owned DPP model type
- */
-public interface DppRepoClient<T> {
-    CreateDppResponse createDpp(T dpp);
+/** Public client interface for repository lifecycle and fine-granular DPP operations. */
+public interface DppRepoClient {
+    /** Creates a DPP from caller-supplied neutral JSON. The default wire representation is compressed. */
+    CreateDppResponse createDpp(JsonNode dpp);
 
-    T readDppById(String dppId);
+    /** Creates a DPP from caller-supplied neutral JSON using the selected EN 18223 representation. */
+    CreateDppResponse createDpp(JsonNode dpp, DppRepresentation representation);
 
-    JsonNode readCompressedDppById(String dppId);
+    DppApiResponse<JsonNode> readDppById(String dppId);
 
-    T readDppByProductId(String productId);
+    DppApiResponse<JsonNode> readDppById(String dppId, DppRepresentation representation);
 
-    T readDppVersionByIdAndDate(String dppId, Instant date);
+    DppApiResponse<JsonNode> readDppByProductId(String productId);
 
-    /**
-     * @deprecated Non-standard transitional compatibility method. EN 18222-facing callers should
-     * use {@link #readDppVersionByIdAndDate(String, Instant)}.
-     */
-    @Deprecated
-    T readDppVersionByProductIdAndDate(String productId, Instant date);
+    DppApiResponse<JsonNode> readDppByProductId(String productId, DppRepresentation representation);
+
+    DppApiResponse<JsonNode> readDppVersionByIdAndDate(String dppId, Instant date);
+
+    DppApiResponse<JsonNode> readDppVersionByIdAndDate(String dppId, Instant date, DppRepresentation representation);
 
     ReadDppIdsResponse readDppIdsByProductIds(List<String> productIds, Integer limit, String cursor);
 
-    T updateDppById(String dppId, JsonNode partialDpp);
+    DppApiResponse<JsonNode> updateDppById(String dppId, JsonNode partialDpp);
+
+    DppApiResponse<JsonNode> updateDppById(String dppId, JsonNode partialDpp, DppRepresentation representation);
 
     DeleteDppResponse deleteDppById(String dppId);
 
-    JsonNode readDataElement(String dppId, String elementIdPath);
+    DppApiResponse<JsonNode> readDataElement(String dppId, String elementIdPath);
 
-    JsonNode updateDataElement(String dppId, String elementIdPath, JsonNode dataElement);
+    DppApiResponse<JsonNode> readDataElement(String dppId, String elementIdPath, DppRepresentation representation);
+
+    DppApiResponse<JsonNode> updateDataElement(String dppId, String elementIdPath, JsonNode dataElement);
+
+    DppApiResponse<JsonNode> updateDataElement(String dppId, String elementIdPath, JsonNode dataElement,
+            DppRepresentation representation);
 }

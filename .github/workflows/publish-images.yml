@@ -44,7 +44,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: dpp-sdk-demo
-          file: dpp-sdk-demo/mock-dpp-repo/Dockerfile
+          file: dpp-sdk-demo/demo-dpp-repo/Dockerfile
           push: true
           tags: |
             ghcr.io/${{ steps.meta.outputs.owner }}/dpp-repo-api:${{ steps.meta.outputs.version }}

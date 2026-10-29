@@ -1,312 +1,233 @@
 # DPP PostgreSQL
 
-## Purpose
+The PostgreSQL reactor stores complete, versioned canonical DPP JSONB snapshots and optionally adds query projections and change/audit records. It is the storage implementation, not the DPP model or HTTP client.
 
-`dpp-postgres` is the optional PostgreSQL-specific persistence area for DPP aggregates. It stores full, already validated domain objects as a stable passport identity plus versioned relational data. It does not own semantic validation, JSON transport, HTTP clients, Docker/runtime setup, or mock services.
+## Modules
 
-## Architecture at a glance
+| Module | Maven artifact | Responsibility |
+| --- | --- | --- |
+| `dpp-postgres-core` | `dpp.postgres:dpp-postgres-core` | Generic `DigitalProductPassport` snapshots, optimistic concurrency, history, point-in-time reads, and soft delete. |
+| `dpp-postgres-projections` | `dpp.postgres:dpp-postgres-projections` | Optional generic current-state query documents and explicitly generated BTREE/GIN indexes. |
+| `dpp-postgres-events` | `dpp.postgres:dpp-postgres-events` | Optional lightweight change/lifecycle audit records. |
+| `dpp4fun-postgres` | `dpp.postgres:dpp4fun-postgres` | Dpp4Fun projection mapping, typed search, and convenient composition of core, projections, and events. |
+
+Use `dpp-postgres-core` for generic canonical persistence. Add projections or
+events when those capabilities are needed. `dpp4fun-postgres` brings the
+datamodel, core persistence, projections, and events modules transitively.
 
 ```mermaid
-flowchart TD
-    A["Validated Dpp4Fun"] --> B["Dpp4FunPostgresRepository"]
+flowchart LR
+  subgraph datamodel["dpp-datamodel"]
+    core["dpp-core<br/>Canonical DPP model"]
+    dpp4fun["dpp4fun<br/>Typed DPP4Fun profile"]
+    dpp4fun --> core
+  end
 
-    B --> P["dpp_passports<br/>Stable DPP identity"]
-    P --> V["dpp_versions<br/>Append-only version history"]
-    P -. dpp_id association .-> E["dpp_lifecycle_events<br/>Lightweight audit records"]
+  subgraph postgres["dpp-postgres"]
+    pgcore["dpp-postgres-core<br/>Canonical JSONB + history"]
+    projections["dpp-postgres-projections<br/>Optional query projections"]
+    events["dpp-postgres-events<br/>Optional audit records"]
+    pgdpp4fun["dpp4fun-postgres<br/>DPP4Fun persistence integration"]
 
-    V --> C["Core version tables<br/>Metadata, nameplate, documentation,<br/>organizations and contacts"]
-    V --> F["Dpp4Fun version tables<br/>Classification, characteristics,<br/>dimensions and bill of materials"]
+    projections --> pgcore
+    events --> pgcore
+    pgdpp4fun --> pgcore
+    pgdpp4fun --> projections
+    pgdpp4fun --> events
+  end
+
+  pgcore --> core
+  pgdpp4fun --> dpp4fun
+  pgdpp4fun --> core
+
+  subgraph storage["PostgreSQL storage"]
+    versions["dpp_versions<br/>canonical JSONB history"]
+    query["dpp_projections<br/>current query data"]
+    audit["dpp_lifecycle_events<br/>audit metadata"]
+  end
+  pgcore -. "writes and reads" .-> versions
+  projections -. "rebuildable" .-> query
+  events -. "appends" .-> audit
 ```
 
-Persistence receives a validated aggregate, keeps one stable passport
-identity, and stores version-bound relational data. Lifecycle events are
-separate audit records associated by `dpp_id`; they are not the canonical
-DPP state. The versioned relational state is authoritative. Lifecycle events
-describe operations but cannot be replayed to reconstruct the complete DPP.
+Solid arrows point from a Maven module to its dependency; dashed arrows show storage operations. `dpp-postgres-core` depends on `dpp-core` and stores authoritative canonical JSONB revisions. Optional projections hold rebuildable current query data, optional lifecycle events hold audit metadata, and `dpp4fun-postgres` composes these modules for typed search and persistence.
 
-The aggregate is decomposed into normalized relational tables. "Full DPP"
-means that the complete aggregate state is retained, not that it is stored as
-one serialized object or JSON document.
+## Source of truth
 
-## When to use it
+`dpp_versions.content` stores the complete expanded canonical DPP JSON through the frozen `DppJsonCodec`. Each revision can be reconstructed independently; appending a version closes the previous half-open validity interval `[valid_from, valid_to)` without rewriting its content.
 
-- Use `dpp-postgres-core` when implementing PostgreSQL persistence support shared across DPP aggregate types: core relational mapping, stable identity/version handling, lifecycle-event storage, and cursor page records.
-- Use `dpp4fun-postgres` when persisting or querying the complete furniture-specific `Dpp4Fun` aggregate. This is the consumer-facing repository module and it brings `dpp-postgres-core` transitively.
-- Do not use either module when an application only builds, validates, maps, serializes, transports, or consumes DPP objects without PostgreSQL persistence.
+`dpp_projections` contains a rebuildable current query representation. `dpp_lifecycle_events` contains SDK change/audit metadata. The Dpp4Fun projection is a profile-specific search optimization. None of these optional representations is needed to reconstruct canonical historical DPP content.
 
-Semantic validation remains in `dpp-datamodel`. `Dpp4FunPostgresRepository` expects a complete, already validated `Dpp4Fun`; it does not validate, parse JSON, apply merge patches, or evaluate element paths.
+## Generic canonical persistence
 
-## Module map
-
-| Module | Coordinates | Responsibility |
-| --- | --- | --- |
-| `dpp-postgres-core` | `dpp.postgres:dpp-postgres-core:0.5.1` | Reusable PostgreSQL schema/bootstrap support, core mapping, passport/version support, lifecycle events, and pages |
-| `dpp4fun-postgres` | `dpp.postgres:dpp4fun-postgres:0.5.1` | `Dpp4Fun` mapping, `Dpp4FunPostgresRepository`, history, batch lookup, and search projections |
-
-## Maven dependencies
-
-Use `dpp-postgres-core` only when an application needs those reusable PostgreSQL primitives directly:
-
-```xml
-<dependency>
-    <groupId>dpp.postgres</groupId>
-    <artifactId>dpp-postgres-core</artifactId>
-    <version>0.5.1</version>
-</dependency>
-```
-
-Use `dpp4fun-postgres` for the complete furniture repository; it already depends on `dpp-postgres-core`, `dpp-core`, and `dpp4fun`:
-
-```xml
-<dependency>
-    <groupId>dpp.postgres</groupId>
-    <artifactId>dpp4fun-postgres</artifactId>
-    <version>0.5.1</version>
-</dependency>
-```
-
-## Minimal repository setup
-
-`Dpp4FunPostgresRepository` accepts a `javax.sql.DataSource` and initializes the core and Dpp4Fun schemas in its constructor. The following uses PostgreSQL’s `PGSimpleDataSource`; connection details are application configuration.
+Depend on `dpp.postgres:dpp-postgres-core`. Constructing `PostgresDppRepository` initializes the core tables using the module's existing bootstrap convention. Supply a canonical `DigitalProductPassport` and operation context:
 
 ```java
-import dppsdk.postgres.dpp4fun.Dpp4FunPostgresRepository;
-import org.postgresql.ds.PGSimpleDataSource;
+PostgresDppRepository repository = new PostgresDppRepository(dataSource);
+PostgresDppOperationContext operation = PostgresDppOperationContext.now();
 
-PGSimpleDataSource dataSource = new PGSimpleDataSource();
-dataSource.setURL("jdbc:postgresql://localhost:5432/dpp");
-dataSource.setUser("postgres");
-dataSource.setPassword("postgres");
+repository.create(passport, operation);
+Optional<DigitalProductPassport> current =
+        repository.findCurrentByDppId(passport.getDppHeader().getDigitalProductPassportId());
+List<PostgresDppVersionRepositorySupport.VersionRecord> history =
+        repository.findHistoryByDppId(dppId);
+Optional<DigitalProductPassport> atTime = repository.findByDppIdAt(dppId, timestamp);
 
-Dpp4FunPostgresRepository repository = new Dpp4FunPostgresRepository(dataSource);
+repository.appendVersion(updatedPassport, expectedVersion, PostgresDppOperationContext.now());
+repository.softDelete(dppId, expectedVersion, Instant.now());
+// Soft delete ends current lookup; revisions and point-in-time reads remain available.
 ```
 
-Validate the complete object with the datamodel before persistence:
+Use the canonical header's DPP and product identifiers. `appendVersion` enforces the expected current version and does not create a new semantic revision when codec output is unchanged. `findVersion`, product-ID current/time reads, version-number lookup, existence checks, and paged active-ID lookup are also available. See `PostgresDppRepository` for the full API.
+
+## Optional generic projections
+
+Projection definitions extract a small JSON-safe document from any `DigitalProductPassport`; there is no reflection or inferred bean mapping. Declare only the indexes the query needs:
 
 ```java
-import dppsdk.dpp4fun.validation.Dpp4FunValidationService;
-import dppsdk.postgres.core.PostgresDppOperationContext;
-
-new Dpp4FunValidationService().validate(dpp);
-repository.create(dpp, PostgresDppOperationContext.now());
-```
-
-## Create, read, version, delete, and search
-
-### Create and read
-
-`create` creates a stable passport identity and active version 1. `dppId`, `productId`, and passport type are read from the aggregate.
-
-```java
-import java.time.Instant;
-import java.util.Optional;
-import dppsdk.dpp4fun.model.Dpp4Fun;
-
-Instant createdAt = Instant.parse("2026-06-29T10:00:00Z");
-repository.create(
-        dpp,
-        new PostgresDppOperationContext("create-demo", createdAt)
-);
-
-Optional<Dpp4Fun> currentByDppId = repository.findCurrentByDppId(dpp.getDppId());
-Optional<Dpp4Fun> currentByProductId = repository.findCurrentByProductId(dpp.getProductId());
-Optional<Long> versionNo = repository.findCurrentVersionNoByDppId(dpp.getDppId());
-boolean active = repository.existsActiveByDppId(dpp.getDppId());
-```
-
-### Append a version and read history
-
-`appendVersion` uses optimistic concurrency: `expectedCurrentVersion` must equal the active version number or it throws `PostgresDppVersionConflictException`. The passport’s `productId` is immutable. The current version becomes `SUPERSEDED`, and a new `ACTIVE` version is stored.
-
-```java
-import dppsdk.postgres.dpp4fun.Dpp4FunVersionSummary;
-import dppsdk.dpp4fun.model.Dpp4Fun;
-
-Dpp4Fun updated = dpp.toBuilder()
-        .characteristics(dpp.getCharacteristics().toBuilder()
-                .productName("Cir4Fun Platform Bed - Updated")
+DppProjectionDefinition definition = DppProjectionDefinition.builder("catalog")
+        .extract(passport -> DppProjectionDocument.builder()
+                .text("manufacturer", manufacturerFrom(passport))
+                .number("rating", ratingFrom(passport))
+                .strings("tags", tagsFrom(passport))
                 .build())
+        .btree("manufacturer", DppProjectionValueType.TEXT)
+        .btree("rating", DppProjectionValueType.NUMBER)
+        .gin("tags")
         .build();
 
-Instant updatedAt = Instant.parse("2026-06-29T12:00:00Z");
-repository.appendVersion(
-        updated,
-        1L, // Expected current version for optimistic concurrency.
-        new PostgresDppOperationContext("update-demo", updatedAt)
-);
-
-Optional<Dpp4Fun> versionOne = repository.findByDppIdAt(
-        dpp.getDppId(), Instant.parse("2026-06-29T11:00:00Z")
-);
-Optional<Dpp4Fun> versionTwo = repository.findByDppIdAt(
-        dpp.getDppId(), Instant.parse("2026-06-29T13:00:00Z")
-);
-java.util.List<Dpp4FunVersionSummary> history = repository.findHistoryByDppId(dpp.getDppId());
+PostgresProjectionDdlGenerator ddl = new PostgresProjectionDdlGenerator();
+String tableDdl = ddl.createTableDdl();
+String indexDdl = ddl.generate(definition);
+new PostgresProjectionSchemaManager(dataSource).apply(definition); // explicit bootstrap
 ```
 
-### Soft delete
+The extractor helpers above stand for application code that reads the canonical model. Projection storage supports upsert/find/remove and rebuilding a definition from every active canonical revision. Development and tests may explicitly call `PostgresProjectionSchemaManager.apply`; production can take deterministic output from `PostgresProjectionDdlGenerator` and apply it through its deployment process. Indexes are **not** created silently when a repository or application starts. Projection rows are current-state only and may be deleted and rebuilt without losing DPP data.
 
-`softDelete` also uses the expected current version. It marks the active version `DELETED`, sets the passport’s `deleted_at`, and appends a `DPP_DELETED` lifecycle event. The stable identity and prior versions remain available through history/time-based lookup; current lookups and active searches no longer return it.
+## Optional lifecycle/change events
+
+Depend on `dpp.postgres:dpp-postgres-events`. Each write to a DPP can append an append-only audit record saying *what changed, to which revision, and when* — the trail you need to answer "who touched this passport and in what order" without reading every stored revision.
+
+```mermaid
+flowchart LR
+    C["create()"] --> E1["DPP_CREATED<br/>version 1"]
+    U["appendVersion()"] --> E2["DPP_UPDATED<br/>version 2"]
+    D["appendVersion()<br/>element-level edit"] --> E3["DATA_ELEMENT_UPDATED<br/>version 3"]
+    X["softDelete()"] --> E4["DPP_DELETED<br/>version 4"]
+    E1 --> T["dpp_lifecycle_events<br/>append-only, ordered by occurred_at"]
+    E2 --> T
+    E3 --> T
+    E4 --> T
+```
+
+| Event type | Emitted by | `data` payload |
+| --- | --- | --- |
+| `DPP_CREATED` | `create` | `productId` |
+| `DPP_UPDATED` | `appendVersion`, caller-selected | caller-supplied |
+| `DATA_ELEMENT_UPDATED` | `appendVersion`, caller-selected | caller-supplied |
+| `DPP_DELETED` | `softDelete` | `productId` |
+
+`DPP_CREATED` and `DPP_DELETED` are recorded for you. For updates you pass the event type and `data` map, so an element-level edit is distinguishable from a whole-passport one.
+
+### Events and revisions commit together
+
+`PostgresDppRepositoryWithEvents` writes the revision and its event in **one transaction**. Either both land or neither does, so the audit trail cannot drift from the canonical history:
+
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant Repo as PostgresDppRepositoryWithEvents
+    participant DB as PostgreSQL
+    App->>Repo: create(passport, context)
+    Repo->>DB: BEGIN
+    Repo->>DB: insert into dpp_versions
+    Repo->>DB: insert into dpp_lifecycle_events
+    Repo->>DB: COMMIT
+    Note over Repo,DB: any failure rolls back both
+    Repo-->>App: VersionRecord
+```
 
 ```java
-repository.softDelete(dpp.getDppId(), 2L, Instant.parse("2026-06-29T14:00:00Z"));
-boolean stillKnown = repository.existsAnyByDppId(dpp.getDppId());
+PostgresDppRepositoryWithEvents repository = new PostgresDppRepositoryWithEvents(dataSource);
+repository.initializeSchema(); // creates dpp_versions and dpp_lifecycle_events
+
+var created = repository.create(passport, PostgresDppOperationContext.now());
+repository.appendVersion(updatedPassport, created.versionNo(), PostgresDppOperationContext.now(),
+        DppLifecycleEventType.DATA_ELEMENT_UPDATED, Map.of("path", "$.elements[1].elements[5]"));
+
+List<DppLifecycleEventRecord> trail = repository.findEventsByDppId(dppId);
 ```
 
-### Search and batch lookup
+`findEventsByDppId` returns the trail ordered by `occurred_at` then `id`, so events with identical timestamps keep their insertion order. Each record carries `eventId`, `dppId`, `versionNo`, `operationId`, `eventType`, `occurredAt` and the `data` map. Share an `operationId` across writes to group them into one logical operation.
 
-`search` returns lightweight `Dpp4FunSearchResult` projections from active versions, ordered by DPP ID. Its exact-match filters are `sector`, `category`, `brand`, `productType`, `materialName`, `componentName`, and `partName`. `limit` defaults to 50 and `offset` to 0; a provided limit must be positive and offset non-negative.
+To drive the transaction yourself — for example to include a projection update — use `PostgresLifecycleEventRepository` directly; its methods take the `Connection`:
 
 ```java
-import dppsdk.postgres.core.DppPage;
-import dppsdk.postgres.core.DppPageRequest;
-import dppsdk.postgres.dpp4fun.Dpp4FunSearchCriteria;
-import dppsdk.postgres.dpp4fun.Dpp4FunSearchResult;
-
-java.util.List<Dpp4FunSearchResult> results = repository.search(
-        new Dpp4FunSearchCriteria(
-                "Furniture", "Beds", null, null, null, null, null, 10, 0
-        )
-);
-
-DppPage<String> page = repository.findActiveDppIdsByProductIds(
-        java.util.List.of(dpp.getProductId()),
-        new DppPageRequest(null, 50)
-);
+PostgresLifecycleEventRepository events = new PostgresLifecycleEventRepository();
+try (Connection connection = dataSource.getConnection()) {
+    connection.setAutoCommit(false);
+    try {
+        events.append(connection, dppId, versionNo, operationId,
+                DppLifecycleEventType.DPP_UPDATED, occurredAt, Map.of("reason", "changed"));
+        connection.commit();
+    } catch (SQLException | RuntimeException failure) {
+        connection.rollback();
+        throw failure;
+    }
+}
 ```
 
-Fine-granular JSONPath or element-path evaluation is not implemented in persistence. `DATA_ELEMENT_UPDATED` is an audit event type only; callers may record it with `recordLifecycleEvent` and application-provided string data.
+### Behavior worth knowing
 
-## Lifecycle events
+- **No revision, no event.** `appendVersion` skips the event when the codec output is unchanged, because no new semantic revision was created. An update that changes nothing leaves no trace.
+- `occurredAt` is truncated to **microseconds** to match PostgreSQL `timestamptz`, so a round-tripped nanosecond timestamp will not compare equal.
+- `versionNo` and `operationId` are nullable; the shorter `append` overload omits both.
+- `data` is a flat `Map<String, String>` stored as `jsonb`; a null map is stored as `{}`.
+- Events are indexed on `(dpp_id, occurred_at, id)` — per-DPP history reads are the intended access path, not cross-DPP scans.
 
-Events live in `dpp_lifecycle_events` and contain a generated `event_id`, `dpp_id`, `event_type`, `occurred_at`, and JSONB string map `data`. `findEventsByDppId` returns `DppLifecycleEventRecord` values ordered by occurrence time and insertion ID.
+In the demo repository this is exposed through `DPP_REPO_EVENTS_ENABLED`; with events disabled, revisions, history and soft delete still work and the internal events endpoint returns 501.
 
-The supported `DppLifecycleEventType` values are:
+EN 18223 addresses tracking and logging DPP changes. `dpp-postgres-events` is this SDK's concrete PostgreSQL representation for those records; its Java types and table format are not claimed to be prescribed by the standard. Records do not contain complete DPP content, actor identity, or a changed-property diff, and they are not event sourcing or the EN 18222 Lifecycle API.
 
-- `DPP_CREATED` — appended by `create`
-- `DPP_UPDATED` — appended by the standard `appendVersion` overload
-- `DATA_ELEMENT_UPDATED` — application-recorded through `recordLifecycleEvent`
-- `DPP_DELETED` — appended by `softDelete`
+## Dpp4Fun integration
+
+Depend on `dpp.postgres:dpp4fun-postgres` for typed furniture profile behavior:
 
 ```java
-import dppsdk.postgres.core.DppLifecycleEventType;
-
-repository.recordLifecycleEvent(
-        dpp.getDppId(),
-        DppLifecycleEventType.DATA_ELEMENT_UPDATED,
-        Instant.now(),
-        java.util.Map.of("elementPath", "characteristics.productName")
-);
+Dpp4FunPostgresRepository repository = new Dpp4FunPostgresRepository(dataSource);
+repository.initializeSchema(); // explicit development/test bootstrap
+repository.create(dpp4fun, PostgresDppOperationContext.now());
+List<Dpp4FunSearchResult> matches = repository.search(criteria);
+Optional<Dpp4Fun> current = repository.findCurrentByDppId(dppId);
 ```
 
-Lifecycle events are lightweight audit records, not event sourcing and not the canonical full-DPP state.
+It maps Dpp4Fun values into the generic projection and composes canonical persistence, projection updates, and audit events in one transaction for create, version append, and soft delete. It does not store a second authoritative furniture graph. The current projection searches only the catalog-backed Nameplate brand and BillOfMaterials material, component, and part names; it does not project ontology-only sector/category fields or flatten multilingual product type/name fields into scalar columns.
 
-## Storage structure and schemas
+## Schema and bootstrap
 
-`dpp_passports` holds the stable identity (`dpp_id`, `product_id`, passport type, creation time, and soft-delete timestamp). `appendVersion` preserves that product ID. `dpp_versions` holds version number, status (`ACTIVE`, `SUPERSEDED`, or `DELETED`), validity period, storage timestamp, and optional operation ID. Core and Dpp4Fun field data is tied to a version ID, so version content is not overwritten when a new version is appended.
+The core tables are `dpp_passports` (stable DPP/product identity) and `dpp_versions` (complete canonical revisions). Optional tables are `dpp_projections` and `dpp_lifecycle_events`. Schema resources:
 
-Core schema tables:
+- [`core-schema.sql`](dpp-postgres-core/src/main/resources/postgres/core-schema.sql)
+- [`events-schema.sql`](dpp-postgres-events/src/main/resources/postgres/events-schema.sql)
+- [`dpp4fun-schema.sql`](dpp4fun-postgres/src/main/resources/postgres/dpp4fun-schema.sql), containing the built-in Dpp4Fun projection indexes
 
-- `dpp_passports`, `dpp_versions`, `dpp_passport_metadata`, `dpp_passport_update_dates`
-- `dpp_nameplates`, `dpp_documentation`, `dpp_organizations`, `dpp_contacts`
-- `dpp_addresses`, `dpp_emails`, `dpp_telephones`, `dpp_lifecycle_events`
+No Flyway/Liquibase migration layer is included. Core repository construction retains core schema bootstrap; Dpp4Fun schema/index creation is explicit. Production online-index strategy belongs to deployment tooling.
 
-Dpp4Fun schema tables:
+## Standards alignment and limits
 
-- `dpp4fun_classifications`, `dpp4fun_classification_tags`, `dpp4fun_characteristics`, `dpp4fun_dimensions`, `dpp4fun_features`
-- `dpp4fun_bill_of_materials`, `dpp4fun_materials`, `dpp4fun_components`, `dpp4fun_parts`
+The PostgreSQL foundation stores complete versioned DPP snapshots, preserves historical revisions, and supports point-in-time lookup. It is designed around the storage and archiving concerns of EN 18221:2026. This is not a formal compliance or certification claim. EN 18222 concerns DPP lifecycle and search APIs; these PostgreSQL modules provide backend capabilities that can support such APIs but do not claim full API conformance. Projections are implementation query optimizations, not a standards information model or wire representation.
 
-The schema resources are [core-schema.sql](dpp-postgres-core/src/main/resources/postgres/core-schema.sql) and [dpp4fun-schema.sql](dpp4fun-postgres/src/main/resources/postgres/dpp4fun-schema.sql).
+The foundation does not implement backup DPP service-provider integration, replication or an RPO schedule, external mandatory-document byte archival, or EN 18239 access-control enforcement. Canonical DPP references to related resources are retained in snapshots, but external resource bytes are not archived here. Content hashes are an implementation integrity aid; EN 18246 authentication, signature, and originality mechanisms are not claimed. No automatic revision purge is implemented; storage supports retention during the DPP lifetime, while regulatory lifetime policy/configuration remains outside this module.
 
-## Contributor build and install commands
+## Build and test
 
-Requires JDK 17. The Maven wrapper is at the repository root. The isolated-build commands below are copy-pasteable from the repository root and use each nested POM with `-f`.
-
-For an isolated `dpp-postgres` build, install `dpp-datamodel` first. This supplies the main artifacts and test JARs required by `dpp4fun-postgres` tests. Required working directory: repository root.
-
-### Install the datamodel prerequisite
-
-PowerShell:
-
-```powershell
-.\mvnw.cmd -f .\dpp-datamodel\pom.xml clean install
-```
-
-Linux/macOS Bash:
+Requires JDK 17, plus Docker for the Testcontainers integration tests. Run from the repository root; on Windows use `mvnw.cmd`. The PostgreSQL reactor is separate from the datamodel reactor, so install the datamodel artifacts first — `dpp4fun-postgres` needs its test JAR.
 
 ```bash
-./mvnw -f ./dpp-datamodel/pom.xml clean install
+./mvnw -f dpp-datamodel/pom.xml clean install              # prerequisite
+./mvnw -f dpp-postgres/pom.xml clean test                  # whole reactor
+./mvnw -f dpp-postgres/pom.xml clean install               # install all artifacts locally
+./mvnw -f dpp-postgres/pom.xml -pl dpp-postgres-core -am test   # one module only
 ```
 
-### Run PostgreSQL tests
-
-PowerShell:
-
-```powershell
-.\mvnw.cmd -f .\dpp-postgres\pom.xml test
-```
-
-Linux/macOS Bash:
-
-```bash
-./mvnw -f ./dpp-postgres/pom.xml test
-```
-
-### Build and install PostgreSQL artifacts
-
-PowerShell:
-
-```powershell
-.\mvnw.cmd -f .\dpp-postgres\pom.xml clean install
-```
-
-Linux/macOS Bash:
-
-```bash
-./mvnw -f ./dpp-postgres/pom.xml clean install
-```
-
-Focused `dpp-postgres-core` tests from the repository root — PowerShell:
-
-```powershell
-.\mvnw.cmd -f .\dpp-postgres\pom.xml -pl dpp-postgres-core -am test
-```
-
-Linux/macOS Bash:
-
-```bash
-./mvnw -f ./dpp-postgres/pom.xml -pl dpp-postgres-core -am test
-```
-
-Focused `dpp4fun-postgres` tests from the repository root — PowerShell:
-
-```powershell
-.\mvnw.cmd -f .\dpp-postgres\pom.xml -pl dpp4fun-postgres -am test
-```
-
-Linux/macOS Bash:
-
-```bash
-./mvnw -f ./dpp-postgres/pom.xml -pl dpp4fun-postgres -am test
-```
-
-## Boundaries
-
-- Semantic validation, builders, models, payload mappers, and JSON codecs belong to `dpp-datamodel`.
-- `dpp-postgres-core` stays reusable and free of `Dpp4Fun` mapping.
-- `dpp4fun-postgres` owns only Dpp4Fun-specific relational persistence and queries.
-- Fine-granular JSONPath evaluation, merge patching, HTTP behavior, and generic clients are outside this module.
-- PostgreSQL storage for the mock registry belongs to `dpp-sdk-demo/mock-eu-registry`, not here. Do not add mock-service runtime or Docker instructions to this README.
-
-## Aggregator POM
-
-The module aggregator is `dpp.postgres:dpp-postgres:0.5.1`. It uses `pom`
-packaging and is not itself a runtime dependency.
-
-## Related documentation
-
-- [DPP SDK clients](../dpp-sdk-clients/README.md) - model-independent repository and registry HTTP clients
-- [Root README](../README.md) - repository overview and Docker quick start
-
-- [DPP datamodel README](../dpp-datamodel/README.md) — model construction and semantic validation
-- [DPP SDK demo README](../dpp-sdk-demo/README.md) — demo and mock-service runtime documentation
+Model→batch→item automatic inheritance and relational hierarchy management are **future work**, not part of this release.

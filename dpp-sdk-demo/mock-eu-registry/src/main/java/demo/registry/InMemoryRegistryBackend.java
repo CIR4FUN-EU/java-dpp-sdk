@@ -58,8 +58,4 @@ final class InMemoryRegistryBackend implements RegistryBackend {
         store.seed(registryIdentifier, productIdentifier, dppIdentifier, operatorIdentifier, repoUrl, now);
     }
 
-    @Override
-    public void clear() {
-        store.clear();
-    }
 }

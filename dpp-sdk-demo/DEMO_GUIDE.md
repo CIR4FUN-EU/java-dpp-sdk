@@ -1,68 +1,48 @@
 # DPP SDK Demo Guide
 
-This is a presenter guide, not a setup guide. Complete execution modes, commands, ports, cleanup, and troubleshooting are in the [demo README](README.md).
+A presentation sequence for the SDK and demo-service flow. The [demo README](README.md) owns build, configuration, health checks and cleanup — check those first.
 
-When using any command referenced by this guide, work from the repository root;
-the demo README uses root-relative Compose, JAR, and Maven-wrapper paths.
+## Preflight
 
-## Preflight checklist
+Start both APIs, confirm their health, and have the Swagger or Postman views you plan to show ready. Then run `all` from the repository root — it runs the SDK capability flow first, then the HTTP lifecycle flow:
 
-- Build the demo JARs and start the chosen service mode by following the README.
-- Confirm `http://localhost:8080/health` and `http://localhost:8081/health` return `UP` for an HTTP demo.
-- Open `http://localhost:8080/` and `http://localhost:8081/`; each base URL redirects directly to its Swagger UI.
-- Open repository Swagger UI at `http://localhost:8080/swagger-ui/index.html` and registry Swagger UI at `http://localhost:8081/swagger-ui/index.html`.
-- Import the three collections in [`postman/`](postman/) and set their base URL variables.
-- Decide whether to demonstrate `sdk`, `http`, or `all`; use `all` for a complete walkthrough.
+```bash
+java -jar dpp-sdk-demo/dpp-integration-demo/target/dpp-integration-demo-0.6.0.jar all --debug=false
+```
 
-The runner modes are passed as the first argument to
-`dpp-integration-demo-0.5.1.jar`; use the exact command from the [demo README](README.md).
-
-## What to open
-
-Keep three views available: the integration-runner terminal, repository Swagger UI, and registry Swagger UI. Open either service base URL to reach its Swagger UI directly. Have Postman ready for the optional request-by-request sequence. The runner is the most reliable narrative spine because it prints each operation and expected error handling.
+Expect `SDK capability demo complete` followed by `HTTP services demo complete`. For an SDK-only presentation use `sdk` instead; it needs no services.
 
 ## Suggested flow
 
-1. **Set the boundary.** Explain that this is a mock repository plus a metadata-only mock registry. It demonstrates SDK and client behavior; it is not a production registry or certification claim.
-2. **Show health and API discovery.** Refresh both `/health` endpoints, then show the two Swagger UIs. Point out that `/v1/...` is the public mock API and `/internal/...` is demo support.
-3. **Show the SDK capability flow.** Run `sdk` or start with the SDK section of `all`. Explain immutable builders, semantic validation, mapping to/from payloads, JSON codec round-trip, and invalid data rejection.
-4. **Create and read a DPP.** In the HTTP flow, show `CreateDPP`, the compressed representation, typed full-DPP read, and read by product ID. The client asks for the full representation when decoding a typed DPP.
-5. **Update and inspect history.** Show the partial-DPP update, then the DPP-ID historical read and the current read by product ID. Explain that these are mock lifecycle/version behaviors.
-6. **Show fine-granular operations.** Use `$.characteristics.productName`. If the demo DPP includes bill-of-material entries, also show `$.billOfMaterials.materials[0].name`. Only singular root/member/index selectors are supported.
-7. **Register with the registry.** Highlight that the registry request records identifiers and a repository endpoint, then independently sends `HEAD /internal/dpps/{dppId}` to verify that the active DPP exists. It does not copy full DPP JSON.
-8. **Finish with deletion and limits.** The runner soft-deletes its DPP and prints completion. Reiterate persistence choice and mock boundaries.
+1. **Set the boundary.** A working demo repository service — SDK validation, PostgreSQL-backed revisions, history — plus a metadata-only *mock* registry standing in for a real EU registry. Neither is production-hardened, and neither is a certification claim.
+2. **Health and API discovery.** Refresh both `/health` endpoints, then the Swagger UIs. `/v1/...` is the public API; `/internal/...` is demo support, and the registry's lookup routes there are not part of the public client.
+3. **SDK capability flow.** In the runner output, point out `validation: valid`, the typed Chair DPP fields, the immutable edit with `original retained unchanged: true`, and FULL/COMPRESSED serialization. The runner also shows validation and malformed-JSON errors.
+4. **Create and read.** The HTTP flow converts the typed object to neutral JSON at the application boundary, then uses the JSON-only repository client. Show the created DPP ID, and the compressed read beside the explicit FULL one — an omitted representation is compressed; FULL carries the complete model data.
+5. **Update and inspect history.** Show the product-ID lookup, the typed immutable edit submitted through the generic client, the changed brand, and the historical read.
+6. **Fine-granular operations.** Use `$.elements[1].elements[5]` for the Nameplate `brand` DataElement, or `$.elements[0].elements[0].value[0].elements[0]` for the first BOM material name. These indexes follow the runner fixture in FULL representation, and only singular root/member/index selectors are supported.
+7. **Register.** Show the returned registration ID. The registry stores the supplied identifiers and repository endpoint as metadata; it does not contact the repository or copy its JSON.
+8. **Handled failures.** Point out the expected 404 for a missing DPP, the handled network error for an unreachable registry, and the final soft delete (`SuccessNoContent`).
 
-## Positive cases to call out
+## Points worth making
 
-- Builders reject missing required values and the validator rejects semantic errors.
+- Builders create immutable canonical models; profile validation reports missing required values and semantic errors.
 - A valid full DPP can be created, read, partially updated, addressed at a data element, read historically, and soft-deleted.
-- The registry accepts metadata only after repository verification succeeds.
-- `sdk` ends with `SDK capability demo complete`; HTTP flows end with `HTTP services demo complete`.
-
-## Negative cases to show
-
-- A DPP with an invalid supplier role fails client-side validation before HTTP.
-- Registering a missing or deleted repository DPP is rejected because the registry's internal HEAD verification does not find an active record.
-- Reading a nonexistent DPP produces a handled 404 client error.
-- An unreachable registry is reported as a handled network client error.
-- Fine-granular malformed paths produce 400, valid-but-missing paths 404, and unsupported selector forms 501. Do not describe this bounded subset as full RFC 9535 support.
+- Registry registration is independent of repository reachability and of the DPP existing at all.
+- The HTTP demo's *application* validates its deliberately incomplete typed DPP before sending; the repository client itself stays model-independent and just transports JSON. The repository validates what it receives.
+- Fine-granular paths: malformed → 400, valid but missing → 404, unsupported selector → 501. Do not present this bounded subset as full RFC 9535 support.
 
 ## Postman sequence
 
-Use the collections in this order:
-
-1. `dpp-lifecycle-api.verified-export-shape.postman_collection.json` — create/read/update/version/delete repository flow.
+1. `dpp-lifecycle-api.verified-export-shape.postman_collection.json` — create/read/update/version/delete.
 2. `dpp-fine-granular-api.import-safe.postman_collection.json` — singular reads and direct JSON PATCH values.
-3. `dpp-registry-api.verified-export-shape.postman_collection.json` — register an active repository DPP, then inspect mock lookup responses.
+3. `dpp-registry-api.verified-export-shape.postman_collection.json` — register metadata, inspect the registry's demo lookup responses.
 
-Run the repository collection before registry registration so the referenced DPP exists. If a collection mutates seeded data, restart memory mode or reset the PostgreSQL demo volumes using the README's cleanup instructions.
+Run the repository collection first only for the combined create-and-register story. The collections mutate their target data, so prefer a disposable memory-mode session for repeatable demonstrations.
 
-## Presenter notes
+## If something goes wrong
 
-The registry lookup routes are demo-only `/internal/...` endpoints and are not part of the public registry client.
+- `all` exits during preflight: confirm both health endpoints, then see the README's [troubleshooting](README.md#troubleshooting).
+- A Postman request fails after data changed: switch to a fresh memory-mode session. PostgreSQL data persists.
+- Asked about an unsupported API or standard requirement: separate what the demo implements from complete standards conformity, and point to the relevant module guide.
 
-Avoid spending time on Docker implementation details during the demo. If attendees need setup, port changes, local-memory versus PostgreSQL selection, mixed operation, or failure diagnosis, link them to the [README](README.md). Keep the presentation centered on the DPP flow and its observable API behavior.
-
-The intended takeaway is that the SDK separates domain modeling, validation,
-transport, persistence, repository access, and registry metadata while keeping
-the mock runtime replaceable.
+Keep the presentation on the DPP flow and its observable API behavior, not Docker details — send setup questions to the [README](README.md). The takeaway: the SDK separates domain modeling, validation, transport, persistence, repository access and registry metadata, while the demo runtime stays replaceable.

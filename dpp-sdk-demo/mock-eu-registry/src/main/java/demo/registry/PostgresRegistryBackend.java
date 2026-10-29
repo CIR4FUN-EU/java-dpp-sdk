@@ -167,16 +167,6 @@ final class PostgresRegistryBackend implements RegistryBackend {
         }
     }
 
-    @Override
-    public void clear() {
-        try (Connection connection = dataSource.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.executeUpdate("DELETE FROM registry_records");
-        } catch (SQLException exception) {
-            throw new IllegalStateException("Failed to clear registry records", exception);
-        }
-    }
-
     private Optional<RegistryRecord> findOne(String sql, String identifier) {
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {

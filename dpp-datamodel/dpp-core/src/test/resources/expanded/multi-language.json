@@ -1,0 +1,21 @@
+{
+  "digitalProductPassportId": "https://example.org/dpp/1234545",
+  "uniqueProductIdentifier": "https://example.org/1234545",
+  "granularity": "item",
+  "dppSchemaVersion": "EN18223:2026",
+  "dppStatus": "active",
+  "lastUpdated": "2026-09-21T10:00:00Z",
+  "economicOperatorId": "gxx:ppp456789",
+  "contentSpecificationIds": [],
+  "elements": [
+    {
+      "elementId": "productDescription",
+      "objectType": "MultiLanguageDataElement",
+      "value": [
+        {"value": "One Thing", "language": "en-IE"},
+        {"value": "Una Cosa", "language": "es-ES"},
+        {"value": "Une Chose", "language": "fr-CH"}
+      ]
+    }
+  ]
+}

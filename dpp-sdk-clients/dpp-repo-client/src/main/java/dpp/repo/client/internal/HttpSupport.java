@@ -6,13 +6,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import dpp.repo.client.core.DppCodec;
-import dpp.repo.client.core.DppValidator;
 import dpp.repo.client.exception.DppApiClientException;
 import dpp.repo.client.exception.DppHttpClientException;
 import dpp.repo.client.exception.DppMappingClientException;
 import dpp.repo.client.exception.DppNetworkClientException;
-import dpp.repo.client.exception.DppValidationClientException;
 import dpp.repo.payloads.DppApiMessage;
 import dpp.repo.payloads.DppApiResponse;
 import dpp.repo.payloads.DppStatusCode;
@@ -61,7 +58,12 @@ public final class HttpSupport {
         while (trimmed.endsWith("/")) {
             trimmed = trimmed.substring(0, trimmed.length() - 1);
         }
-        URI.create(trimmed);
+        URI uri = URI.create(trimmed);
+        String scheme = uri.getScheme();
+        if (!uri.isAbsolute() || uri.getHost() == null
+                || !("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+            throw new IllegalArgumentException("baseUrl must be an absolute HTTP(S) URL with a host");
+        }
         return trimmed;
     }
 
@@ -83,38 +85,6 @@ public final class HttpSupport {
                 .replace("+", "%20");
     }
 
-    public static <T> void validate(DppValidator<T> validator, T dpp) {
-        try {
-            validator.validate(dpp);
-        } catch (RuntimeException ex) {
-            throw new DppValidationClientException("DPP validation failed before request", ex);
-        }
-    }
-
-    public static <T> String serialize(DppCodec<T> codec, T dpp) {
-        try {
-            String json = codec.toJson(dpp);
-            if (json == null) {
-                throw new IllegalStateException("codec returned null JSON");
-            }
-            return json;
-        } catch (RuntimeException ex) {
-            throw new DppMappingClientException("DPP serialization failed before request", ex);
-        }
-    }
-
-    public static <T> T deserialize(DppCodec<T> codec, String body) {
-        try {
-            T dpp = codec.fromJson(body);
-            if (dpp == null) {
-                throw new IllegalStateException("codec returned null DPP");
-            }
-            return dpp;
-        } catch (RuntimeException ex) {
-            throw new DppMappingClientException("DPP deserialization failed after response", ex);
-        }
-    }
-
     public static String serializeJson(ObjectMapper objectMapper, Object value) {
         try {
             return objectMapper.writeValueAsString(value);
@@ -128,14 +98,6 @@ public final class HttpSupport {
             return objectMapper.treeToValue(node, type);
         } catch (JsonProcessingException ex) {
             throw new DppMappingClientException("Client JSON mapping failed after response", ex);
-        }
-    }
-
-    public static String payloadToJson(ObjectMapper objectMapper, JsonNode payload) {
-        try {
-            return objectMapper.writeValueAsString(payload);
-        } catch (JsonProcessingException ex) {
-            throw new DppMappingClientException("Client JSON payload conversion failed after response", ex);
         }
     }
 
@@ -201,10 +163,23 @@ public final class HttpSupport {
         }
     }
 
-    public static void requireSuccess(HttpResponse<String> response) {
+    public static void requireSuccess(HttpResponse<String> response, ObjectMapper objectMapper) {
         int status = response.statusCode();
         if (status < 200 || status >= 300) {
-            throw new DppHttpClientException("DPP endpoint returned non-success HTTP status " + status, status, response.body());
+            String rawBody = response.body();
+            try {
+                DppApiResponse<JsonNode> apiResponse = parseApiResponse(objectMapper, rawBody);
+                if (apiResponse.getStatusCode() == null || apiResponse.getStatusCode().isSuccess()) {
+                    throw new IllegalArgumentException("Error response has no error statusCode");
+                }
+                throw new DppApiClientException("DPP endpoint returned HTTP " + status, status,
+                        apiResponse.getStatusCode(), apiResponse.getMessage(), rawBody, null);
+            } catch (DppApiClientException exception) {
+                throw exception;
+            } catch (RuntimeException exception) {
+                throw new DppHttpClientException(
+                        "DPP endpoint returned non-success HTTP status " + status, status, rawBody, exception);
+            }
         }
     }
 
@@ -228,7 +203,7 @@ public final class HttpSupport {
             );
         }
         if (!statusCode.isSuccess()) {
-            List<DppApiMessage> messages = response.getMessages();
+            List<DppApiMessage> messages = response.getMessage();
             throw new DppApiClientException(
                     "DPP API returned error status " + statusCode,
                     statusCode,

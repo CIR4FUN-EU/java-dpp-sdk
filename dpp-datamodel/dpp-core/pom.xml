@@ -6,19 +6,19 @@
     <parent>
         <groupId>dpp.datamodel</groupId>
         <artifactId>dpp-datamodel</artifactId>
-        <version>0.5.1</version>
+        <version>0.6.0</version>
     </parent>
 
     <artifactId>dpp-core</artifactId>
     <packaging>jar</packaging>
 
     <name>DPP Core</name>
-    <description>Reusable Digital Product Passport core models, validators, payloads, and mappers.</description>
+    <description>Reusable EN 18223-oriented Digital Product Passport domain model, JSON transport, and shared SDK contracts.</description>
 
     <dependencies>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
+            <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
         </dependency>
         <dependency>

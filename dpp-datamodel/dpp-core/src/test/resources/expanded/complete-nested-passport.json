@@ -1,0 +1,40 @@
+{
+  "digitalProductPassportId": "https://example.org/dpp/1234545",
+  "uniqueProductIdentifier": "https://example.org/1234545",
+  "granularity": "item",
+  "dppSchemaVersion": "EN18223:2026",
+  "dppStatus": "active",
+  "lastUpdated": "2026-09-21T10:00:00Z",
+  "economicOperatorId": "gxx:ppp456789",
+  "facilityId": "gxx:xxx987654",
+  "contentSpecificationIds": ["prEN1234_xyz", "prEN5678_abc"],
+  "elements": [
+    {"elementId": "manufacturerName", "objectType": "SingleValuedDataElement", "dictionaryReference": "https://example.org/dictionary/manufacturerName", "valueDataType": "xsd:string", "value": "ExampleCorp"},
+    {"elementId": "recycledContentPercentage", "objectType": "SingleValuedDataElement", "dictionaryReference": "https://example.org/dictionary/recycledContentPercentage", "valueDataType": "xsd:decimal", "value": 25.5},
+    {"elementId": "performanceMetrics", "objectType": "DataElementCollection", "elements": [
+      {"elementId": "maxPressure", "objectType": "SingleValuedDataElement", "dictionaryReference": "https://example.org/dictionary/maxPressure", "valueDataType": "xsd:decimal", "value": 750.0},
+      {"elementId": "isFireResistant", "objectType": "SingleValuedDataElement", "dictionaryReference": "https://example.org/dictionary/isFireResistant", "valueDataType": "xsd:boolean", "value": true}
+    ]},
+    {"elementId": "supportedVoltages", "objectType": "MultiValuedDataElement", "valueDataType": "xsd:integer", "value": [
+      {"elementId": "voltage110", "objectType": "SingleValuedDataElement", "dictionaryReference": "https://example.org/dictionary/voltage", "valueDataType": "xsd:integer", "value": 110},
+      {"elementId": "voltage220", "objectType": "SingleValuedDataElement", "dictionaryReference": "https://example.org/dictionary/voltage", "valueDataType": "xsd:integer", "value": 220},
+      {"elementId": "voltage240", "objectType": "SingleValuedDataElement", "dictionaryReference": "https://example.org/dictionary/voltage", "valueDataType": "xsd:integer", "value": 240}
+    ]},
+    {"elementId": "componentParts", "objectType": "MultiValuedDataElement", "value": [
+      {"elementId": "componentPart1", "objectType": "DataElementCollection", "elements": [
+        {"elementId": "partID", "objectType": "SingleValuedDataElement", "dictionaryReference": "https://example.org/dictionary/partID", "valueDataType": "xsd:string", "value": "A-101"},
+        {"elementId": "material", "objectType": "SingleValuedDataElement", "dictionaryReference": "https://example.org/dictionary/material", "valueDataType": "xsd:string", "value": "Steel"}
+      ]},
+      {"elementId": "componentPart2", "objectType": "DataElementCollection", "elements": [
+        {"elementId": "partID", "objectType": "SingleValuedDataElement", "dictionaryReference": "https://example.org/dictionary/partID", "valueDataType": "xsd:string", "value": "B-202"},
+        {"elementId": "material", "objectType": "SingleValuedDataElement", "dictionaryReference": "https://example.org/dictionary/material", "valueDataType": "xsd:string", "value": "Recycled Plastic"}
+      ]}
+    ]},
+    {"elementId": "userManual", "objectType": "RelatedResource", "contentType": "application/pdf", "url": "https://data.example.com/manuals/thermostat-pro_v2.1.pdf", "language": "en-GB", "resourceTitle": "User Manual for the Smart Thermostat Pro"},
+    {"elementId": "productDescription", "objectType": "MultiLanguageDataElement", "value": [
+      {"value": "One Thing", "language": "en-IE"},
+      {"value": "Una Cosa", "language": "es-ES"},
+      {"value": "Une Chose", "language": "fr-CH"}
+    ]}
+  ]
+}
