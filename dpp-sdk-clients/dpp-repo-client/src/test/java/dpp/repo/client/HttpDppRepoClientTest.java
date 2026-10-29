@@ -1,204 +1,121 @@
 package dpp.repo.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import dpp.repo.client.ClientTestSupport.CountingCodec;
-import dpp.repo.client.ClientTestSupport.CountingValidator;
-import dpp.repo.client.ClientTestSupport.TestDpp;
-import dpp.repo.client.ClientTestSupport.TestServer;
-import dpp.repo.client.exception.DppMappingClientException;
-import dpp.repo.client.exception.DppValidationClientException;
-import dpp.repo.payloads.CreateDppResponse;
-import dpp.repo.payloads.DeleteDppResponse;
-import dpp.repo.payloads.DppStatusCode;
-import dpp.repo.payloads.ReadDppIdsResponse;
+import dpp.repo.payloads.DppRepresentation;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static dpp.repo.client.ClientTestSupport.objectMapper;
-import static dpp.repo.client.ClientTestSupport.requestBody;
-import static dpp.repo.client.ClientTestSupport.respond;
-import static dpp.repo.client.ClientTestSupport.server;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static dpp.repo.client.ClientTestSupport.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 class HttpDppRepoClientTest {
     @Test
-    void repositoryMethodsUseEn18222PathsAndGenericPayloadBoundary() throws Exception {
+    void repositoryLifecycleUsesJsonPayloadsAndEn18222Paths() throws Exception {
         try (TestServer server = server()) {
-            CountingValidator validator = new CountingValidator();
-            CountingCodec codec = new CountingCodec();
             AtomicInteger requestCount = new AtomicInteger();
-            JsonNode patch = objectMapper().readTree("{\"characteristics\":{\"productName\":\"Updated Name\"}}");
-
+            JsonNode payload = objectMapper().readTree("{\"digitalProductPassportId\":\"dpp-1\",\"name\":\"chair\"}");
+            JsonNode patch = objectMapper().readTree("{\"name\":\"updated\"}");
             server.httpServer().createContext("/v1/dpps", exchange -> {
                 requestCount.incrementAndGet();
                 assertEquals("POST", exchange.getRequestMethod());
-                assertEquals("{\"id\":\"dpp-1\",\"name\":\"chair\"}", requestBody(exchange));
-                respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{\"dppId\":\"dpp-1\"},\"messages\":[]}");
+                assertNull(exchange.getRequestURI().getRawQuery());
+                assertEquals(payload, objectMapper().readTree(requestBody(exchange)));
+                respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{\"digitalProductPassportId\":\"dpp-1\"},\"message\":[]}");
             });
             server.httpServer().createContext("/v1/dpps/dpp-1", exchange -> {
                 requestCount.incrementAndGet();
                 switch (exchange.getRequestMethod()) {
-                    case "GET" -> {
-                        if ("representation=compressed".equals(exchange.getRequestURI().getRawQuery())) {
-                            respond(exchange, 200, "{\"statusCode\":\"Success\",\"payload\":{\"representation\":\"compressed\",\"dppId\":\"dpp-1\"},\"messages\":[]}");
-                        } else {
-                            assertEquals("representation=full", exchange.getRequestURI().getRawQuery());
-                            respond(exchange, 200, successDppBody("dpp-1", "chair"));
-                        }
-                    }
+                    case "GET" -> respond(exchange, 200, successDppBody("dpp-1", "chair"));
                     case "PATCH" -> {
-                        assertEquals(objectMapper().writeValueAsString(patch), requestBody(exchange));
-                        respond(exchange, 200, successDppBody("dpp-1", "Updated Name"));
+                        assertEquals(patch, objectMapper().readTree(requestBody(exchange)));
+                        respond(exchange, 200, successDppBody("dpp-1", "updated"));
                     }
-                    case "DELETE" -> respond(exchange, 200, "{\"statusCode\":\"SuccessNoContent\",\"payload\":null,\"messages\":[]}");
-                    default -> respond(exchange, 405, "{\"statusCode\":\"ClientMethodNotAllowed\",\"payload\":null,\"messages\":[]}");
+                    case "DELETE" -> respond(exchange, 204, "");
+                    default -> fail("unexpected method " + exchange.getRequestMethod());
                 }
             });
-            server.httpServer().createContext("/v1/dppsByProductId/product-1", exchange -> {
-                requestCount.incrementAndGet();
-                assertEquals("GET", exchange.getRequestMethod());
-                assertEquals("representation=full", exchange.getRequestURI().getRawQuery());
+            DppRepoClient client = new HttpDppRepoClient(server.baseUrl());
+
+            assertEquals("dpp-1", client.createDpp(payload).getDigitalProductPassportId());
+            assertEquals("chair", client.readDppById("dpp-1").getPayload().path("name").asText());
+            assertEquals("updated", client.updateDppById("dpp-1", patch).getPayload().path("name").asText());
+            assertEquals(dpp.repo.payloads.DppStatusCode.SuccessNoContent, client.deleteDppById("dpp-1").getStatusCode());
+            assertEquals(4, requestCount.get());
+        }
+    }
+
+    @Test
+    void productHistoryAndProductIdBatchRequestsAreEncodedAndParsed() throws Exception {
+        try (TestServer server = server()) {
+            server.httpServer().createContext("/v1/dppsByProductId/", exchange -> {
+                assertEquals("/v1/dppsByProductId/product%2Fwith%20space", exchange.getRequestURI().getRawPath());
                 respond(exchange, 200, successDppBody("dpp-1", "chair"));
             });
-            server.httpServer().createContext("/v1/dppsByIdAndDate/dpp-1", exchange -> {
-                requestCount.incrementAndGet();
-                assertEquals("date=2026-05-11T09%3A30%3A15Z&representation=full", exchange.getRequestURI().getRawQuery());
+            server.httpServer().createContext("/v1/dppsByIdAndDate/", exchange -> {
+                assertEquals("/v1/dppsByIdAndDate/dpp%2F1", exchange.getRequestURI().getRawPath());
+                String query = exchange.getRequestURI().getRawQuery();
+                assertTrue(query.equals("date=2026-05-11T09%3A30%3A15Z")
+                        || query.equals("date=2026-05-11T09%3A30%3A15Z&representation=full"));
                 respond(exchange, 200, successDppBody("dpp-1", "chair"));
             });
             server.httpServer().createContext("/v1/dppsByProductIds", exchange -> {
-                requestCount.incrementAndGet();
                 assertEquals("POST", exchange.getRequestMethod());
-                assertEquals(
-                        "{\"productIdentifiers\":[\"product-1\",\"product-2\"],\"limit\":2,\"cursor\":\"cursor-1\"}",
-                        requestBody(exchange)
-                );
-                respond(exchange, 200, "{\"statusCode\":\"Success\",\"payload\":{\"dppIdentifiers\":[\"dpp-1\",\"dpp-2\"],\"nextCursor\":\"cursor-2\"},\"messages\":[]}");
+                assertEquals("{\"productIdentifiers\":[\"p-1\",\"p-2\"],\"limit\":5,\"cursor\":\"next\"}", requestBody(exchange));
+                respond(exchange, 200, "{\"statusCode\":\"Success\",\"payload\":{\"dppIdentifiers\":[]},\"message\":[]}");
             });
-            server.httpServer().createContext("/v1/dpps/dpp-1/elements/$.characteristics.productName", exchange -> {
-                requestCount.incrementAndGet();
-                switch (exchange.getRequestMethod()) {
-                    case "GET" -> respond(exchange, 200, "{\"statusCode\":\"Success\",\"payload\":\"chair\",\"messages\":[]}");
-                    case "PATCH" -> {
-                        assertEquals("\"Updated Name\"", requestBody(exchange));
-                        respond(exchange, 200, "{\"statusCode\":\"Success\",\"payload\":\"Updated Name\",\"messages\":[]}");
-                    }
-                    default -> respond(exchange, 405, "{\"statusCode\":\"ClientMethodNotAllowed\",\"payload\":null,\"messages\":[]}");
-                }
-            });
+            DppRepoClient client = new HttpDppRepoClient(server.baseUrl());
 
-            DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), codec, validator);
-
-            CreateDppResponse created = client.createDpp(new TestDpp("dpp-1", "chair"));
-            TestDpp byId = client.readDppById("dpp-1");
-            JsonNode compressed = client.readCompressedDppById("dpp-1");
-            TestDpp byProductId = client.readDppByProductId("product-1");
-            TestDpp byDate = client.readDppVersionByIdAndDate("dpp-1", Instant.parse("2026-05-11T09:30:15Z"));
-            ReadDppIdsResponse ids = client.readDppIdsByProductIds(List.of("product-1", "product-2"), 2, "cursor-1");
-            TestDpp updated = client.updateDppById("dpp-1", patch);
-            DeleteDppResponse deleted = client.deleteDppById("dpp-1");
-            JsonNode element = client.readDataElement("dpp-1", "$.characteristics.productName");
-            JsonNode updatedElement = client.updateDataElement("dpp-1", "$.characteristics.productName", objectMapper().readTree("\"Updated Name\""));
-
-            assertEquals("dpp-1", created.getDppId());
-            assertEquals(new TestDpp("dpp-1", "chair"), byId);
-            assertEquals("compressed", compressed.path("representation").asText());
-            assertEquals("dpp-1", compressed.path("dppId").asText());
-            assertEquals(new TestDpp("dpp-1", "chair"), byProductId);
-            assertEquals(new TestDpp("dpp-1", "chair"), byDate);
-            assertEquals(List.of("dpp-1", "dpp-2"), ids.getDppIdentifiers());
-            assertEquals("cursor-2", ids.getNextCursor());
-            assertEquals(new TestDpp("dpp-1", "Updated Name"), updated);
-            assertEquals(DppStatusCode.SuccessNoContent, deleted.getStatusCode());
-            assertEquals("chair", element.textValue());
-            assertEquals("Updated Name", updatedElement.textValue());
-            assertEquals(10, requestCount.get());
-            assertEquals(1, validator.calls());
-            assertEquals(1, codec.toJsonCalls());
-            assertEquals(4, codec.fromJsonCalls());
+            assertEquals("dpp-1", client.readDppByProductId("product/with space").getPayload().path("id").asText());
+            assertEquals("dpp-1", client.readDppVersionByIdAndDate("dpp/1", Instant.parse("2026-05-11T09:30:15Z"))
+                    .getPayload().path("id").asText());
+            assertEquals("dpp-1", client.readDppVersionByIdAndDate("dpp/1", Instant.parse("2026-05-11T09:30:15Z"),
+                    DppRepresentation.FULL).getPayload().path("id").asText());
+            assertNotNull(client.readDppIdsByProductIds(List.of("p-1", "p-2"), 5, "next"));
         }
     }
 
     @Test
-    void legacyHistoricalReadRemainsAvailableAsDeprecatedCompatibilityPath() throws Exception {
-        try (TestServer server = server()) {
-            server.httpServer().createContext("/dppsByProductIdAndDate/product-1", exchange -> {
-                assertEquals("GET", exchange.getRequestMethod());
-                assertEquals("date=2026-05-11T09%3A30%3A15Z", exchange.getRequestURI().getRawQuery());
-                respond(exchange, 200, successDppBody("dpp-1", "chair"));
-            });
-            DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), new CountingCodec(), new CountingValidator());
-
-            assertEquals(
-                    new TestDpp("dpp-1", "chair"),
-                    client.readDppVersionByProductIdAndDate("product-1", Instant.parse("2026-05-11T09:30:15Z"))
-            );
-        }
-    }
-
-    @Test
-    void createDppValidationFailureDoesNotSendRequest() {
-        try (TestServer server = server()) {
-            CountingValidator validator = new CountingValidator();
-            validator.fail();
-            AtomicInteger hits = new AtomicInteger();
-            server.httpServer().createContext("/dpps", exchange -> {
-                hits.incrementAndGet();
-                respond(exchange, 201, "{}");
-            });
-            DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), new CountingCodec(), validator);
-
-            assertThrows(DppValidationClientException.class, () -> client.createDpp(new TestDpp("dpp-1", "chair")));
-            assertEquals(0, hits.get());
-        }
-    }
-
-    @Test
-    void createDppRequiresCreatedIdentifier() {
+    void createAcceptsAbsentOptionalCreatedIdentifierAndReadReturnsMessageEnvelope() throws Exception {
         try (TestServer server = server()) {
             server.httpServer().createContext("/v1/dpps", exchange ->
-                    respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{},\"messages\":[]}"));
-            DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), new CountingCodec(), new CountingValidator());
+                    respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{},\"message\":[]}"));
+            server.httpServer().createContext("/v1/dpps/id", exchange ->
+                    respond(exchange, 200, "{\"statusCode\":\"Success\",\"payload\":{\"id\":\"id\"},\"message\":[{\"messageType\":\"Info\",\"text\":\"read\",\"code\":\"READ\"}]}"));
+            DppRepoClient client = new HttpDppRepoClient(server.baseUrl());
 
-            DppMappingClientException ex = assertThrows(
-                    DppMappingClientException.class,
-                    () -> client.createDpp(new TestDpp("dpp-1", "chair"))
-            );
-
-            assertEquals("Missing required response field: payload.dppId", ex.getMessage());
+            assertNull(client.createDpp(objectMapper().readTree("{}" )).getDigitalProductPassportId());
+            var response = client.readDppById("id");
+            assertEquals("id", response.getPayload().path("id").asText());
+            assertEquals("read", response.getMessage().get(0).getText());
         }
     }
 
     @Test
-    void idsProductIdsAndElementPathsAreUrlEncoded() {
+    void idsAndElementPathsAreUrlEncodedAndElementUpdateUsesNeutralJson() throws Exception {
         try (TestServer server = server()) {
             server.httpServer().createContext("/v1/dpps/", exchange -> {
                 assertEquals("/v1/dpps/id%20with%20space%2Fslash", exchange.getRequestURI().getRawPath());
                 respond(exchange, 200, successDppBody("id with space/slash", "chair"));
             });
-            server.httpServer().createContext("/v1/dppsByProductId/", exchange -> {
-                assertEquals("/v1/dppsByProductId/product%2Fwith%20space", exchange.getRequestURI().getRawPath());
-                respond(exchange, 200, successDppBody("dpp-1", "chair"));
-            });
             server.httpServer().createContext("/v1/dpps/dpp-1/elements/", exchange -> {
-                assertEquals(
-                        "/v1/dpps/dpp-1/elements/%24%5B%27billOfMaterials%27%5D.materials%5B0%5D.name",
-                        exchange.getRequestURI().getRawPath()
-                );
-                respond(exchange, 200, "{\"statusCode\":\"Success\",\"payload\":\"steel\",\"messages\":[]}");
+                assertEquals("/v1/dpps/dpp-1/elements/%24%5B%27billOfMaterials%27%5D.materials%5B0%5D.name",
+                        exchange.getRequestURI().getRawPath());
+                assertEquals("PATCH", exchange.getRequestMethod());
+                assertEquals("\"steel\"", requestBody(exchange));
+                respond(exchange, 200, "{\"statusCode\":\"Success\",\"payload\":\"steel\"}");
             });
-            DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), new CountingCodec(), new CountingValidator());
+            DppRepoClient client = new HttpDppRepoClient(server.baseUrl());
 
-            assertEquals("id with space/slash", client.readDppById("id with space/slash").id());
-            assertEquals("dpp-1", client.readDppByProductId("product/with space").id());
-            assertEquals("steel", client.readDataElement("dpp-1", "$['billOfMaterials'].materials[0].name").textValue());
+            assertEquals("id with space/slash", client.readDppById("id with space/slash").getPayload().path("id").asText());
+            assertEquals("steel", client.updateDataElement("dpp-1", "$['billOfMaterials'].materials[0].name",
+                    objectMapper().readTree("\"steel\"")).getPayload().textValue());
         }
     }
 
     private static String successDppBody(String id, String name) {
-        return "{\"statusCode\":\"Success\",\"payload\":{\"id\":\"" + id + "\",\"name\":\"" + name + "\"},\"messages\":[]}";
+        return "{\"statusCode\":\"Success\",\"payload\":{\"id\":\"" + id + "\",\"name\":\"" + name + "\"},\"message\":[]}";
     }
 }

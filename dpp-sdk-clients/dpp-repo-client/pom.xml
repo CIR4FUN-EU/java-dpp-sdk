@@ -7,14 +7,14 @@
     <parent>
         <groupId>dpp.client</groupId>
         <artifactId>dpp-sdk-clients</artifactId>
-        <version>0.5.1</version>
+        <version>0.6.0</version>
     </parent>
 
     <artifactId>dpp-repo-client</artifactId>
     <packaging>jar</packaging>
 
     <name>dpp-repo-client</name>
-    <description>Repository HTTP client behavior for draft-prEN-18222-aligned DPP repository endpoints.</description>
+    <description>Generic JSON repository HTTP client for EN 18222 endpoints.</description>
 
     <dependencies>
         <dependency>

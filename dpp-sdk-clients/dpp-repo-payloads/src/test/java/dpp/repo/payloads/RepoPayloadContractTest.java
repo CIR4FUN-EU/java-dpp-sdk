@@ -36,16 +36,19 @@ class RepoPayloadContractTest {
         );
 
         assertEquals(DppStatusCode.Success, response.getStatusCode());
-        assertEquals("dpp-1", response.getPayload().getDppId());
-        assertEquals(MessageType.Error, response.getMessages().get(0).getMessageType());
-        assertEquals("repo-conflict", response.getMessages().get(0).getCode());
+        assertEquals("dpp-1", response.getPayload().getDigitalProductPassportId());
+        assertEquals("dpp-1", response.getPayload().getDigitalProductPassportId());
+        assertEquals(MessageType.Error, response.getMessage().get(0).getMessageType());
+        assertEquals("repo-conflict", response.getMessage().get(0).getCode());
 
         String written = objectMapper.writeValueAsString(response);
         JsonNode writtenJson = objectMapper.readTree(written);
 
         assertEquals("Success", writtenJson.get("statusCode").textValue());
-        assertEquals("Error", writtenJson.get("messages").get(0).get("messageType").textValue());
-        assertEquals("dpp-1", writtenJson.get("payload").get("dppId").textValue());
+        assertEquals("Error", writtenJson.get("message").get(0).get("messageType").textValue());
+        assertEquals("dpp-1", writtenJson.get("payload").get("digitalProductPassportId").textValue());
+        assertEquals(false, writtenJson.get("payload").has("dppId"));
+        assertEquals(false, writtenJson.has("messages"));
     }
 
     @Test
@@ -73,7 +76,7 @@ class RepoPayloadContractTest {
                 objectMapper.writeValueAsString(response)
         );
         assertEquals(
-                "{\"statusCode\":\"SuccessNoContent\",\"messages\":[]}",
+                "{\"statusCode\":\"SuccessNoContent\",\"message\":[]}",
                 objectMapper.writeValueAsString(deleteResponse)
         );
     }

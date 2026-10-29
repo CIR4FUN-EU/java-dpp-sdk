@@ -2,15 +2,21 @@ package demo.registry;
 
 import dpp.registry.payloads.DppApiResponse;
 import dpp.registry.payloads.DppStatusCode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     private final ApiResponseFactory responseFactory;
 
@@ -36,8 +42,19 @@ class GlobalExceptionHandler {
                 "ROUTE_NOT_FOUND", "Registry route not found");
     }
 
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    ResponseEntity<DppApiResponse<Void>> methodNotAllowed(
+            HttpRequestMethodNotSupportedException exception, HttpServletRequest request) {
+        if (!"/v1/registerDPP".equals(request.getRequestURI())) {
+            return null;
+        }
+        return responseFactory.error(HttpStatus.METHOD_NOT_ALLOWED, DppStatusCode.ClientMethodNotAllowed,
+                "METHOD_NOT_ALLOWED", "HTTP method is not allowed for this registry endpoint");
+    }
+
     @ExceptionHandler(Exception.class)
     ResponseEntity<DppApiResponse<Void>> unexpected(Exception exception) {
+        log.error("Unexpected registry error", exception);
         return responseFactory.error(HttpStatus.INTERNAL_SERVER_ERROR, DppStatusCode.ServerInternalError,
                 "UNEXPECTED_ERROR", "Unexpected registry error");
     }

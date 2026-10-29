@@ -36,5 +36,4 @@ interface RegistryBackend {
             Instant now
     );
 
-    void clear();
 }

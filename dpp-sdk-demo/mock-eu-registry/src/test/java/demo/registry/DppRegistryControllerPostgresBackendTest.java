@@ -8,11 +8,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,13 +18,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import javax.sql.DataSource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest(properties = {
         "demo.repo.public-base-url=http://localhost:18080",
-        "demo.repo.verification-base-url=http://localhost:18081",
         "debug=false",
         "logging.level.root=WARN",
         "logging.level.org.springframework=WARN",
@@ -61,25 +56,19 @@ class DppRegistryControllerPostgresBackendTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private DppRegistryService registryService;
-
-    private HttpServer repoServer;
-    private int repoHeadStatus = 200;
+    private DataSource dataSource;
 
     @BeforeEach
-    @AfterEach
-    void clearState() {
-        if (repoServer != null) {
-            repoServer.stop(0);
-            repoServer = null;
+    void clearDatabase() throws Exception {
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.execute("truncate table registry_records restart identity cascade");
         }
-        registryService.clear();
     }
 
     @Test
     @DisplayName("PostgreSQL backend preserves register and both registry lookup endpoints")
     void postgresModeRegisterAndLookupWork() throws Exception {
-        String repoUrl = startRepoStubReturning(200);
+        String repoUrl = "http://127.0.0.1:1/v1";
 
         String responseBody = mockMvc.perform(post("/v1/registerDPP")
                         .contentType(APPLICATION_JSON)
@@ -127,7 +116,7 @@ class DppRegistryControllerPostgresBackendTest {
     @Test
     @DisplayName("PostgreSQL backend preserves duplicate and missing-record behavior")
     void postgresModeDuplicateAndMissingCasesMatchMemoryMode() throws Exception {
-        String repoUrl = startRepoStubReturning(200);
+        String repoUrl = "urn:example:dpp-api";
 
         mockMvc.perform(post("/v1/registerDPP")
                         .contentType(APPLICATION_JSON)
@@ -139,43 +128,17 @@ class DppRegistryControllerPostgresBackendTest {
                         .content(registrationBody("product-456", "dpp-123", "operator-456", repoUrl)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.statusCode").value("ClientResourceConflict"))
-                .andExpect(jsonPath("$.messages[0].code").value("REGISTRY_CONFLICT"));
+                .andExpect(jsonPath("$.message[0].code").value("REGISTRY_CONFLICT"));
 
         mockMvc.perform(get("/internal/dpps/missing-registry-id"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"))
-                .andExpect(jsonPath("$.messages[0].code").value("REGISTRY_NOT_FOUND"));
+                .andExpect(jsonPath("$.message[0].code").value("REGISTRY_NOT_FOUND"));
 
         mockMvc.perform(get("/internal/dpps/by-dpp-id/missing-dpp-id"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"))
-                .andExpect(jsonPath("$.messages[0].code").value("REGISTRY_NOT_FOUND"));
-    }
-
-    @Test
-    @DisplayName("PostgreSQL backend still verifies the repo DPP with HEAD before persisting")
-    void postgresModeStillVerifiesRepoHeadBeforePersisting() throws Exception {
-        String missingRepoUrl = startRepoStubReturning(404);
-
-        mockMvc.perform(post("/v1/registerDPP")
-                        .contentType(APPLICATION_JSON)
-                        .content(registrationBody("product-404", "missing-dpp", "operator-123", missingRepoUrl)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"))
-                .andExpect(jsonPath("$.messages[0].text").value("Referenced DPP missing-dpp was not found in repo " + missingRepoUrl));
-
-        mockMvc.perform(get("/internal/dpps/by-dpp-id/missing-dpp"))
-                .andExpect(status().isNotFound());
-
-        repoHeadStatus = 500;
-        mockMvc.perform(post("/v1/registerDPP")
-                        .contentType(APPLICATION_JSON)
-                        .content(registrationBody("product-500", "downstream-dpp", "operator-123", missingRepoUrl)))
-                .andExpect(status().isBadGateway())
-                .andExpect(jsonPath("$.statusCode").value("ServerErrorBadGateway"));
-
-        mockMvc.perform(get("/internal/dpps/by-dpp-id/downstream-dpp"))
-                .andExpect(status().isNotFound());
+                .andExpect(jsonPath("$.message[0].code").value("REGISTRY_NOT_FOUND"));
     }
 
     private String registrationBody(String productId, String dppId, String operatorId, String repoUrl) {
@@ -189,19 +152,4 @@ class DppRegistryControllerPostgresBackendTest {
                 """.formatted(productId, dppId, operatorId, repoUrl);
     }
 
-    private String startRepoStubReturning(int status) throws IOException {
-        repoHeadStatus = status;
-        repoServer = HttpServer.create(new InetSocketAddress(0), 0);
-        repoServer.createContext("/internal/dpps", this::handleRepoHead);
-        repoServer.start();
-        return "http://localhost:" + repoServer.getAddress().getPort();
-    }
-
-    private void handleRepoHead(HttpExchange exchange) throws IOException {
-        if (!"HEAD".equals(exchange.getRequestMethod())) {
-            exchange.sendResponseHeaders(405, -1);
-            return;
-        }
-        exchange.sendResponseHeaders(repoHeadStatus, -1);
-    }
 }

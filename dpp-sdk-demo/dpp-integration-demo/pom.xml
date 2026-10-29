@@ -6,7 +6,7 @@
     <parent>
         <groupId>demo</groupId>
         <artifactId>dpp-sdk-demo</artifactId>
-        <version>0.5.1</version>
+        <version>0.6.0</version>
     </parent>
 
     <artifactId>dpp-integration-demo</artifactId>
@@ -15,7 +15,7 @@
         <dependency>
             <groupId>dpp.datamodel</groupId>
             <artifactId>dpp4fun</artifactId>
-            <version>0.5.1</version>
+            <version>0.6.0</version>
         </dependency>
         <dependency>
             <groupId>dpp.client</groupId>
@@ -48,7 +48,7 @@
         </dependency>
         <dependency>
             <groupId>demo</groupId>
-            <artifactId>mock-dpp-repo</artifactId>
+            <artifactId>demo-dpp-repo</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
@@ -56,6 +56,11 @@
             <groupId>demo</groupId>
             <artifactId>mock-eu-registry</artifactId>
             <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

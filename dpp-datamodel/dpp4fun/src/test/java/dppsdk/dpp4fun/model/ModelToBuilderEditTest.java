@@ -1,19 +1,18 @@
 package dppsdk.dpp4fun.model;
+import dppsdk.dpp4fun.model.aspect.*;
+import dppsdk.dpp4fun.model.composite.*;
+import dppsdk.dpp4fun.model.characteristics.*;
+import dppsdk.dpp4fun.model.unit.*;
 
-import dppsdk.core.model.Address;
-import dppsdk.core.model.Contact;
-import dppsdk.core.model.Email;
-import dppsdk.core.model.PassportMetadata;
-import dppsdk.core.model.Telephone;
+import dppsdk.dpp4fun.model.composite.Address;
+import dppsdk.dpp4fun.model.composite.Contact;
+import dppsdk.dpp4fun.model.composite.Email;
+import dppsdk.dpp4fun.model.composite.Telephone;
 import dppsdk.support.TestDataFactory;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDate;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 class ModelToBuilderEditTest {
 
@@ -40,33 +39,32 @@ class ModelToBuilderEditTest {
                 .email(email)
                 .telephone(telephone)
                 .build();
-        Dimensions dimensions = new Dimensions.Builder()
-                .width(100.0)
-                .height(50.0)
-                .depth(30.0)
-                .unit("cm")
+        ChairCharacteristics characteristics = ChairCharacteristics.builder()
+                .length(100.0, LengthUnit.CENTIMETER)
+                .width(50.0, LengthUnit.CENTIMETER)
+                .height(30.0, LengthUnit.CENTIMETER)
                 .build();
         Material material = new Material.Builder()
                 .name("Steel")
                 .mandatory(true)
                 .portion(2.0)
-                .reference("MAT-001")
+                .reference(java.net.URI.create("urn:material:MAT-001"))
                 .build();
         Component component = new Component.Builder()
                 .name("Frame")
-                .reference("COMP-001")
+                .reference(java.net.URI.create("urn:component:COMP-001"))
                 .build();
         Part part = new Part.Builder()
                 .name("Leg")
                 .mandatory(true)
-                .reference("PART-001")
+                .reference(java.net.URI.create("urn:part:PART-001"))
                 .build();
 
         assertEquals(address, address.toBuilder().build());
         assertEquals(email, email.toBuilder().build());
         assertEquals(telephone, telephone.toBuilder().build());
         assertEquals(contact, contact.toBuilder().build());
-        assertEquals(dimensions, dimensions.toBuilder().build());
+        assertEquals(characteristics, characteristics.toBuilder().build());
         assertEquals(material, material.toBuilder().build());
         assertEquals(component, component.toBuilder().build());
         assertEquals(part, part.toBuilder().build());
@@ -100,42 +98,17 @@ class ModelToBuilderEditTest {
 
     @Test
     void collectionRemoveMethods_createCopiesWithoutChangingOriginal() {
-        LocalDate keptDate = LocalDate.now();
-        LocalDate removedDate = keptDate.minusDays(1);
-        PassportMetadata metadata = new PassportMetadata.Builder()
-                .uniqueProductIdentifier(UUID.randomUUID())
-                .addPassportUpdateDate(keptDate)
-                .addPassportUpdateDate(removedDate)
+
+        Policies policies = Policies.builder()
+                .permissions(java.util.List.of("share", "repair"))
+                .prohibitions(java.util.List.of("resell"))
                 .build();
-        PassportMetadata metadataWithoutDate = metadata.toBuilder()
-                .removePassportUpdateDate(removedDate)
+        Policies policiesWithoutPermission = policies.toBuilder()
+                .permissions(java.util.List.of("repair"))
                 .build();
 
-        ProductClassification classification = new ProductClassification.Builder()
-                .sector("Furniture")
-                .category("Beds")
-                .addTag("indoor")
-                .addTag("premium")
-                .build();
-        ProductClassification classificationWithoutTag = classification.toBuilder()
-                .removeTag("premium")
-                .build();
-
-        Characteristics characteristics = new Characteristics.Builder()
-                .productName("Demo Bed")
-                .addFeature("Feature A")
-                .addFeature("Feature B")
-                .build();
-        Characteristics characteristicsWithoutFeature = characteristics.toBuilder()
-                .removeFeature("Feature B")
-                .build();
-
-        assertEquals(2, metadata.getPassportUpdateDates().size());
-        assertEquals(1, metadataWithoutDate.getPassportUpdateDates().size());
-        assertEquals(2, classification.getTags().size());
-        assertEquals(1, classificationWithoutTag.getTags().size());
-        assertEquals(2, characteristics.getFeatures().size());
-        assertEquals(1, characteristicsWithoutFeature.getFeatures().size());
+        assertEquals(java.util.List.of("share", "repair"), policies.getPermissions());
+        assertEquals(java.util.List.of("repair"), policiesWithoutPermission.getPermissions());
     }
 
     @Test
@@ -147,7 +120,7 @@ class ModelToBuilderEditTest {
         Part leg = new Part.Builder().name("Leg").build();
         Part screw = new Part.Builder().name("Screw").build();
 
-        BillOfMaterials original = new BillOfMaterials.Builder()
+        BillOfMaterials original = BillOfMaterials.builder()
                 .addMaterial(steel)
                 .addMaterial(foam)
                 .addComponent(frame)
@@ -171,22 +144,17 @@ class ModelToBuilderEditTest {
     }
 
     @Test
-    void aggregateToBuilder_canRemoveDocumentationAndEditNestedData() {
+    void aggregateToBuilder_editsNestedTypedDataWithoutChangingOriginal() {
         Dpp4Fun original = TestDataFactory.validDpp();
 
         Dpp4Fun updated = original.toBuilder()
-                .coreDpp(original.getCoreDpp().toBuilder()
-                        .documentation(null)
-                        .build())
-                .characteristics(original.getCharacteristics().toBuilder()
-                        .productName("Updated Bed")
+                .characteristics(original.getChairCharacteristics().toBuilder()
+                        .color("green")
                         .build())
                 .build();
 
-        assertEquals("Demo Bed", original.getProductName());
-        assertEquals("Updated Bed", updated.getProductName());
-        assertNotNull(original.getDocumentation());
-        assertNull(updated.getDocumentation());
+        assertEquals("navy", original.getChairCharacteristics().getColor());
+        assertEquals("green", updated.getChairCharacteristics().getColor());
     }
 }
 

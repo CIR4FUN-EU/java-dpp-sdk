@@ -1,0 +1,159 @@
+{
+    "profileVersion":  "1.0.0",
+    "sources":  {
+                    "d41":  {
+                                "edition":  "D4.1 v1.0",
+                                "source":  "D4.1-Cir4Fun-SubmissionVer1.0.docx",
+                                "sha256":  "0d59e918c54391b44d49698b8bdf9914d71ab33d6d0d89beda4f34e25df89316"
+                            },
+                    "d41Pdf":  {
+                                   "edition":  "D4.1 v1.0 supplied PDF",
+                                   "pages":  103,
+                                   "source":  "D4.1-Cir4Fun-SubmissionVer1.0.pdf",
+                                   "sha256":  "f1a89c9c6d5939139557c61189ab4d7d63568fa411ae7f2495494f29c56e82e0"
+                               },
+                    "en18223":  {
+                                    "edition":  "EN 18223:2026",
+                                    "source":  "EN-18223-2026.txt",
+                                    "sha256":  "3ebc4a9223a801847d3791b063812173b4876f5b3323c1f5c613698a247b003a"
+                                },
+                    "en18222":  {
+                                    "edition":  "EN 18222:2026",
+                                    "status":  "FINAL_TEXT_AVAILABLE_AND_INSPECTED",
+                                    "source":  "EN-18222-2026.txt",
+                                    "sha256":  "02b779d8764466ba05f25e78158cd77f6abd082f62a7933c358f105ae416c500",
+                                    "relevantSections":  "6.2, 6.3, 7.1, 8.1, Table 18",
+                                    "profileImpact":  "Consumes EN 18223 DigitalProductPassport and DataElement; no Dpp4Fun field map or profile-specific transport introduced."
+                                },
+                    "dpp4fun":  {
+                                    "repository":  "CIR4FUN-EU/DPP4Fun",
+                                    "pinnedCommit":  "2007a574b0e35eae5997c9460bf4cf531588405b",
+                                    "ontologyVersion":  "0.2.2",
+                                    "ontologySha256":  "bd1d5c82d4d991bb680a42536633b4136174663a93f852784d2c1ff387c9418c",
+                                    "sourceSnapshot":  "CIR4FUN-EU/DPP4Fun@2007a574b0e35eae5997c9460bf4cf531588405b",
+                                    "aasTemplates":  [
+                                                         {
+                                                             "name":  "CIR4FUN.BillOfMaterials.json",
+                                                             "sha256":  "313fb9611ef8844be336f607543a7f016efa137d358ab1207f438e90d7c8d66a"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.CarbonFootprint.json",
+                                                             "sha256":  "c4748808ca7f24adf40964ec17804ae3b19d0084fbab6c173782c99472c55ddc"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.ChairCharacteristics.json",
+                                                             "sha256":  "2808455b7bf729989d9c8f5af04a4e2e2489ac18666ae9dc5af34083be86e033"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.CribCharacteristics.json",
+                                                             "sha256":  "99a00a436cd1cff931d117bbe824d3693324aba1b4530d8556aea57db6cf0fd0"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.Durability.json",
+                                                             "sha256":  "bcfb6634041cd7c1786f45b4b4e642a9acd9ed73c91c52a92e9c108ccb969cc7"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.EnvironmentalImpact.json",
+                                                             "sha256":  "6761f2cd3245d18b076b412b882d57daa24bdf22946148b849337b578f54464f"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.FabricCharacteristics.json",
+                                                             "sha256":  "67d2b87d92e1ea9b0667fb0a039ebd9377a2383f4953ca5342635ddba1bf8e04"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.HealthImpact.json",
+                                                             "sha256":  "f8b0188c634be533ed515d002e8d5f4d33f363ad602186413fe117153946adb1"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.LockerCharacteristics.json",
+                                                             "sha256":  "204d0285a016fa176eb3b0efb2f1b3e2fa268cd35231e2d88489aa9c4cab3c88"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.Nameplate.json",
+                                                             "sha256":  "31b8377d648ff1aa2b29eab1182d6bea9b97a3840937e6e0cbcf57e33ae6e74b"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.ParticleBoardCharacteristics.json",
+                                                             "sha256":  "e8dd18193abe65233124296f51d210a4ecd82eaae91a5476ab52e7fdb820b227"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.ProductRelationship.json",
+                                                             "sha256":  "145ebb028ab0840c48367ec75bc438f41857f0682b75adeb4523b752057d37a5"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.Recyclability.json",
+                                                             "sha256":  "3c405ea66790e917db947fcca76e23f243a446b9068f050eb4441af37f069700"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.Refurbishment.json",
+                                                             "sha256":  "08248519347e8cab548dd6fe816dc9db88f96ab75d2b9e7519b6b6060056538b"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.Reliability.json",
+                                                             "sha256":  "7d847c4e4bd4b498a9e32c347bf847b38a0d0525b9551d00ff7560241fccb45c"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.Remanufacturing.json",
+                                                             "sha256":  "2ef0635226514127e8a100863f49a9804e7a6da8f4ab81b4b855a60654dd6b4a"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.Repairability.json",
+                                                             "sha256":  "ed6e7e78abd01007ba9449ea1e401f54f70085c941c0336d314443c8d8790b1b"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.Reusability.json",
+                                                             "sha256":  "7af478112d8b0e3425542bf803d6a064b21fd0ac262c5388fb628b015c055d4b"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.RightOfEndUsers.json",
+                                                             "sha256":  "98ee441dc0d89c683c5e8ef9e388c7f9af49b4d3cb7da799b6c87e396252015d"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.Safety.json",
+                                                             "sha256":  "362459237c364b7d2d2e6e7b2cca8896a855bfa3ffefc50196f75db717b5860d"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.SofaCharacteristics.json",
+                                                             "sha256":  "5e15f9b98babaaccfd3b3dc17f35bc37a46a4dc54c377bc21d70bf15140f6639"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.Traceability.json",
+                                                             "sha256":  "502cd6e5f729e4e9848f413fefd4ba84a80dd3f123a1e501695ef3e8787020a8"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.Upgradability.json",
+                                                             "sha256":  "14e069936d2b55bac604c66e3d322fe7bd49680083d7e0726b87538280044aed"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.Usage.json",
+                                                             "sha256":  "aadd5a88daf97aec97c78855069fd4d197ceafb851eb9d92bf7b5e389d3fdad8"
+                                                         },
+                                                         {
+                                                             "name":  "CIR4FUN.WasteManagement.json",
+                                                             "sha256":  "8aa60bfe3000b93407cb04e05ae34180da847198b05311ba8d9efaecf9c6f045"
+                                                         }
+                                                     ]
+                                }
+                },
+    "contentSpecificationIds":  {
+                                    "status":  "UNRESOLVED_GOVERNANCE",
+                                    "symbolicIds":  [
+                                                        "DPP4FUN_COMMON_V1",
+                                                        "DPP4FUN_CHAIR_V1",
+                                                        "DPP4FUN_CRIB_V1",
+                                                        "DPP4FUN_FABRIC_V1",
+                                                        "DPP4FUN_LOCKER_V1",
+                                                        "DPP4FUN_PARTICLE_BOARD_V1",
+                                                        "DPP4FUN_SOFA_V1"
+                                                    ],
+                                    "note":  "These are local symbolic identifiers, not approved official Cir4Fun contentSpecificationId URIs."
+                                },
+    "unresolvedSemanticReferences":  [
+                                         {
+                                             "valueDataType":  "xsd:string",
+                                             "path":  "characteristics.surface",
+                                             "dictionaryReference":  null,
+                                             "note":  "Published AAS templates and examples define the surface-type binding as String; no additional semantic IRI is added."
+                                         }
+                                     ]
+}

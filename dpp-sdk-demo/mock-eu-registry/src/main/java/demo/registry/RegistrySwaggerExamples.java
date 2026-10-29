@@ -16,7 +16,7 @@ final class RegistrySwaggerExamples {
               "payload": {
                 "registrationId": "8a5be5de-7c76-46ef-a1d5-4875d3f4a5dc"
               },
-              "messages": []
+              "message": null
             }
             """;
     static final String INTERNAL_LOOKUP_SUCCESS_EXAMPLE = """
@@ -31,14 +31,14 @@ final class RegistrySwaggerExamples {
                 "registeredAt": "2026-05-19T00:00:00Z",
                 "lastUpdatedAt": "2026-05-19T00:00:00Z"
               },
-              "messages": []
+              "message": null
             }
             """;
     static final String BAD_REQUEST_EXAMPLE = """
             {
               "statusCode": "ClientErrorBadRequest",
               "payload": null,
-              "messages": [
+              "message": [
                 {
                   "messageType": "Error",
                   "code": "MALFORMED_JSON",
@@ -49,14 +49,14 @@ final class RegistrySwaggerExamples {
               ]
             }
             """;
-    static final String REPO_DPP_NOT_FOUND_EXAMPLE = """
+    static final String METHOD_NOT_ALLOWED_EXAMPLE = """
             {
-              "statusCode": "ClientErrorResourceNotFound",
+              "statusCode": "ClientMethodNotAllowed",
               "payload": null,
-              "messages": [{
+              "message": [{
                 "messageType": "Error",
-                "code": "REPO_DPP_NOT_FOUND",
-                "text": "Referenced DPP was not found in the repository",
+                "code": "METHOD_NOT_ALLOWED",
+                "text": "HTTP method is not allowed for this registry endpoint",
                 "correlationId": "demo-correlation-id",
                 "timestamp": "2026-07-13T10:00:00Z"
               }]
@@ -66,7 +66,7 @@ final class RegistrySwaggerExamples {
             {
               "statusCode": "ClientErrorResourceNotFound",
               "payload": null,
-              "messages": [{
+              "message": [{
                 "messageType": "Error",
                 "code": "REGISTRY_NOT_FOUND",
                 "text": "No registry record was found",
@@ -79,23 +79,10 @@ final class RegistrySwaggerExamples {
             {
               "statusCode": "ClientResourceConflict",
               "payload": null,
-              "messages": [{
+              "message": [{
                 "messageType": "Error",
                 "code": "REGISTRY_CONFLICT",
                 "text": "A registry record already exists for the DPP id",
-                "correlationId": "demo-correlation-id",
-                "timestamp": "2026-07-13T10:00:00Z"
-              }]
-            }
-            """;
-    static final String BAD_GATEWAY_EXAMPLE = """
-            {
-              "statusCode": "ServerErrorBadGateway",
-              "payload": null,
-              "messages": [{
-                "messageType": "Error",
-                "code": "REPO_VERIFICATION_FAILED",
-                "text": "Repository verification failed",
                 "correlationId": "demo-correlation-id",
                 "timestamp": "2026-07-13T10:00:00Z"
               }]
@@ -105,7 +92,7 @@ final class RegistrySwaggerExamples {
             {
               "statusCode": "ServerInternalError",
               "payload": null,
-              "messages": [{
+              "message": [{
                 "messageType": "Error",
                 "code": "UNEXPECTED_ERROR",
                 "text": "Unexpected registry error",

@@ -1,308 +1,164 @@
 package dppsdk.dpp4fun.transport;
+import dppsdk.dpp4fun.model.composite.*;
+import dppsdk.dpp4fun.model.characteristics.*;
+import dppsdk.dpp4fun.model.unit.*;
 
-import dppsdk.dpp4fun.model.Dpp4Fun;
-import dppsdk.core.mapper.MappingException;
-import dppsdk.support.TestDataFactory;
+import dppsdk.core.transport.json.DppJsonCodec;
+import dppsdk.core.transport.json.DppJsonException;
 import dppsdk.core.validation.ValidationException;
+import dppsdk.core.model.DataElement;
+import dppsdk.core.model.DigitalProductPassport;
+import dppsdk.core.model.SingleValuedDataElement;
+import dppsdk.dpp4fun.model.Dpp4Fun;
+import dppsdk.dpp4fun.model.composite.Address;
+import dppsdk.dpp4fun.model.composite.Contact;
+import dppsdk.dpp4fun.model.composite.Email;
+import dppsdk.dpp4fun.model.aspect.Nameplate;
+import dppsdk.dpp4fun.model.composite.Telephone;
+import dppsdk.support.TestDataFactory;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.List;
+import java.net.URI;
+import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class Dpp4FunJsonCodecTest {
-
     private final Dpp4FunJsonCodec codec = new Dpp4FunJsonCodec();
 
-    @Test
-    void toJsonProducesExpectedOutboundFields() {
-        Dpp4Fun domain = TestDataFactory.validDpp();
-
-        String json = codec.toJson(domain);
-
-        assertTrue(json.contains("\"passportMetadata\""));
-        assertTrue(json.contains("\"classification\""));
-        assertTrue(json.contains("\"characteristics\""));
-        assertTrue(json.contains("\"nameplate\""));
-        assertTrue(json.contains("\"billOfMaterials\""));
-        assertTrue(json.contains("\"documentation\""));
-        assertTrue(json.contains(domain.getUniqueProductIdentifier().toString()));
-        assertTrue(json.contains("\"role\":\"MANUFACTURER\""));
+    @Test void outputIsExactlyTheCanonicalCoreExpandedTransport() {
+        Dpp4Fun value = TestDataFactory.validDpp();
+        assertEquals(new DppJsonCodec().toExpandedJson(value.asDigitalProductPassport()), codec.toExpandedJson(value));
     }
 
-    @Test
-    void domainJsonDomainRoundTripPreservesObjectGraph() {
-        Dpp4Fun domain = TestDataFactory.validDpp();
-
-        String json = codec.toJson(domain);
-        Dpp4Fun roundTripped = codec.fromJson(json);
-
-        assertEquals(domain, roundTripped);
-        assertEquals(domain.getDppId(), roundTripped.getDppId());
-        assertEquals(domain.getProductId(), roundTripped.getProductId());
+    @Test void typedCoreExpandedJsonRoundTripPreservesPassportAndViews() {
+        Dpp4Fun value = TestDataFactory.validDpp();
+        Dpp4Fun result = codec.fromJson(codec.toJson(value));
+        assertEquals(value.asDigitalProductPassport(), result.asDigitalProductPassport());
+        assertEquals(value.getChairCharacteristics(), result.getChairCharacteristics());
+        assertEquals(value.getBillOfMaterials(), result.getBillOfMaterials());
     }
 
-    @Test
-    void fromJsonAndValidateAcceptsValidJson() {
-        Dpp4Fun domain = TestDataFactory.validDpp();
+    @Test void completeTypedProfileRoundTripsEveryPublicViewAndCanonicalPassport() {
+        Address address = new Address.Builder().country("DE").zipCode("10115").region("BE")
+                .town("Berlin").street("Example 1").build();
+        Contact contact = new Contact.Builder().organization("Maker HQ").address(address)
+                .email(new Email.Builder().emailAddress("help@example.test").typeOfEmail("support").build())
+                .telephone(new Telephone.Builder().telephoneNumber("+49-30-123").typeOfTelephone("office").build())
+                .build();
+        Dpp4Fun original = TestDataFactory.validDpp().toBuilder()
+                .nameplate(Nameplate.builder().gtinCode("GTIN-1").internalArticleNumber("A-1")
+                        .batchNumber("B-1").customsTariffNumber("T-1")
+                        .uriOfTheProduct(URI.create("https://product.example.test"))
+                        .manufacturerName("Maker GmbH").glnOfManufacturer("123")
+                        .manufacturerProductDescription(Map.of("en", "Description"))
+                        .manufacturerProductDesignation(Map.of("en", "Designation"))
+                        .manufacturerProductFamily(Map.of("en", "Family"))
+                        .manufacturerProductRoot(Map.of("en", "Root"))
+                        .manufacturerProductOrderSuffix(Map.of("en", "Suffix"))
+                        .uriOfManufacturer(URI.create("https://maker.example.test"))
+                        .nameOfSupplier("Demo Supplier Ltd")
+                        .contact(contact).build())
+                .build();
+        String json = codec.toExpandedJson(original);
 
-        Dpp4Fun parsed = codec.fromJsonAndValidate(codec.toJson(domain));
-
-        assertEquals(domain, parsed);
+        assertFalse(json.contains("dppHeader"));
+        assertFalse(json.contains("PassportMetadata"));
+        assertEquals(new DppJsonCodec().toExpandedJson(original.asDigitalProductPassport()), json);
+        Dpp4Fun decoded = codec.fromExpandedJson(json);
+        assertEquals(original.asDigitalProductPassport(), decoded.asDigitalProductPassport());
+        assertEquals(original, decoded);
+        assertEquals(original.getNameplate(), decoded.getNameplate());
+        assertEquals(original.getNameplate().getContact(), decoded.getNameplate().getContact());
+        assertEquals(original.getNameplate().getContact().getAddress(), decoded.getNameplate().getContact().getAddress());
+        assertEquals(original.getNameplate().getContact().getEmail(), decoded.getNameplate().getContact().getEmail());
+        assertEquals(original.getNameplate().getContact().getTelephone(), decoded.getNameplate().getContact().getTelephone());
+        assertEquals(original.getChairCharacteristics(), decoded.getChairCharacteristics());
+        assertEquals(original.getBillOfMaterials(), decoded.getBillOfMaterials());
     }
 
-    @Test
-    void fromJsonRejectsMalformedJson() {
-        assertThrows(IllegalArgumentException.class, () -> codec.fromJson("{not-json"));
+    @Test void fromJsonAndValidateIsTheValidationConvenience() {
+        Dpp4Fun value = TestDataFactory.validDpp();
+        assertEquals(value, codec.fromJsonAndValidate(codec.toJson(value)));
+        Dpp4Fun profileInvalid = Dpp4Fun.builder(TestDataFactory.validHeader()).build();
+        assertNotNull(codec.fromJson(codec.toJson(profileInvalid)));
+        assertEquals(profileInvalid, codec.fromJsonAndValidate(codec.toJson(profileInvalid)));
     }
 
-    @Test
-    void fromJsonRejectsNullAndMissingRootsAsCausalMappingFailures() {
-        for (String invalidRoot : new String[] {"null", "", "[]"}) {
-            IllegalArgumentException error =
-                    assertThrows(IllegalArgumentException.class, () -> codec.fromJson(invalidRoot));
-            assertTrue(error.getMessage().contains("deserialize"));
-            assertTrue(error.getCause() instanceof IllegalArgumentException);
-            assertTrue(error.getCause().getMessage().contains("$"));
+    @Test void fromJsonAndValidateRunsMandatoryCoreValidation() {
+        DigitalProductPassport coreInvalid = new DigitalProductPassport.Builder()
+                .dppHeader(TestDataFactory.validHeader())
+                .dataElements(List.of(new SingleValuedDataElement.Builder().elementId("genericExtension")
+                        .valueDataType("xsd:ID").value("not-an-id").build())).build();
+        String json = new DppJsonCodec().toExpandedJson(coreInvalid);
+        assertThrows(ValidationException.class, () -> codec.fromJsonAndValidate(json));
+    }
+
+    @Test void parsingRejectsMalformedExpandedJson() {
+        DppJsonException malformed = assertThrows(DppJsonException.class, () -> codec.fromJson("{not-json"));
+        assertNotNull(malformed.getCause());
+        assertThrows(DppJsonException.class, () -> codec.fromJson("{}"));
+        assertThrows(DppJsonException.class, () -> codec.fromJson("{\"elements\":\"wrong\"}"));
+    }
+
+    @Test void transportFailuresThroughFacadeMatchFrozenCoreContract() {
+        String valid = codec.toExpandedJson(TestDataFactory.validDpp());
+        String duplicateKey = valid.replaceFirst("\"granularity\":\"model\"",
+                "\"granularity\":\"model\",\"granularity\":\"item\"");
+        String wrongRoot = "[]";
+        String unknownObjectType = valid.replaceFirst("\"objectType\":\"DataElementCollection\"",
+                "\"objectType\":\"FutureType\"");
+        String wrongFieldType = valid.replaceFirst("\"elementId\":\"nameplate\"",
+                "\"elementId\":[]");
+        Matcher multiValue = Pattern.compile("(\"objectType\":\"MultiValuedDataElement\"[^}]*?)(\"elements\":\\[)")
+                .matcher(valid);
+        assertTrue(multiValue.find(), "representative profile must contain a MultiValuedDataElement");
+        String ambiguousMultiValue = multiValue.replaceFirst("$1\"value\":[],$2");
+        String invalidHeader = valid.replace("\"lastUpdated\":\"2026-01-01T00:00:00Z\"",
+                "\"lastUpdated\":\"not-an-instant\"");
+
+        for (String invalidJson : new String[] {"{not-json", duplicateKey, wrongRoot,
+                unknownObjectType, wrongFieldType,
+                ambiguousMultiValue, invalidHeader}) {
+            assertTransportMatchesCore(invalidJson);
         }
+
+        DppJsonException coreNull = assertThrows(DppJsonException.class,
+                () -> new DppJsonCodec().toExpandedJson(null));
+        DppJsonException facadeNull = assertThrows(DppJsonException.class,
+                () -> codec.toExpandedJson(null));
+        assertEquals(coreNull.getMessage(), facadeNull.getMessage());
+        if (coreNull.getCause() == null) assertNull(facadeNull.getCause());
+        else assertEquals(coreNull.getCause().getClass(), facadeNull.getCause().getClass());
     }
 
-    @Test
-    void fromJsonRejectsEmptyObjectAsCausalStructuralMappingFailure() {
-        MappingException error =
-                assertThrows(MappingException.class, () -> codec.fromJson("{}"));
-        assertTrue(error.getCause() instanceof IllegalArgumentException);
-    }
-
-    @Test
-    void fromJsonRejectsInvalidUuidDateRoleAndMissingRequiredData() {
-        Dpp4Fun domain = TestDataFactory.validDpp();
-        String validJson = codec.toJson(domain);
-
-        String invalidUuidJson = validJson
-                .replace(domain.getUniqueProductIdentifier().toString(), "not-a-uuid");
-
-        String invalidDateJson = validJson
-                .replace(domain.getPassportUpdateDates().get(0).toString(), "2026-13-01");
-
-        String invalidRoleJson = validJson
-                .replace("\"MANUFACTURER\"", "\"BROKER\"");
-
-        String missingNameplateJson = """
-                {
-                  "passportMetadata": {
-                    "uniqueProductIdentifier": "%s",
-                    "passportUpdateDates": ["2026-04-23"]
-                  },
-                  "classification": {
-                    "sector": "Furniture",
-                    "group": "Seating",
-                    "category": "Beds",
-                    "tags": ["demo"]
-                  },
-                  "characteristics": {
-                    "productName": "Demo Bed",
-                    "productType": "Bed"
-                  }
-                }
-                """.formatted(domain.getUniqueProductIdentifier());
-
-        assertThrows(MappingException.class, () -> codec.fromJson(invalidUuidJson));
-        assertThrows(MappingException.class, () -> codec.fromJson(invalidDateJson));
-        assertThrows(MappingException.class, () -> codec.fromJson(invalidRoleJson));
-        assertThrows(MappingException.class, () -> codec.fromJson(missingNameplateJson));
-    }
-
-    @Test
-    void fromJsonAndValidateRejectsSemanticallyInvalidInboundData() {
-        String invalidSemanticJson = TestDataFactory.validDppJson()
-                .replace("\"productType\":\"Bed\"", "\"productType\":\"Chair\"");
-
-        assertThrows(ValidationException.class, () -> codec.fromJsonAndValidate(invalidSemanticJson));
-    }
-
-    @Test
-    void fromJsonRejectsNullFeatureAsCausalIndexedMappingFailure() {
-        String invalidJson = TestDataFactory.validDppJson()
-                .replace("\"features\":[\"Feature A\",\"Feature B\"]",
-                        "\"features\":[null,\"Feature B\"]");
-
-        MappingException error =
-                assertThrows(MappingException.class, () -> codec.fromJson(invalidJson));
-
-        assertTrue(error.getMessage().contains("Characteristics.features[0]"));
-        assertTrue(error.getCause() instanceof IllegalArgumentException);
-    }
-
-    @Test
-    void fromJsonRejectsLaterNullTagAsCausalIndexedMappingFailure() {
-        String invalidJson = TestDataFactory.validDppJson()
-                .replace("\"tags\":[\"demo\"]", "\"tags\":[\"demo\",null]");
-
-        MappingException error =
-                assertThrows(MappingException.class, () -> codec.fromJsonAndValidate(invalidJson));
-
-        assertTrue(error.getMessage().contains("ProductClassification.tags[1]"));
-        assertTrue(error.getCause() instanceof IllegalArgumentException);
-    }
-
-    @Test
-    void fromJsonAcceptsFiniteExponentAndRejectsNonFiniteNumbers() {
-        String validJson = TestDataFactory.validDppJson();
-        assertEquals(
-                75.0,
-                codec.fromJson(validJson.replace("\"weight\":75.0", "\"weight\":7.5e1"))
-                        .getWeight());
-
-        for (String invalid : new String[] {"NaN", "Infinity", "-Infinity"}) {
-            IllegalArgumentException error = assertThrows(
-                    IllegalArgumentException.class,
-                    () -> codec.fromJson(
-                            validJson.replace("\"weight\":75.0", "\"weight\":" + invalid)));
-            assertTrue(error.getCause() instanceof com.fasterxml.jackson.core.JsonProcessingException);
+    @Test void malformedReservedProfileStructureHasDocumentedInterpretationFailure() {
+        Dpp4Fun source = TestDataFactory.validDpp();
+        var elements = new java.util.ArrayList<>(source.asDigitalProductPassport().getDataElements());
+        for (int i = 0; i < elements.size(); i++) {
+            if (elements.get(i).getElementId().equals("characteristics")) {
+                elements.set(i, new SingleValuedDataElement.Builder().elementId("characteristics").value("wrong-shape").build());
+            }
         }
-        MappingException overflow = assertThrows(
-                MappingException.class,
-                () -> codec.fromJson(
-                        validJson.replace("\"weight\":75.0", "\"weight\":1e309")));
-        assertTrue(overflow.getCause() instanceof IllegalArgumentException);
+        elements.add(new SingleValuedDataElement.Builder().elementId("characteristics").value("wrong-shape").build());
+        DigitalProductPassport malformedProfile = source.asDigitalProductPassport().toBuilder().dataElements(elements).build();
+        String structurallyValidJson = new DppJsonCodec().toExpandedJson(malformedProfile);
+
+        assertThrows(IllegalArgumentException.class, () -> codec.fromJson(structurallyValidJson));
     }
 
-    @Test
-    void toJsonRejectsDefensivelyInjectedNonFiniteNumberWithCause() throws Exception {
-        Dpp4Fun dpp = TestDataFactory.validDpp();
-        Field weight = dpp.getCharacteristics().getClass().getDeclaredField("weight");
-        weight.setAccessible(true);
-        weight.set(dpp.getCharacteristics(), Double.POSITIVE_INFINITY);
-
-        IllegalArgumentException error =
-                assertThrows(IllegalArgumentException.class, () -> codec.toJson(dpp));
-
-        assertTrue(error.getCause() instanceof IllegalArgumentException);
-        assertTrue(error.getCause().getMessage().contains("Characteristics.weight"));
-    }
-
-    @Test
-    void fromJsonAcceptsNestedCoreDppJson() {
-        Dpp4Fun domain = TestDataFactory.validDpp();
-        String json = """
-                {
-                  "coreDpp": {
-                    "passportMetadata": {
-                      "uniqueProductIdentifier": "%s",
-                      "passportUpdateDates": ["%s"],
-                      "qrCodeOrDigitalTag": "QR-DEMO-001",
-                      "externalDocumentationLink": "https://example.com/doc"
-                    },
-                    "nameplate": {
-                      "gtinCode": "GTIN-DEMO-001",
-                      "internalArticleNumber": "ART-001",
-                      "batchNumber": "BATCH-2026",
-                      "manufacturer": {
-                        "name": "Demo Manufacturer GmbH",
-                        "gln": "123456789",
-                        "uri": "https://manufacturer.example.com",
-                        "role": "MANUFACTURER"
-                      }
-                    },
-                    "documentation": {
-                      "digitalInstructionsLink": "https://example.com/instructions.pdf",
-                      "safetyInstructionsLink": "https://example.com/safety.pdf",
-                      "downloadable": true,
-                      "availableForYears": 10
-                    }
-                  },
-                  "classification": {
-                    "sector": "Furniture",
-                    "group": "Seating",
-                    "category": "Beds",
-                    "tags": ["demo"]
-                  },
-                  "characteristics": {
-                    "productName": "Demo Bed",
-                    "description": "A demo product for testing",
-                    "brand": "Dpp4Fun",
-                    "productType": "Bed",
-                    "dimensions": {
-                      "width": 200.0,
-                      "height": 90.0,
-                      "depth": 50.0,
-                      "unit": "cm"
-                    },
-                    "weight": 75.0,
-                    "features": ["Feature A", "Feature B"]
-                  },
-                  "billOfMaterials": {
-                    "materials": [
-                      {"name": "Steel", "mandatory": true, "portion": 2.5, "reference": "MAT-001"},
-                      {"name": "Foam", "mandatory": true, "portion": 5.0, "reference": "MAT-002"}
-                    ],
-                    "components": [
-                      {"name": "Frame Assembly", "reference": "COMP-001"}
-                    ],
-                    "parts": [
-                      {"name": "Mattress Support", "mandatory": true, "reference": "PART-001"}
-                    ]
-                  }
-                }
-                """.formatted(
-                        domain.getUniqueProductIdentifier(),
-                        domain.getPassportUpdateDates().get(0));
-
-        assertEquals(domain, codec.fromJson(json));
-    }
-
-    @Test
-    void fromJsonPrefersNestedCoreDppWhenBothShapesArePresent() {
-        Dpp4Fun domain = TestDataFactory.validDpp();
-        String json = """
-                {
-                  "coreDpp": {
-                    "passportMetadata": {
-                      "uniqueProductIdentifier": "%s",
-                      "passportUpdateDates": ["%s"],
-                      "qrCodeOrDigitalTag": "QR-DEMO-001"
-                    },
-                    "nameplate": {
-                      "gtinCode": "GTIN-DEMO-001",
-                      "manufacturer": {
-                        "name": "Demo Manufacturer GmbH",
-                        "role": "MANUFACTURER"
-                      }
-                    }
-                  },
-                  "passportMetadata": {
-                    "uniqueProductIdentifier": "00000000-0000-0000-0000-000000000000",
-                    "passportUpdateDates": ["2026-01-01"]
-                  },
-                  "nameplate": {
-                    "gtinCode": "GTIN-IGNORED-001",
-                    "manufacturer": {
-                      "name": "Ignored Manufacturer",
-                      "role": "MANUFACTURER"
-                    }
-                  },
-                  "classification": {
-                    "sector": "Furniture",
-                    "group": "Seating",
-                    "category": "Beds",
-                    "tags": ["demo"]
-                  },
-                  "characteristics": {
-                    "productName": "Demo Bed",
-                    "productType": "Bed"
-                  }
-                }
-                """.formatted(
-                        domain.getUniqueProductIdentifier(),
-                        domain.getPassportUpdateDates().get(0));
-
-        Dpp4Fun parsed = codec.fromJson(json);
-
-        assertEquals(domain.getUniqueProductIdentifier(), parsed.getUniqueProductIdentifier());
-        assertEquals(domain.getGtinCode(), parsed.getGtinCode());
+    private void assertTransportMatchesCore(String json) {
+        DppJsonException coreFailure = assertThrows(DppJsonException.class,
+                () -> new DppJsonCodec().fromExpandedJson(json), json);
+        DppJsonException facadeFailure = assertThrows(DppJsonException.class, () -> codec.fromJson(json), json);
+        assertEquals(coreFailure.getMessage(), facadeFailure.getMessage());
+        if (coreFailure.getCause() == null) assertNull(facadeFailure.getCause());
+        else {
+            assertNotNull(facadeFailure.getCause());
+            assertEquals(coreFailure.getCause().getClass(), facadeFailure.getCause().getClass());
+        }
     }
 }
-

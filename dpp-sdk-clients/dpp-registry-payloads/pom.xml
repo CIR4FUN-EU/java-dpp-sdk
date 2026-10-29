@@ -7,14 +7,14 @@
     <parent>
         <groupId>dpp.client</groupId>
         <artifactId>dpp-sdk-clients</artifactId>
-        <version>0.5.1</version>
+        <version>0.6.0</version>
     </parent>
 
     <artifactId>dpp-registry-payloads</artifactId>
     <packaging>jar</packaging>
 
     <name>dpp-registry-payloads</name>
-    <description>Registry API payload contracts for draft-prEN-18222-aligned DPP registry endpoints.</description>
+    <description>JSON request and response contracts for DPP registry endpoints.</description>
 
     <dependencies>
         <dependency>

@@ -4,10 +4,7 @@ package dppsdk.postgres.dpp4fun;
  * Search filters for lightweight Dpp4Fun PostgreSQL projection queries.
  */
 public record Dpp4FunSearchCriteria(
-        String sector,
-        String category,
         String brand,
-        String productType,
         String materialName,
         String componentName,
         String partName,

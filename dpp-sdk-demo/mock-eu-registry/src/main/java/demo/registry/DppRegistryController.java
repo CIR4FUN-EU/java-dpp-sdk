@@ -32,8 +32,8 @@ import java.util.List;
  * Exposes the mock EC registry metadata API.
  *
  * <p>The controller handles only registration metadata. It does not store or return full DPP JSON.
- * DPP existence is verified through the repository verifier and service registration flow before
- * metadata is stored.</p>
+ * Registration stores the supplied repository endpoint as metadata and does not contact the
+ * repository.</p>
  */
 @RestController
 @RequestMapping(produces = MediaType.APPLICATION_JSON_VALUE)
@@ -62,37 +62,32 @@ class DppRegistryController {
 
     @Operation(
             summary = "Register DPP metadata",
-            description = "Stores DPP registry metadata after verifying the referenced DPP exists in the mock repository. The example references the seeded mock-repo DPP, so it works when both mock services are freshly started. This mock service does not store full DPP JSON.",
+            description = "Stores DPP registry metadata, including the supplied repository endpoint. Registration does not contact the repository or store full DPP JSON.",
             tags = "DPP Registry"
     )
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             required = true,
-            description = "Registry metadata request. `dppApiEndpoint` points to the mock repository public base URL. Change the DPP/product identifiers if you already registered the example DPP.",
+            description = "Registry metadata request. `dppApiEndpoint` is stored as a URI and is not contacted during registration. If the DPP ID is already registered, provide a different `digitalProductPassportId`.",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                     schema = @Schema(implementation = RegisterDppRequest.class),
                     examples = @ExampleObject(name = "Register DPP metadata", value = REGISTER_DPP_EXAMPLE))
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Registry metadata stored",
+            @ApiResponse(responseCode = "201", description = "Registry metadata stored", useReturnTypeSchema = true,
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class),
                             examples = @ExampleObject(value = WRAPPED_SUCCESS_EXAMPLE))),
             @ApiResponse(responseCode = "400", description = "Invalid request or malformed payload",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = DppApiResponse.class),
                             examples = @ExampleObject(value = BAD_REQUEST_EXAMPLE))),
-            @ApiResponse(responseCode = "404", description = "Referenced DPP was not found in the repo",
-                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class),
-                            examples = @ExampleObject(value = REPO_DPP_NOT_FOUND_EXAMPLE))),
             @ApiResponse(responseCode = "409", description = "DPP metadata already registered",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = DppApiResponse.class),
                             examples = @ExampleObject(value = CONFLICT_EXAMPLE))),
-            @ApiResponse(responseCode = "502", description = "Mock repository verification failed or repository was unavailable",
+            @ApiResponse(responseCode = "405", description = "HTTP method is not allowed",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = DppApiResponse.class),
-                            examples = @ExampleObject(value = BAD_GATEWAY_EXAMPLE))),
+                            examples = @ExampleObject(value = METHOD_NOT_ALLOWED_EXAMPLE))),
             @ApiResponse(responseCode = "500", description = "Unexpected registry error",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = DppApiResponse.class),
@@ -105,13 +100,12 @@ class DppRegistryController {
 
     @Operation(
             summary = "Read registry metadata by registry id",
-            description = "Returns mock registry metadata by registry identifier. The payload is metadata-only and never includes the full DPP document.",
+            description = "Returns mock registry metadata by registry record ID. The payload is metadata-only and never includes the full DPP document.",
             tags = "DPP Registry - Internal"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Registry record found",
+            @ApiResponse(responseCode = "200", description = "Registry record found", useReturnTypeSchema = true,
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class),
                             examples = @ExampleObject(value = INTERNAL_LOOKUP_SUCCESS_EXAMPLE))),
             @ApiResponse(responseCode = "404", description = "Registry record not found",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -124,14 +118,14 @@ class DppRegistryController {
     })
     @GetMapping(INTERNAL_PREFIX + "/dpps/{registryId}")
     ResponseEntity<DppApiResponse<RegistryRecordPayload>> readByRegistryId(
-            @Parameter(description = "Registry identifier. The example is seeded when the mock registry starts.",
+            @Parameter(description = "Registry record ID. The example is seeded when the mock registry starts.",
                     example = SEEDED_REGISTRY_ID)
             @PathVariable String registryId) {
         return responseFactory.success(HttpStatus.OK, DppStatusCode.Success, registryService.readByRegistryId(registryId));
     }
 
-    @Operation(summary = "List registered DPP ids",
-            description = "Internal/mock helper that lists DPP ids registered in this metadata-only mock registry.",
+    @Operation(summary = "List registered DPP IDs",
+            description = "Internal/mock helper that lists DPP IDs registered in this metadata-only mock registry.",
             tags = "DPP Registry - Internal")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Registered DPP ids returned"),
@@ -147,13 +141,12 @@ class DppRegistryController {
 
     @Operation(
             summary = "Read registry metadata by DPP id",
-            description = "Returns mock registry metadata for a DPP identifier. The payload is metadata-only and never includes the full DPP document.",
+            description = "Returns mock registry metadata for a DPP ID. The payload is metadata-only and never includes the full DPP document.",
             tags = "DPP Registry - Internal"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Registry record found",
+            @ApiResponse(responseCode = "200", description = "Registry record found", useReturnTypeSchema = true,
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = DppApiResponse.class),
                             examples = @ExampleObject(value = INTERNAL_LOOKUP_SUCCESS_EXAMPLE))),
             @ApiResponse(responseCode = "404", description = "Registry record not found",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -166,15 +159,15 @@ class DppRegistryController {
     })
     @GetMapping(INTERNAL_PREFIX + "/dpps/by-dpp-id/{dppId}")
     ResponseEntity<DppApiResponse<RegistryRecordPayload>> readByDppId(
-            @Parameter(description = "DPP identifier registered in the mock registry. The example is seeded when the mock registry starts.",
+            @Parameter(description = "DPP ID registered in the mock registry. The example is seeded when the mock registry starts.",
                     example = SEEDED_REGISTRY_DPP_ID)
             @PathVariable String dppId) {
         return responseFactory.success(HttpStatus.OK, DppStatusCode.Success, registryService.readByDppId(dppId));
     }
 
     @Operation(summary = "Registry health check",
-            description = "Simple local mock-service health check.",
-            tags = "DPP Registry")
+            description = "Simple local demo-service health check.",
+            tags = "DPP Registry - Internal")
     @GetMapping("/health")
     HealthPayload health() {
         return new HealthPayload("UP", "dpp-registry-api");

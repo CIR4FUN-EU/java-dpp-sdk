@@ -1,9 +1,12 @@
 package dpp.registry.payloads;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
+import java.util.Objects;
 
 /**
- * One entry from the registry API wrapper {@code messages} array.
+ * One entry from the registry Result {@code message} array.
  */
 public class DppApiMessage {
     private MessageType messageType;
@@ -12,7 +15,13 @@ public class DppApiMessage {
     private String correlationId;
     private Instant timestamp;
 
-    public DppApiMessage() {
+    @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
+    public DppApiMessage(
+            @JsonProperty(value = "messageType", required = true) MessageType messageType,
+            @JsonProperty(value = "text", required = true) String text
+    ) {
+        this.messageType = Objects.requireNonNull(messageType, "messageType must not be null");
+        this.text = Objects.requireNonNull(text, "text must not be null");
     }
 
     public MessageType getMessageType() {
@@ -20,7 +29,7 @@ public class DppApiMessage {
     }
 
     public void setMessageType(MessageType messageType) {
-        this.messageType = messageType;
+        this.messageType = Objects.requireNonNull(messageType, "messageType must not be null");
     }
 
     public String getText() {
@@ -28,7 +37,7 @@ public class DppApiMessage {
     }
 
     public void setText(String text) {
-        this.text = text;
+        this.text = Objects.requireNonNull(text, "text must not be null");
     }
 
     public String getCode() {

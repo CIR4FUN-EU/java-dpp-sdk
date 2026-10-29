@@ -1,0 +1,30 @@
+{
+  "digitalProductPassportId": "https://example.org/dpp/1234545",
+  "uniqueProductIdentifier": "https://example.org/1234545",
+  "granularity": "item",
+  "dppSchemaVersion": "EN18223:2026",
+  "dppStatus": "active",
+  "lastUpdated": "2026-09-21T10:00:00Z",
+  "economicOperatorId": "gxx:ppp456789",
+  "facilityId": "gxx:xxx987654",
+  "contentSpecificationIds": ["prEN1234_xyz", "prEN5678_abc"],
+  "manufacturerName": "ExampleCorp",
+  "recycledContentPercentage": 25.5,
+  "performanceMetrics": {"maxPressure": 750.0, "isFireResistant": true},
+  "supportedVoltages": [110, 220, 240],
+  "componentParts": [
+    {"partID": "A-101", "material": "Steel"},
+    {"partID": "B-202", "material": "Recycled Plastic"}
+  ],
+  "userManual": {
+    "resourceTitle": "User Manual for the Smart Thermostat Pro",
+    "contentType": "application/pdf",
+    "url": "https://data.example.com/manuals/thermostat-pro_v2.1.pdf",
+    "language": "en-GB"
+  },
+  "productDescription": [
+    {"value": "One Thing", "language": "en-IE"},
+    {"value": "Una Cosa", "language": "es-ES"},
+    {"value": "Une Chose", "language": "fr-CH"}
+  ]
+}

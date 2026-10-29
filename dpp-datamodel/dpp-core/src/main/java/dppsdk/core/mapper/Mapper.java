@@ -4,8 +4,8 @@ package dppsdk.core.mapper;
  * Generic bidirectional mapper interface for converting between
  * domain objects and transport payload objects.
  *
- * <p>ALL field-by-field mapping logic in this SDK lives exclusively
- * in implementations of this interface within the {@code dppsdk.core.mapper} package.</p>
+ * <p>Field-by-field mapping logic lives in implementations of this interface,
+ * such as profile-specific adapters in their owning modules.</p>
  *
  * <p>Supports both directions:</p>
  * <ul>

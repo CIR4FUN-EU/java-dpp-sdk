@@ -6,11 +6,11 @@
 
     <groupId>dpp.client</groupId>
     <artifactId>dpp-sdk-clients</artifactId>
-    <version>0.5.1</version>
+    <version>0.6.0</version>
     <packaging>pom</packaging>
 
     <name>dpp-sdk-clients</name>
-    <description>Internal draft-prEN-18222-aligned HTTP client modules for DPP repository and registry endpoints.</description>
+    <description>Generic JSON HTTP clients for EN 18222 DPP repository and registry endpoints.</description>
 
     <modules>
         <module>dpp-repo-payloads</module>

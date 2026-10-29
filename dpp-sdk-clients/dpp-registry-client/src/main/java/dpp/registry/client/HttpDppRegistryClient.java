@@ -53,26 +53,31 @@ public class HttpDppRegistryClient implements DppRegistryClient {
         String body = HttpSupport.serializeJson(objectMapper, request);
         DppApiResponse<JsonNode> response = sendForApiResponse("POST", REGISTER_PATH, Optional.of(body));
         JsonNode payload = response.getPayload();
-        requireRegistrationId(payload);
-        return HttpSupport.deserializeJson(objectMapper, payload, RegisterDppResponse.class);
+        RegisterDppResponse result = new RegisterDppResponse();
+        result.setStatusCode(response.getStatusCode());
+        result.setMessage(response.getMessage());
+        if (payload == null || payload.isNull()) return result;
+        if (!payload.isObject()) throw HttpSupport.missingRequiredResponseField("payload");
+        validateRegistrationIdIfPresent(payload);
+        RegisterDppResponse payloadResult = HttpSupport.deserializeJson(objectMapper, payload, RegisterDppResponse.class);
+        result.setRegistrationId(payloadResult.getRegistrationId());
+        return result;
     }
 
-    private static void requireRegistrationId(JsonNode payload) {
-        if (payload != null && payload.hasNonNull("registrationId") && payload.get("registrationId").isTextual()) {
+    private static void validateRegistrationIdIfPresent(JsonNode payload) {
+        if (payload.hasNonNull("registrationId")) {
             HttpSupport.requireTextField(payload, "registrationId", "payload.registrationId");
             return;
         }
-        if (payload != null && payload.hasNonNull("registryIdentifier") && payload.get("registryIdentifier").isTextual()) {
+        if (payload.hasNonNull("registryIdentifier")) {
             HttpSupport.requireTextField(payload, "registryIdentifier", "payload.registryIdentifier");
-            return;
         }
-        HttpSupport.requireTextField(payload, "registrationId", "payload.registrationId");
     }
 
     private DppApiResponse<JsonNode> sendForApiResponse(String method, String path, Optional<String> body) {
         HttpRequest request = HttpSupport.jsonRequest(HttpSupport.resolve(baseUrl, path), method, body);
         HttpResponse<String> response = HttpSupport.send(httpClient, request);
-        HttpSupport.requireSuccess(response);
+        HttpSupport.requireSuccess(response, objectMapper);
         DppApiResponse<JsonNode> apiResponse = HttpSupport.parseApiResponse(objectMapper, response.body());
         HttpSupport.requireApiSuccess(apiResponse, response.body());
         return apiResponse;

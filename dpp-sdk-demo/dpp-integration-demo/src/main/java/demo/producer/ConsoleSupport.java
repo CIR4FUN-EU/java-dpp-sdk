@@ -1,7 +1,11 @@
 package demo.producer;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.util.DefaultIndenter;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.JsonNode;
-import demo.producer.support.RegistryRecordPayload;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import dpp.registry.payloads.RegisterDppResponse;
 import dpp.repo.payloads.CreateDppResponse;
 import dpp.repo.payloads.DeleteDppResponse;
@@ -15,6 +19,10 @@ import dppsdk.dpp4fun.model.Dpp4Fun;
  * into the runner logic itself.</p>
  */
 final class ConsoleSupport {
+
+    private static final ObjectWriter JSON_WRITER = new ObjectMapper().writer(
+            new DefaultPrettyPrinter().withArrayIndenter(new DefaultIndenter("  ", System.lineSeparator()))
+    );
 
     private ConsoleSupport() {
     }
@@ -30,7 +38,7 @@ final class ConsoleSupport {
     }
 
     static void createResponse(CreateDppResponse response) {
-        System.out.println("dppId      : " + response.getDppId());
+        System.out.println("dppId      : " + response.getDigitalProductPassportId());
     }
 
     static void deleteResponse(DeleteDppResponse response) {
@@ -46,41 +54,35 @@ final class ConsoleSupport {
         System.out.println("registryId : " + response.getRegistrationId());
     }
 
-    static void registryRecord(RegistryRecordPayload response) {
-        System.out.println("registryId : " + response.registryIdentifier());
-        System.out.println("dppId      : " + response.dppIdentifier());
-        System.out.println("productId  : " + response.productIdentifier());
-        System.out.println("operatorId : " + response.operatorIdentifier());
-        System.out.println("repoUrl    : " + response.repoUrl());
-    }
-
     static void dpp(Dpp4Fun dpp) {
-        System.out.println("Product    : " + dpp.getCharacteristics().getProductName());
-        System.out.println("DPP ID     : " + dpp.getPassportMetadata().getUniqueProductIdentifier());
-        System.out.println("Category   : " + dpp.getClassification().getCategory());
-        System.out.println("Maker      : " + dpp.getNameplate().getManufacturer().getName());
-        System.out.println("Core      : passportMetadata + nameplate"
-                + (dpp.getDocumentation() != null ? " + documentation" : ""));
+        System.out.println("Product    : " + dpp.getNameplate().getBrand());
+        System.out.println("DPP ID     : " + dpp.getDigitalProductPassportId());
+        System.out.println("Product ID : " + dpp.getUniqueProductIdentifier());
+        System.out.println("Variant    : " + dpp.getCharacteristics().variant());
+        System.out.println("Maker      : " + dpp.getNameplate().getManufacturerName());
+        System.out.println("Canonical : DigitalProductPassport header + DataElements");
     }
 
     static void compressedDpp(JsonNode dpp) {
-        System.out.println("compressed representation : " + dpp.path("representation").asText());
-        System.out.println("summary fields            : dppId, productId, productName, productCategory, manufacturerName");
-        System.out.println("product name              : " + dpp.path("productName").asText());
-    }
-
-    static void fullDpp(Dpp4Fun dpp) {
-        System.out.println("full representation       : complete DPP JSON decoded into Dpp4Fun");
-        dpp(dpp);
+        jsonValue("COMPRESSED DPP (EN 18223 elementId-keyed JSON)", dpp);
     }
 
     static void jsonValue(String label, JsonNode payload) {
-        System.out.println(label + " : " + payload);
+        System.out.println(label + ":");
+        printJson(payload);
     }
 
     static void jsonPathValue(String label, String path, JsonNode payload) {
-        System.out.println(label + " path  : " + path);
-        System.out.println(label + " value : " + payload);
+        System.out.println(label + " @ " + path + ":");
+        printJson(payload);
+    }
+
+    private static void printJson(JsonNode payload) {
+        try {
+            System.out.println(JSON_WRITER.writeValueAsString(payload));
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Could not format demo JSON payload", exception);
+        }
     }
 
     static void clientError(RuntimeException exception) {

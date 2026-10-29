@@ -6,8 +6,7 @@ record DemoDppSamples(
         Dpp4Fun validBedDpp,
         Dpp4Fun validChairDpp,
         Dpp4Fun updatedBedDpp,
-        Dpp4Fun invalidSupplierRoleDpp,
-        Dpp4Fun invalidDocumentationDpp,
+        Dpp4Fun incompleteDpp,
         String malformedJson
 ) {
 }

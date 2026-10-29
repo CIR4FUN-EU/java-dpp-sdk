@@ -1,0 +1,7 @@
+* text=auto
+
+# Scripts the JVM toolchain execs directly: CRLF breaks the shebang on Linux/macOS
+mvnw text eol=lf
+*.sh text eol=lf
+mvnw.cmd text eol=crlf
+*.bat text eol=crlf

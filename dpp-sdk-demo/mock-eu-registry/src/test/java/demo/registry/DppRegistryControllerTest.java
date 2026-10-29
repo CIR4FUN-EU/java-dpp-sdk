@@ -3,6 +3,7 @@ package demo.registry;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.not;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -12,11 +13,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import org.junit.jupiter.api.AfterEach;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.HashSet;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +27,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = {
         "demo.repo.public-base-url=http://localhost:18080",
-        "demo.repo.verification-base-url=http://localhost:18081",
         "debug=false",
         "logging.level.root=WARN",
         "logging.level.org.springframework=WARN"
@@ -39,10 +38,10 @@ class DppRegistryControllerTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private InMemoryRegistryStore store;
+    private ObjectMapper objectMapper;
 
-    private HttpServer repoServer;
-    private int repoHeadStatus = 200;
+    @Autowired
+    private InMemoryRegistryStore store;
 
     @Test
     @DisplayName("Controller keeps Swagger example payloads outside the request-handling class")
@@ -51,19 +50,13 @@ class DppRegistryControllerTest {
                 .noneMatch(field -> field.getName().endsWith("_EXAMPLE")));
     }
 
-    @AfterEach
-    void clearState() {
-        if (repoServer != null) {
-            repoServer.stop(0);
-            repoServer = null;
-        }
-        store.clear();
-    }
+    @org.junit.jupiter.api.AfterEach
+    void clearState() { store.clear(); }
 
     @Test
     @DisplayName("POST /v1/registerDPP returns registrationId and internal lookup endpoints return registry metadata only")
     void validRegistrationReturnsRegistrationIdAndCanBeReadBack() throws Exception {
-        String repoUrl = startRepoStubReturning(200);
+        String repoUrl = "http://localhost:8080";
 
         String responseBody = mockMvc.perform(post("/v1/registerDPP")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -121,9 +114,46 @@ class DppRegistryControllerTest {
     }
 
     @Test
+    @DisplayName("registration stores metadata without contacting an unreachable DPP API endpoint")
+    void registrationDoesNotRequireRepositoryReachability() throws Exception {
+        String unreachableEndpoint = "http://127.0.0.1:1/v1";
+
+        String responseBody = mockMvc.perform(post("/v1/registerDPP")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registrationBody("product-unreachable", "dpp-unreachable", "operator-123", unreachableEndpoint)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.statusCode").value("SuccessCreated"))
+                .andExpect(jsonPath("$.payload.registrationId").value(notNullValue()))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String registryId = responseBody.split("\"registrationId\":\"")[1].split("\"")[0];
+        mockMvc.perform(get("/internal/dpps/" + registryId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.repoUrl").value(unreachableEndpoint));
+    }
+
+    @Test
+    @DisplayName("registry accepts a syntactically valid URI without imposing an HTTP transport")
+    void registrationAcceptsNonHttpUri() throws Exception {
+        mockMvc.perform(post("/v1/registerDPP")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registrationBody("product-uri", "dpp-uri", "operator-uri", "urn:example:dpp-api")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.statusCode").value("SuccessCreated"));
+
+        mockMvc.perform(post("/v1/registerDPP")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registrationBody("product-relative", "dpp-relative", "operator-relative", "../dpps/api")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.statusCode").value("SuccessCreated"));
+    }
+
+    @Test
     @DisplayName("POST /v1/registerDPP rejects blank standard fields and duplicate DPP ids")
     void registrationValidatesRequiredFieldsAndRejectsDuplicates() throws Exception {
-        String repoUrl = startRepoStubReturning(200);
+        String repoUrl = "http://localhost:8080";
 
         assertMissingRequiredFieldFails("uniqueProductIdentifier");
         assertMissingRequiredFieldFails("digitalProductPassportId");
@@ -143,66 +173,34 @@ class DppRegistryControllerTest {
     }
 
     @Test
-    @DisplayName("POST /v1/registerDPP rejects DPP references that the repo cannot verify")
-    void registrationVerifiesReferencedDppExistsInRepo() throws Exception {
-        String missingRepoUrl = startRepoStubReturning(404);
-
-        mockMvc.perform(post("/v1/registerDPP")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(registrationBody("product-404", "missing-dpp", "operator-123", missingRepoUrl)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.statusCode").value("ClientErrorResourceNotFound"))
-                .andExpect(jsonPath("$.messages[0].text").value("Referenced DPP missing-dpp was not found in repo " + missingRepoUrl));
-
-        assertTrue(store.findByDppId("missing-dpp").isEmpty());
-
-        repoHeadStatus = 500;
-        mockMvc.perform(post("/v1/registerDPP")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(registrationBody("product-500", "downstream-dpp", "operator-123", missingRepoUrl)))
-                .andExpect(status().isBadGateway())
-                .andExpect(jsonPath("$.statusCode").value("ServerErrorBadGateway"));
-
-        assertTrue(store.findByDppId("downstream-dpp").isEmpty());
+    void registrationRejectsMalformedEndpointUris() throws Exception {
+        for (String endpoint : new String[]{"http://bad host", "http://[bad"}) {
+            mockMvc.perform(post("/v1/registerDPP")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(registrationBody("product-uri", "dpp-uri", "operator-uri", endpoint)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"));
+        }
+        assertTrue(store.findByDppId("dpp-uri").isEmpty());
     }
 
     @Test
-    @DisplayName("POST /v1/registerDPP verifies via the configured internal repo base when the request uses the configured public repo base")
-    void registrationMapsConfiguredPublicRepoUrlToConfiguredVerificationRepoUrl() throws Exception {
-        String publicRepoUrl = "http://localhost:18080";
-        startRepoStubReturningAt(200, 18081);
-
-        String responseBody = mockMvc.perform(post("/v1/registerDPP")
+    void malformedEndpointUriUsesBadRequest() throws Exception {
+        mockMvc.perform(post("/v1/registerDPP")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(registrationBody("product-public", "dpp-public", "operator-123", publicRepoUrl)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.statusCode").value("SuccessCreated"))
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        String registryId = responseBody.split("\"registrationId\":\"")[1].split("\"")[0];
-
-        mockMvc.perform(get("/internal/dpps/" + registryId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.payload.repoUrl").value(publicRepoUrl));
+                        .content(registrationBody("product-uri", "dpp-uri-syntax", "operator-uri", "http://[bad")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message[0].code").value("INVALID_DPP_API_ENDPOINT"));
     }
 
     @Test
-    @DisplayName("POST /v1/registerDPP returns bad gateway when the repo URL is unreachable")
-    void registrationFailsWhenRepoUrlIsUnreachable() throws Exception {
-        mockMvc.perform(post("/v1/registerDPP")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(registrationBody(
-                                "product-unreachable",
-                                "unreachable-dpp",
-                                "operator-123",
-                                "http://localhost:65530"
-                        )))
-                .andExpect(status().isBadGateway())
-                .andExpect(jsonPath("$.statusCode").value("ServerErrorBadGateway"));
-
-        assertTrue(store.findByDppId("unreachable-dpp").isEmpty());
+    void unsupportedMethodOnRegistrationUsesStandard405ErrorEnvelope() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .request(org.springframework.http.HttpMethod.GET, "/v1/registerDPP"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.statusCode").value("ClientMethodNotAllowed"))
+                .andExpect(jsonPath("$.message[0].messageType").value("Error"))
+                .andExpect(jsonPath("$.message[0].text").isString());
     }
 
     @Test
@@ -258,22 +256,82 @@ class DppRegistryControllerTest {
                                 "digitalProductPassportId",
                                 "uniqueEconomicOperatorIdentifier",
                                 "dppApiEndpoint")))
+                .andExpect(jsonPath("$.components.schemas.DppApiMessage.required")
+                        .value(org.hamcrest.Matchers.containsInAnyOrder("messageType", "text")))
                 .andExpect(jsonPath("$.paths['/v1/registerDPP'].post.requestBody.content['application/json'].examples['Register DPP metadata'].value.digitalProductPassportId").value("49192c87-20c8-4b6f-88de-48b56ca4c211"))
                 .andExpect(jsonPath("$.paths['/v1/registerDPP'].post.requestBody.content['application/json'].examples['Register DPP metadata'].value.uniqueProductIdentifier").value("04012345678901"))
                 .andExpect(jsonPath("$.paths['/v1/registerDPP'].post.responses['201'].content['application/json'].example.statusCode").value("SuccessCreated"))
                 .andExpect(jsonPath("$.paths['/v1/registerDPP'].post.responses['201'].content['application/json'].example.payload.registrationId").value("8a5be5de-7c76-46ef-a1d5-4875d3f4a5dc"))
                 .andExpect(jsonPath("$.paths['/v1/registerDPP'].post.responses['201'].content['application/json'].example.payload.registryIdentifier").doesNotExist())
                 .andExpect(jsonPath("$.paths['/v1/registerDPP'].post.responses['400'].content['application/json'].example.statusCode").value("ClientErrorBadRequest"))
-                .andExpect(jsonPath("$.paths['/v1/registerDPP'].post.responses['404'].content['application/json'].example.messages[0].code").value("REPO_DPP_NOT_FOUND"))
+                .andExpect(jsonPath("$.paths['/v1/registerDPP'].post.responses['405'].content['application/json'].example.statusCode").value("ClientMethodNotAllowed"))
                 .andExpect(jsonPath("$.paths['/v1/registerDPP'].post.responses['409'].content['application/json'].example.statusCode").value("ClientResourceConflict"))
-                .andExpect(jsonPath("$.paths['/v1/registerDPP'].post.responses['502'].content['application/json'].example.statusCode").value("ServerErrorBadGateway"))
+                .andExpect(jsonPath("$.paths['/v1/registerDPP'].post.responses['404']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/v1/registerDPP'].post.responses['502']").doesNotExist())
                 .andExpect(jsonPath("$.paths['/v1/registerDPP'].post.responses['500'].content['application/json'].example.statusCode").value("ServerInternalError"))
                 .andExpect(jsonPath("$.paths['/internal/dpps/{registryId}'].get.responses['200'].content['application/json'].example.payload.registeredAt").value("2026-05-19T00:00:00Z"))
                 .andExpect(jsonPath("$.paths['/internal/dpps/{registryId}'].get.responses['200'].content['application/json'].example.payload.lastUpdatedAt").exists())
-                .andExpect(jsonPath("$.paths['/internal/dpps/{registryId}'].get.responses['404'].content['application/json'].example.messages[0].code").value("REGISTRY_NOT_FOUND"))
+                .andExpect(jsonPath("$.paths['/internal/dpps/{registryId}'].get.responses['404'].content['application/json'].example.message[0].code").value("REGISTRY_NOT_FOUND"))
                 .andExpect(jsonPath("$.paths['/internal/dpps/by-dpp-id/{dppId}'].get.responses['200'].content['application/json'].example.payload.registryIdentifier").value("8a5be5de-7c76-46ef-a1d5-4875d3f4a5dc"))
                 .andExpect(jsonPath("$.paths['/internal/dpps/by-dpp-id/{dppId}'].get.responses['200'].content['application/json'].example.payload.registrationId").doesNotExist())
                 .andExpect(jsonPath("$.paths['/internal/dpps/by-dpp-id/{dppId}'].get.responses['500'].content['application/json'].example.statusCode").value("ServerInternalError"));
+    }
+
+    @Test
+    @DisplayName("Generated registry OpenAPI describes metadata fields and typed response payloads")
+    void generatedOpenApiDescribesRegistryMetadataContract() throws Exception {
+        String json = mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        JsonNode openApi = objectMapper.readTree(json);
+
+        assertTrue(openApi.at("/paths/~1v1~1registerDPP/post/responses/201/content/application~1json/schema/$ref")
+                .asText().contains("RegisterDppResponse"));
+        assertTrue(openApi.at("/paths/~1internal~1dpps~1{registryId}/get/responses/200/content/application~1json/schema/$ref")
+                .asText().contains("RegistryRecordPayload"));
+        assertEquals("string", openApi.at("/components/schemas/RegisterDppResponse/properties/registrationId/type").asText());
+        assertEquals("string", openApi.at("/components/schemas/RegistryRecordPayload/properties/registryIdentifier/type").asText());
+        assertEquals("date-time", openApi.at("/components/schemas/RegistryRecordPayload/properties/registeredAt/format").asText());
+        assertEquals("DPP Registry - Internal", openApi.at("/paths/~1health/get/tags/0").asText());
+        assertTrue(openApi.at("/components/schemas/RegisterDppRequest/properties/uniqueProductIdentifier/description")
+                .asText().contains("product ID"));
+        assertTrue(openApi.at("/components/schemas/RegisterDppRequest/properties/digitalProductPassportId/description")
+                .asText().contains("DPP ID"));
+        assertTrue(openApi.at("/components/schemas/RegisterDppRequest/properties/uniqueEconomicOperatorIdentifier/description")
+                .asText().contains("economic operator"));
+        assertEquals("uri", openApi.at("/components/schemas/RegisterDppRequest/properties/dppApiEndpoint/format").asText());
+        assertTrue(openApi.at("/components/schemas/RegisterDppRequest/properties/dppApiEndpoint/description")
+                .asText().contains("does not contact"));
+        assertEquals(1, openApi.at("/components/schemas/RegisterDppRequest/properties/uniqueProductIdentifier/minLength").asInt());
+        assertEquals(".*\\S.*", openApi.at("/components/schemas/RegisterDppRequest/properties/dppApiEndpoint/pattern").asText());
+        assertTrue(openApi.at("/components/schemas/DppApiResponse/properties/payload/type").isMissingNode());
+        assertTrue(openApi.at("/components/schemas/DppApiResponse/properties/message/nullable").asBoolean());
+
+        Set<String> expectedOperations = Set.of(
+                "POST /v1/registerDPP", "GET /internal/dpps", "GET /internal/dpps/{registryId}",
+                "GET /internal/dpps/by-dpp-id/{dppId}", "GET /health");
+        Set<String> actualOperations = new HashSet<>();
+        Set<String> operationIds = new HashSet<>();
+        openApi.path("paths").fields().forEachRemaining(path -> path.getValue().fields().forEachRemaining(method -> {
+            actualOperations.add(method.getKey().toUpperCase() + " " + path.getKey());
+            assertTrue(operationIds.add(method.getValue().path("operationId").asText()),
+                    "Duplicate operationId " + method.getValue().path("operationId").asText());
+        }));
+        assertEquals(expectedOperations, actualOperations);
+        assertOpenApiReferencesResolve(openApi, openApi);
+    }
+
+    private static void assertOpenApiReferencesResolve(JsonNode document, JsonNode node) {
+        if (node.isObject()) {
+            JsonNode reference = node.get("$ref");
+            if (reference != null && reference.asText().startsWith("#/")) {
+                assertTrue(!document.at(reference.asText().substring(1)).isMissingNode(),
+                        "Unresolved OpenAPI reference " + reference.asText());
+            }
+            node.fields().forEachRemaining(entry -> assertOpenApiReferencesResolve(document, entry.getValue()));
+        } else if (node.isArray()) {
+            node.forEach(child -> assertOpenApiReferencesResolve(document, child));
+        }
     }
 
     private void assertMissingRequiredFieldFails(String fieldName) throws Exception {
@@ -285,7 +343,7 @@ class DppRegistryControllerTest {
                         .content(request))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.statusCode").value("ClientErrorBadRequest"))
-                .andExpect(jsonPath("$.messages[0].correlationId").value(notNullValue()));
+                .andExpect(jsonPath("$.message[0].correlationId").value(notNullValue()));
     }
 
     private String valueFor(String fieldName) {
@@ -309,22 +367,6 @@ class DppRegistryControllerTest {
                 """.formatted(productId, dppId, operatorId, repoUrl);
     }
 
-    private String startRepoStubReturning(int status) throws IOException {
-        repoHeadStatus = status;
-        repoServer = HttpServer.create(new InetSocketAddress(0), 0);
-        repoServer.createContext("/internal/dpps", this::handleRepoHead);
-        repoServer.start();
-        return "http://localhost:" + repoServer.getAddress().getPort();
-    }
-
-    private String startRepoStubReturningAt(int status, int port) throws IOException {
-        repoHeadStatus = status;
-        repoServer = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
-        repoServer.createContext("/internal/dpps", this::handleRepoHead);
-        repoServer.start();
-        return "http://localhost:" + repoServer.getAddress().getPort();
-    }
-
     @Test
     @DisplayName("Old registry-prefixed internal routes are removed")
     void oldInternalRegistryRoutesReturnNotFound() throws Exception {
@@ -336,11 +378,4 @@ class DppRegistryControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    private void handleRepoHead(HttpExchange exchange) throws IOException {
-        if (!"HEAD".equals(exchange.getRequestMethod())) {
-            exchange.sendResponseHeaders(405, -1);
-            return;
-        }
-        exchange.sendResponseHeaders(repoHeadStatus, -1);
-    }
 }

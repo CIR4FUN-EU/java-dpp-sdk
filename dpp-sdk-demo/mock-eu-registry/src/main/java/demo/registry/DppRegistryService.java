@@ -4,8 +4,8 @@ import dpp.registry.payloads.DppStatusCode;
 import dpp.registry.payloads.RegisterDppRequest;
 import dpp.registry.payloads.RegisterDppResponse;
 import java.time.Instant;
+import java.net.URI;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -18,20 +18,9 @@ import org.springframework.stereotype.Service;
 class DppRegistryService {
 
     private final RegistryBackend backend;
-    private final RepositoryDppVerifier repositoryDppVerifier;
-    private final String publicRepoBaseUrl;
-    private final String verificationRepoBaseUrl;
 
-    DppRegistryService(
-            RegistryBackend backend,
-            RepositoryDppVerifier repositoryDppVerifier,
-            @Value("${demo.repo.public-base-url:http://localhost:${MOCK_REPO_PORT:${DPP_REPO_PORT:8080}}}") String publicRepoBaseUrl,
-            @Value("${demo.repo.verification-base-url:http://localhost:${MOCK_REPO_PORT:${DPP_REPO_PORT:8080}}}") String verificationRepoBaseUrl
-    ) {
+    DppRegistryService(RegistryBackend backend) {
         this.backend = backend;
-        this.repositoryDppVerifier = repositoryDppVerifier;
-        this.publicRepoBaseUrl = publicRepoBaseUrl;
-        this.verificationRepoBaseUrl = verificationRepoBaseUrl;
     }
 
     RegisterDppResponse register(RegisterDppRequest request) {
@@ -43,12 +32,11 @@ class DppRegistryService {
         String dppIdentifier = requireNonBlank(request.getDigitalProductPassportId(), "digitalProductPassportId");
         String operatorIdentifier = requireNonBlank(request.getUniqueEconomicOperatorIdentifier(), "uniqueEconomicOperatorIdentifier");
         String repoUrl = requireNonBlank(request.getDppApiEndpoint(), "dppApiEndpoint");
+        validateEndpointUri(repoUrl);
         if (backend.existsByDppId(dppIdentifier)) {
             throw new RegistryApiException(DppStatusCode.ClientResourceConflict, "REGISTRY_CONFLICT",
                     "A registry record already exists for dpp id " + dppIdentifier);
         }
-
-        repositoryDppVerifier.verifyActiveDpp(repoUrl, verificationRepoUrl(repoUrl), dppIdentifier);
 
         RegistryRecord record = backend.create(
                 productIdentifier,
@@ -80,10 +68,6 @@ class DppRegistryService {
         return toPayload(record);
     }
 
-    void clear() {
-        backend.clear();
-    }
-
     private String requireNonBlank(String value, String fieldName) {
         if (value == null || value.isBlank()) {
             throw new RegistryApiException(DppStatusCode.ClientErrorBadRequest, "MISSING_REQUIRED_FIELD",
@@ -92,15 +76,14 @@ class DppRegistryService {
         return value;
     }
 
-    private String verificationRepoUrl(String requestedRepoUrl) {
-        if (normalized(requestedRepoUrl).equals(normalized(publicRepoBaseUrl))) {
-            return verificationRepoBaseUrl;
+    private void validateEndpointUri(String value) {
+        final URI endpoint;
+        try {
+            endpoint = URI.create(value);
+        } catch (IllegalArgumentException exception) {
+            throw new RegistryApiException(DppStatusCode.ClientErrorBadRequest, "INVALID_DPP_API_ENDPOINT",
+                    "dppApiEndpoint must be a syntactically valid URI");
         }
-        return requestedRepoUrl;
-    }
-
-    private String normalized(String url) {
-        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 
     private RegistryRecordPayload toPayload(RegistryRecord record) {

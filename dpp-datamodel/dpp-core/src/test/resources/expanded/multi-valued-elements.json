@@ -1,0 +1,23 @@
+{
+  "digitalProductPassportId": "https://example.org/dpp/1234545",
+  "uniqueProductIdentifier": "https://example.org/1234545",
+  "granularity": "item",
+  "dppSchemaVersion": "EN18223:2026",
+  "dppStatus": "active",
+  "lastUpdated": "2026-09-21T10:00:00Z",
+  "economicOperatorId": "gxx:ppp456789",
+  "contentSpecificationIds": [],
+  "elements": [
+    {
+      "elementId": "efficiencyRatings",
+      "objectType": "MultiValuedDataElement",
+      "dictionaryReference": "https://dictionary1.eu/efficiencyRatings",
+      "valueDataType": "xsd:float",
+      "elements": [
+        {"elementId": "efficiencyRating1", "objectType": "SingleValuedDataElement", "dictionaryReference": "https://dictionary1.eu/efficiencyRating", "valueDataType": "xsd:float", "value": 0.95},
+        {"elementId": "efficiencyRating2", "objectType": "SingleValuedDataElement", "dictionaryReference": "https://dictionary1.eu/efficiencyRating", "valueDataType": "xsd:float", "value": 0.92},
+        {"elementId": "efficiencyRating3", "objectType": "SingleValuedDataElement", "dictionaryReference": "https://dictionary1.eu/efficiencyRating", "valueDataType": "xsd:float", "value": 0.88}
+      ]
+    }
+  ]
+}

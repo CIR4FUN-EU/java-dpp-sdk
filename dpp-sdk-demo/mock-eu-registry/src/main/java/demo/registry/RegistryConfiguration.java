@@ -45,7 +45,7 @@ class RegistryConfiguration {
     @Bean
     ApplicationRunner seedDefaultPostmanRegistryRecord(
             RegistryBackend backend,
-            @Value("${demo.repo.public-base-url:http://localhost:${MOCK_REPO_PORT:${DPP_REPO_PORT:8080}}}") String repoUrl
+            @Value("${demo.repo.public-base-url:http://localhost:${DPP_REPO_PORT:${DPP_REPO_PORT:8080}}}") String repoUrl
     ) {
         return args -> backend.seed(
                 PostmanSeedData.REGISTRY_ID,

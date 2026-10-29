@@ -1,10 +1,5 @@
 package dpp.repo.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import dpp.repo.client.ClientTestSupport.CountingCodec;
-import dpp.repo.client.ClientTestSupport.CountingValidator;
-import dpp.repo.client.ClientTestSupport.TestDpp;
-import dpp.repo.client.ClientTestSupport.TestServer;
 import dpp.repo.client.exception.DppApiClientException;
 import dpp.repo.client.exception.DppHttpClientException;
 import dpp.repo.client.exception.DppMappingClientException;
@@ -13,222 +8,210 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static dpp.repo.client.ClientTestSupport.objectMapper;
-import static dpp.repo.client.ClientTestSupport.requestBody;
-import static dpp.repo.client.ClientTestSupport.respond;
-import static dpp.repo.client.ClientTestSupport.server;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static dpp.repo.client.ClientTestSupport.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 class HttpDppRepoClientNegativePathTest {
     @Test
-    void createDppMapsNon2xxHttpResponsesToHttpException() {
+    void constructorRejectsNonHttpAbsoluteBaseUrls() {
+        assertThrows(IllegalArgumentException.class, () -> new HttpDppRepoClient("relative/path"));
+        assertThrows(IllegalArgumentException.class, () -> new HttpDppRepoClient("ftp://example.test/api"));
+    }
+
+    @Test
+    void createMapsStructuredNon2xxResponsesToApiException() throws Exception {
         try (TestServer server = server()) {
             server.httpServer().createContext("/v1/dpps", exchange ->
-                    respond(exchange, 502, "{\"statusCode\":\"ServerErrorBadGateway\",\"payload\":null,\"messages\":[]}"));
-            DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), new CountingCodec(), new CountingValidator());
+                    respond(exchange, 502, "{\"statusCode\":\"ServerErrorBadGateway\",\"payload\":null,\"message\":[]}"));
+            DppRepoClient client = new HttpDppRepoClient(server.baseUrl());
 
-            DppHttpClientException ex = assertThrows(
-                    DppHttpClientException.class,
-                    () -> client.createDpp(new TestDpp("dpp-1", "chair"))
-            );
+            DppApiClientException ex = assertThrows(DppApiClientException.class,
+                    () -> client.createDpp(objectMapper().readTree("{}")));
 
-            assertEquals(502, ex.statusCode());
-            assertTrue(ex.responseBody().contains("ServerErrorBadGateway"));
+            assertEquals(502, ex.httpStatus());
+            assertEquals(dpp.repo.payloads.DppStatusCode.ServerErrorBadGateway, ex.statusCode());
+            assertTrue(ex.rawResponseBody().contains("ServerErrorBadGateway"));
+        }
+    }
+
+    @Test
+    void structuredHttpErrorsKeepHttpStatusMessagesAndRawBody() {
+        try (TestServer server = server()) {
+            server.httpServer().createContext("/v1/dpps/", exchange -> {
+                int status = Integer.parseInt(exchange.getRequestURI().getPath().substring("/v1/dpps/".length()));
+                String apiCode = switch (status) {
+                    case 400 -> "ClientErrorBadRequest";
+                    case 401 -> "ClientNotAuthorized";
+                    case 403 -> "ClientForbidden";
+                    case 404 -> "ClientErrorResourceNotFound";
+                    case 405 -> "ClientMethodNotAllowed";
+                    case 409 -> "ClientResourceConflict";
+                    case 500 -> "ServerInternalError";
+                    case 502 -> "ServerErrorBadGateway";
+                    default -> throw new IllegalArgumentException("unexpected status");
+                };
+                respond(exchange, status, "{\"statusCode\":\"" + apiCode
+                        + "\",\"message\":[{\"messageType\":\"Error\",\"text\":\"failure-" + status
+                        + "\",\"code\":\"CODE-" + status + "\"}]}");
+            });
+            DppRepoClient client = new HttpDppRepoClient(server.baseUrl());
+
+            for (int status : new int[]{400, 401, 403, 404, 405, 409, 500, 502}) {
+                DppApiClientException ex = assertThrows(DppApiClientException.class,
+                        () -> client.readDppById(Integer.toString(status)));
+                assertEquals(status, ex.httpStatus());
+                assertEquals("failure-" + status, ex.message().get(0).getText());
+                assertEquals("CODE-" + status, ex.message().get(0).getCode());
+                assertTrue(ex.rawResponseBody().contains("failure-" + status));
+            }
+        }
+    }
+
+    @Test
+    void bodylessAndMalformedHttpErrorBodiesRetainRawResponseAndParseCause() {
+        try (TestServer server = server()) {
+            server.httpServer().createContext("/v1/dpps/bodyless", exchange -> {
+                exchange.sendResponseHeaders(501, -1);
+                exchange.close();
+            });
+            server.httpServer().createContext("/v1/dpps/malformed", exchange -> respond(exchange, 500, "upstream unavailable"));
+            DppRepoClient client = new HttpDppRepoClient(server.baseUrl());
+
+            DppHttpClientException bodyless = assertThrows(DppHttpClientException.class,
+                    () -> client.readDppById("bodyless"));
+            assertEquals(501, bodyless.statusCode());
+            assertEquals("", bodyless.responseBody());
+            assertInstanceOf(DppMappingClientException.class, bodyless.getCause());
+
+            DppHttpClientException malformed = assertThrows(DppHttpClientException.class,
+                    () -> client.readDppById("malformed"));
+            assertEquals(500, malformed.statusCode());
+            assertEquals("upstream unavailable", malformed.responseBody());
+            assertInstanceOf(DppMappingClientException.class, malformed.getCause());
         }
     }
 
     @Test
     void wrapperApiErrorsExposeRepositoryStatusAndMessages() {
         try (TestServer server = server()) {
-            server.httpServer().createContext("/v1/dpps/dpp-1", exchange ->
-                    respond(exchange, 200, "{\"statusCode\":\"ClientErrorResourceNotFound\",\"payload\":null,\"messages\":[{\"messageType\":\"Error\",\"text\":\"missing\"}]}"));
-            DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), new CountingCodec(), new CountingValidator());
+            server.httpServer().createContext("/v1/dpps/id", exchange ->
+                    respond(exchange, 200, "{\"statusCode\":\"ClientErrorResourceNotFound\",\"payload\":null,\"message\":[{\"messageType\":\"Error\",\"text\":\"missing\"}]}"));
+            DppRepoClient client = new HttpDppRepoClient(server.baseUrl());
 
-            DppApiClientException ex = assertThrows(
-                    DppApiClientException.class,
-                    () -> client.readDppById("dpp-1")
-            );
-
+            DppApiClientException ex = assertThrows(DppApiClientException.class, () -> client.readDppById("id"));
             assertEquals("ClientErrorResourceNotFound", ex.statusCode().name());
-            assertEquals("missing", ex.messages().get(0).getText());
+            assertEquals("missing", ex.message().get(0).getText());
         }
     }
 
     @Test
-    void createDppMapsCodecSerializationFailuresBeforeSendingRequest() {
+    void deletePreservesStructuredNotFoundAndConflictErrors() {
         try (TestServer server = server()) {
-            AtomicInteger hits = new AtomicInteger();
-            server.httpServer().createContext("/v1/dpps", exchange -> {
-                hits.incrementAndGet();
-                respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{\"dppId\":\"dpp-1\"},\"messages\":[]}");
+            server.httpServer().createContext("/v1/dpps/", exchange -> {
+                boolean missing = exchange.getRequestURI().getPath().endsWith("missing");
+                int status = missing ? 404 : 409;
+                String code = missing ? "ClientErrorResourceNotFound" : "ClientResourceConflict";
+                respond(exchange, status, "{\"statusCode\":\"" + code
+                        + "\",\"message\":[{\"messageType\":\"Error\",\"text\":\"delete\"}]}");
             });
-            CountingCodec codec = new CountingCodec();
-            codec.failToJson();
-            DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), codec, new CountingValidator());
+            DppRepoClient client = new HttpDppRepoClient(server.baseUrl());
 
-            DppMappingClientException ex = assertThrows(
-                    DppMappingClientException.class,
-                    () -> client.createDpp(new TestDpp("dpp-1", "chair"))
-            );
-
-            assertEquals("DPP serialization failed before request", ex.getMessage());
-            assertEquals(0, hits.get());
+            for (String id : new String[]{"missing", "conflict"}) {
+                DppApiClientException ex = assertThrows(DppApiClientException.class, () -> client.deleteDppById(id));
+                assertEquals(id.equals("missing") ? 404 : 409, ex.httpStatus());
+                assertEquals("delete", ex.message().get(0).getText());
+            }
         }
     }
 
     @Test
-    void createDppRejectsNullJsonReturnedByCodecBeforeSendingRequest() {
+    void malformedWrapperResponsesAreMappingErrors() {
         try (TestServer server = server()) {
-            AtomicInteger hits = new AtomicInteger();
-            server.httpServer().createContext("/v1/dpps", exchange -> {
-                hits.incrementAndGet();
-                respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{\"dppId\":\"dpp-1\"},\"messages\":[]}");
-            });
-            CountingCodec codec = new CountingCodec();
-            codec.returnNullJson();
-            DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), codec, new CountingValidator());
-
-            DppMappingClientException ex = assertThrows(
-                    DppMappingClientException.class,
-                    () -> client.createDpp(new TestDpp("dpp-1", "chair"))
-            );
-
-            assertEquals("DPP serialization failed before request", ex.getMessage());
-            assertEquals(0, hits.get());
-        }
-    }
-
-    @Test
-    void readDppByIdMapsCodecDeserializationFailures() {
-        try (TestServer server = server()) {
-            server.httpServer().createContext("/v1/dpps/dpp-1", exchange ->
-                    respond(exchange, 200, successDppBody("dpp-1", "chair")));
-            CountingCodec codec = new CountingCodec();
-            codec.failFromJson();
-            DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), codec, new CountingValidator());
-
-            DppMappingClientException ex = assertThrows(
-                    DppMappingClientException.class,
-                    () -> client.readDppById("dpp-1")
-            );
-
-            assertEquals("DPP deserialization failed after response", ex.getMessage());
-        }
-    }
-
-    @Test
-    void readDppByIdRejectsNullDppReturnedByCodec() {
-        try (TestServer server = server()) {
-            server.httpServer().createContext("/v1/dpps/dpp-1", exchange ->
-                    respond(exchange, 200, successDppBody("dpp-1", "chair")));
-            CountingCodec codec = new CountingCodec();
-            codec.returnNullDpp();
-            DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), codec, new CountingValidator());
-
-            DppMappingClientException ex = assertThrows(
-                    DppMappingClientException.class,
-                    () -> client.readDppById("dpp-1")
-            );
-
-            assertEquals("DPP deserialization failed after response", ex.getMessage());
-        }
-    }
-
-    @Test
-    void readDppByIdRejectsMalformedWrapperResponses() {
-        try (TestServer server = server()) {
-            server.httpServer().createContext("/v1/dpps/dpp-1", exchange -> respond(exchange, 200, "{"));
-            DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), new CountingCodec(), new CountingValidator());
-
-            DppMappingClientException ex = assertThrows(
-                    DppMappingClientException.class,
-                    () -> client.readDppById("dpp-1")
-            );
-
+            server.httpServer().createContext("/v1/dpps/id", exchange -> respond(exchange, 200, "{"));
+            DppRepoClient client = new HttpDppRepoClient(server.baseUrl());
+            DppMappingClientException ex = assertThrows(DppMappingClientException.class, () -> client.readDppById("id"));
             assertEquals("DPP API response could not be mapped", ex.getMessage());
         }
     }
 
     @Test
-    void readDppByIdRequiresPayloadWhenWrapperSucceeds() {
+    void malformedPresentMessagesRemainMappingFailuresForApiAndHttpErrors() {
         try (TestServer server = server()) {
-            server.httpServer().createContext("/v1/dpps/dpp-1", exchange ->
-                    respond(exchange, 200, "{\"statusCode\":\"Success\",\"payload\":null,\"messages\":[]}"));
-            DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), new CountingCodec(), new CountingValidator());
+            String malformedApiError = "{\"statusCode\":\"ClientErrorBadRequest\",\"message\":[{\"messageType\":\"Error\"}]}";
+            String malformedHttpError = "{\"statusCode\":\"ServerErrorBadGateway\",\"message\":[{\"messageType\":\"Error\"}]}";
+            server.httpServer().createContext("/v1/dpps/api-error", exchange -> respond(exchange, 200, malformedApiError));
+            server.httpServer().createContext("/v1/dpps/http-error", exchange -> respond(exchange, 502, malformedHttpError));
+            DppRepoClient client = new HttpDppRepoClient(server.baseUrl());
 
-            DppMappingClientException ex = assertThrows(
-                    DppMappingClientException.class,
-                    () -> client.readDppById("dpp-1")
-            );
+            DppMappingClientException apiFailure = assertThrows(DppMappingClientException.class,
+                    () -> client.readDppById("api-error"));
+            assertEquals("DPP API response could not be mapped", apiFailure.getMessage());
 
+            DppHttpClientException httpFailure = assertThrows(DppHttpClientException.class,
+                    () -> client.readDppById("http-error"));
+            assertEquals(502, httpFailure.statusCode());
+            assertEquals(malformedHttpError, httpFailure.responseBody());
+            assertInstanceOf(DppMappingClientException.class, httpFailure.getCause());
+        }
+    }
+
+    @Test
+    void successfulWrapperMustContainOperationSpecificFields() {
+        try (TestServer server = server()) {
+            server.httpServer().createContext("/v1/dppsByProductIds", exchange ->
+                    respond(exchange, 200, "{\"statusCode\":\"Success\",\"payload\":{},\"message\":[]}"));
+            DppRepoClient client = new HttpDppRepoClient(server.baseUrl());
+            DppMappingClientException ex = assertThrows(DppMappingClientException.class,
+                    () -> client.readDppIdsByProductIds(java.util.List.of("p"), null, null));
+            assertEquals("Missing required response field: payload.dppIdentifiers", ex.getMessage());
+        }
+    }
+
+    @Test
+    void successfulReadMayOmitOptionalPayloadButFineGranularReadRequiresIt() {
+        try (TestServer server = server()) {
+            server.httpServer().createContext("/v1/dpps/id", exchange ->
+                    respond(exchange, 200, "{\"statusCode\":\"Success\",\"payload\":null,\"message\":[]}"));
+            server.httpServer().createContext("/v1/dpps/id/elements/$.name", exchange ->
+                    respond(exchange, 200, "{\"statusCode\":\"Success\",\"payload\":null,\"message\":[]}"));
+            DppRepoClient client = new HttpDppRepoClient(server.baseUrl());
+
+            assertTrue(client.readDppById("id").getPayload().isNull());
+            DppMappingClientException ex = assertThrows(DppMappingClientException.class,
+                    () -> client.readDataElement("id", "$.name"));
             assertEquals("Missing required response field: payload", ex.getMessage());
         }
     }
 
     @Test
-    void readDataElementRequiresPayloadWhenWrapperSucceeds() {
-        try (TestServer server = server()) {
-            server.httpServer().createContext("/v1/dpps/dpp-1/elements/$.characteristics.productName", exchange ->
-                    respond(exchange, 200, "{\"statusCode\":\"Success\",\"payload\":null,\"messages\":[]}"));
-            DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), new CountingCodec(), new CountingValidator());
-
-            DppMappingClientException ex = assertThrows(
-                    DppMappingClientException.class,
-                    () -> client.readDataElement("dpp-1", "$.characteristics.productName")
-            );
-
-            assertEquals("Missing required response field: payload", ex.getMessage());
-        }
-    }
-
-    @Test
-    void fineGranularElementIdPathMustNotBeBlank() {
-        DppRepoClient<TestDpp> client = new HttpDppRepoClient<>("http://localhost:1", new CountingCodec(), new CountingValidator());
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> client.readDataElement("dpp-1", " "));
-
-        assertEquals("elementIdPath must not be blank", exception.getMessage());
+    void invalidRequestArgumentsAreRejectedBeforeHttp() {
+        DppRepoClient client = new HttpDppRepoClient("http://localhost:1");
+        assertEquals("elementIdPath must not be blank", assertThrows(IllegalArgumentException.class,
+                () -> client.readDataElement("id", " ")).getMessage());
+        assertThrows(NullPointerException.class, () -> client.readDppVersionByIdAndDate("id", null));
     }
 
     @Test
     void repoRequestsMapConnectionFailuresToNetworkException() {
-        DppRepoClient<TestDpp> client = new HttpDppRepoClient<>("http://localhost:1", new CountingCodec(), new CountingValidator());
-
-        DppNetworkClientException ex = assertThrows(
-                DppNetworkClientException.class,
-                () -> client.readDppById("dpp-1")
-        );
-
+        DppRepoClient client = new HttpDppRepoClient("http://localhost:1");
+        DppNetworkClientException ex = assertThrows(DppNetworkClientException.class, () -> client.readDppById("id"));
         assertEquals("DPP HTTP request could not complete", ex.getMessage());
     }
 
     @Test
-    void partialUpdateDoesNotTriggerFullDppValidation() throws Exception {
+    void createSendsJsonWithoutSemanticValidationAndNullIsRejectedBeforeRequest() throws Exception {
         try (TestServer server = server()) {
-            CountingValidator validator = new CountingValidator();
-            validator.fail();
             AtomicInteger hits = new AtomicInteger();
-            JsonNode patch = objectMapper().readTree("{\"name\":\"Updated Name\"}");
-            server.httpServer().createContext("/v1/dpps/dpp-1", exchange -> {
+            server.httpServer().createContext("/v1/dpps", exchange -> {
                 hits.incrementAndGet();
-                assertEquals("PATCH", exchange.getRequestMethod());
-                assertEquals("{\"name\":\"Updated Name\"}", requestBody(exchange));
-                respond(exchange, 200, successDppBody("dpp-1", "Updated Name"));
+                assertEquals("{\"arbitrary\":true}", requestBody(exchange));
+                respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{},\"message\":[]}");
             });
-            DppRepoClient<TestDpp> client = new HttpDppRepoClient<>(server.baseUrl(), new CountingCodec(), validator);
+            DppRepoClient client = new HttpDppRepoClient(server.baseUrl());
 
-            TestDpp updated = client.updateDppById("dpp-1", patch);
-
-            assertEquals(new TestDpp("dpp-1", "Updated Name"), updated);
-            assertEquals(0, validator.calls());
+            assertNull(client.createDpp(objectMapper().readTree("{\"arbitrary\":true}")).getDigitalProductPassportId());
+            assertThrows(NullPointerException.class, () -> client.createDpp(null));
             assertEquals(1, hits.get());
         }
-    }
-
-    private static String successDppBody(String id, String name) {
-        return "{\"statusCode\":\"Success\",\"payload\":{\"id\":\"" + id + "\",\"name\":\"" + name + "\"},\"messages\":[]}";
     }
 }

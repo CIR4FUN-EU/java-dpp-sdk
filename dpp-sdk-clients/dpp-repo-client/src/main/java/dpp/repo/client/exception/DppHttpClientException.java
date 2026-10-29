@@ -8,7 +8,11 @@ public class DppHttpClientException extends DppClientException {
     private final String responseBody;
 
     public DppHttpClientException(String message, int statusCode, String responseBody) {
-        super(message);
+        this(message, statusCode, responseBody, null);
+    }
+
+    public DppHttpClientException(String message, int statusCode, String responseBody, Throwable cause) {
+        super(message, cause);
         this.statusCode = statusCode;
         this.responseBody = responseBody;
     }

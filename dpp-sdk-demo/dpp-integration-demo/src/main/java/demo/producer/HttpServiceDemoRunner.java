@@ -1,31 +1,34 @@
 package demo.producer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import demo.producer.support.DemoDppFactory;
-import demo.producer.support.Dpp4FunDppCodecAdapter;
-import demo.producer.support.Dpp4FunDppValidatorAdapter;
 import dpp.registry.client.DppRegistryClient;
 import dpp.registry.client.HttpDppRegistryClient;
 import dpp.registry.payloads.RegisterDppRequest;
 import dpp.repo.client.HttpDppRepoClient;
+import dpp.repo.payloads.DppRepresentation;
+import dpp.repo.payloads.DppApiResponse;
 import dppsdk.dpp4fun.model.Dpp4Fun;
+import dppsdk.dpp4fun.transport.Dpp4FunJsonCodec;
+import dppsdk.dpp4fun.validation.Dpp4FunValidationService;
 import java.time.Instant;
 import java.util.List;
 
 /**
- * Demonstrates the SDK -> client -> mock service flow using the standard HTTP APIs.
+ * Demonstrates the SDK -> client -> demo service flow using the standard HTTP APIs.
  *
  * <p>This runner is for internal review and manual verification. It shows lifecycle, registry, and
  * fine-granular behaviors, but it is not production orchestration and its lifecycle events are only the
- * basic internal mock events rather than a full Track & Trace implementation.</p>
+ * basic internal demo events rather than a full Track & Trace implementation.</p>
  */
 class HttpServiceDemoRunner {
 
     private final DemoDppFactory factory = new DemoDppFactory();
-    private final Dpp4FunDppCodecAdapter codec = new Dpp4FunDppCodecAdapter();
-    private final Dpp4FunDppValidatorAdapter validator = new Dpp4FunDppValidatorAdapter();
-    private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+    private final Dpp4FunJsonCodec codec = new Dpp4FunJsonCodec();
+    private final Dpp4FunValidationService validator = new Dpp4FunValidationService();
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private final DemoServicePreflight servicePreflight = new DemoServicePreflight();
     private final int registryPort;
     private final int repoPort;
@@ -49,9 +52,8 @@ class HttpServiceDemoRunner {
         String repoUrl = resolveServiceUrl(args, 1, "Repo", "dpp-repo-api",
                 defaultRepoDockerUrl(), defaultRepoLocalUrl());
 
-        HttpDppRepoClient<Dpp4Fun> repoClient = new HttpDppRepoClient<>(repoUrl, codec, validator);
+        HttpDppRepoClient repoClient = new HttpDppRepoClient(repoUrl);
         DppRegistryClient registryClient = new HttpDppRegistryClient(registryUrl);
-        MockRegistryLookupClient mockRegistryLookupClient = new MockRegistryLookupClient(registryUrl, objectMapper);
 
         ConsoleSupport.header("DPP4Fun SDK + dpp-sdk-clients Standards Demo");
         System.out.println("Repo     : " + repoUrl);
@@ -61,56 +63,85 @@ class HttpServiceDemoRunner {
         Dpp4Fun dppTemplate = samples == null ? factory.createValidBedDpp() : samples.validBedDpp();
         Dpp4Fun dpp = factory.withFreshDppId(dppTemplate);
         Dpp4Fun invalidDpp = samples == null
-                ? factory.createDppWithWrongSupplierRole()
-                : samples.invalidSupplierRoleDpp();
-        String dppId = dpp.getDppId();
-        String productId = dpp.getProductId();
+                ? factory.createIncompleteDpp()
+                : samples.incompleteDpp();
+        String dppId = DemoDppFactory.idOf(dpp);
+        String productId = dpp.getUniqueProductIdentifier();
         deleteStaleDemoDppIfPresent(repoClient, productId);
 
-        // Demonstrates createDpp -> POST /v1/dpps and the SuccessCreated wrapper payload with dppId.
+        // Demonstrates createDpp -> POST /v1/dpps and the SuccessCreated wrapper payload with digitalProductPassportId.
         ConsoleSupport.step("CreateDPP");
-        ConsoleSupport.createResponse(repoClient.createDpp(dpp));
+        validate(dpp);
+        JsonNode dppJson;
+        try {
+            dppJson = objectMapper.readTree(codec.toJson(dpp));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+            throw new IllegalStateException("Could not encode the typed DPP as neutral JSON", exception);
+        }
+        var created = repoClient.createDpp(dppJson, DppRepresentation.FULL);
+        System.out.println("statusCode : " + created.getStatusCode());
+        System.out.println("message    : " + created.getMessage());
+        ConsoleSupport.createResponse(created);
 
-        // Shows the project-defined compressed summary next to the complete DPP decoded by the typed client.
+        // Shows EN 18223 compressed JSON beside the complete DPP decoded by the typed client.
         ConsoleSupport.step("Compare compressed and full DPP representations");
-        ConsoleSupport.compressedDpp(repoClient.readCompressedDppById(dppId));
-        ConsoleSupport.fullDpp(repoClient.readDppById(dppId));
+        DppApiResponse<JsonNode> compressedResponse = repoClient.readDppById(dppId);
+        System.out.println("statusCode : " + compressedResponse.getStatusCode());
+        System.out.println("message    : " + compressedResponse.getMessage());
+        ConsoleSupport.compressedDpp(compressedResponse.getPayload());
+        DppApiResponse<JsonNode> fullResponse = repoClient.readDppById(dppId, DppRepresentation.FULL);
+        ConsoleSupport.jsonValue("FULL DPP (expanded JSON)", fullResponse.getPayload());
 
         // Demonstrates readDppByProductId -> GET /v1/dppsByProductId/{productId} for the active product mapping.
         ConsoleSupport.step("ReadDPPByProductId");
-        ConsoleSupport.dpp(repoClient.readDppByProductId(productId));
+        DppApiResponse<JsonNode> productRead = repoClient.readDppByProductId(productId, DppRepresentation.FULL);
+        ConsoleSupport.jsonValue("FULL DPP by product ID", productRead.getPayload());
 
         // Demonstrates updateDppById -> PATCH /v1/dpps/{dppId} with a raw merge-patch payload.
         ConsoleSupport.step("UpdateDPPById");
         ObjectNode patch = objectMapper.createObjectNode();
-        patch.putObject("characteristics").put("productName", "Updated via standards demo");
-        ConsoleSupport.dpp(repoClient.updateDppById(dppId, patch));
+        Dpp4Fun updatedDpp = factory.withBrand(dpp, "Updated via standards demo");
+        try {
+            patch.set("elements", objectMapper.readTree(codec.toJson(updatedDpp)).get("elements"));
+        } catch (java.io.IOException exception) {
+            throw new IllegalStateException("Could not prepare canonical DPP update", exception);
+        }
+        ConsoleSupport.jsonValue("Updated FULL DPP", repoClient.updateDppById(
+                dppId, patch, DppRepresentation.FULL).getPayload());
 
         // Demonstrates a dot-member selector, an array-index selector, and a replacement of one singular target.
         ConsoleSupport.step("Fine-granular JSONPath read and update");
-        String productNamePath = "$.characteristics.productName";
-        String firstMaterialNamePath = "$.billOfMaterials.materials[0].name";
-        ConsoleSupport.jsonPathValue("before update", productNamePath,
-                repoClient.readDataElement(dppId, productNamePath));
-        ConsoleSupport.jsonPathValue("array example", firstMaterialNamePath,
-                repoClient.readDataElement(dppId, firstMaterialNamePath));
-        ConsoleSupport.jsonPathValue("after update", productNamePath, repoClient.updateDataElement(
+        String brandPath = DemoDppFactory.BRAND_PATH;
+        String firstMaterialNamePath = DemoDppFactory.FIRST_MATERIAL_NAME_PATH;
+        String nameplatePath = "$.elements[1]";
+        ConsoleSupport.jsonPathValue("Nameplate collection", nameplatePath,
+                repoClient.readDataElement(dppId, nameplatePath, DppRepresentation.FULL).getPayload());
+        ConsoleSupport.jsonPathValue("Brand value before update", brandPath,
+                repoClient.readDataElement(dppId, brandPath).getPayload());
+        ConsoleSupport.jsonPathValue("First BOM material name", firstMaterialNamePath,
+                repoClient.readDataElement(dppId, firstMaterialNamePath).getPayload());
+        JsonNode brandElement = repoClient.readDataElement(dppId, brandPath, DppRepresentation.FULL).getPayload();
+        ConsoleSupport.jsonPathValue("Brand DataElement (FULL)", brandPath, brandElement);
+        ((com.fasterxml.jackson.databind.node.ObjectNode) brandElement).put("value", "Updated element value");
+        ConsoleSupport.jsonPathValue("Brand DataElement after update", brandPath, repoClient.updateDataElement(
                 dppId,
-                productNamePath,
-                objectMapper.getNodeFactory().textNode("Updated element value")
-        ));
+                brandPath,
+                brandElement,
+                DppRepresentation.FULL
+        ).getPayload());
 
         // Demonstrates snapshot lookup by DPP identifier and repository history time, not by any DPP metadata version field.
         ConsoleSupport.step("ReadDPPVersionByIdAndDate");
-        ConsoleSupport.dpp(repoClient.readDppVersionByIdAndDate(dppId, Instant.now()));
+        DppApiResponse<JsonNode> historical = repoClient.readDppVersionByIdAndDate(
+                dppId, Instant.now(), DppRepresentation.FULL);
+        ConsoleSupport.jsonValue("Historical FULL DPP", historical.getPayload());
 
         // Demonstrates batched identifier lookup via POST /v1/dppsByProductIds.
         ConsoleSupport.step("ReadDPPIdsByProductIds");
         ConsoleSupport.idsResponse(repoClient.readDppIdsByProductIds(List.of(productId), 10, "0"));
 
-        // Demonstrates registry metadata registration and lookup; the registry verifies the repo reference by HEAD.
+        // Demonstrates independent registry metadata registration and lookup.
         ConsoleSupport.step("Register stored DPP in Registry");
-        System.out.println("repoVerification : HEAD /internal/dpps/" + dppId);
         RegisterDppRequest registerRequest = new RegisterDppRequest(
                 productId,
                 dppId,
@@ -118,26 +149,14 @@ class HttpServiceDemoRunner {
                 repoUrl
         );
         ConsoleSupport.registryResponse(registryClient.postNewDppToRegistry(registerRequest));
-        mockRegistryLookupClient.readByDppId(dppId).ifPresent(ConsoleSupport::registryRecord);
 
-        ConsoleSupport.step("Registry rejects missing repo DPP");
+        // The neutral JSON client stays model-independent; the application validates before deciding to send.
+        ConsoleSupport.step("Invalid typed DPP rejected by application validation before send");
         try {
-            registryClient.postNewDppToRegistry(new RegisterDppRequest(
-                    productId,
-                    "missing-dpp-id",
-                    "operator-123",
-                    repoUrl
-            ));
-        } catch (dpp.registry.client.exception.DppClientException exception) {
-            ConsoleSupport.clientError(exception);
-        }
-
-        // Demonstrates client-side validation before any HTTP request is sent.
-        ConsoleSupport.step("Invalid DPP rejected before send by client-side validation");
-        try {
-            repoClient.createDpp(invalidDpp);
-        } catch (dpp.repo.client.exception.DppClientException exception) {
-            ConsoleSupport.clientError(exception);
+            validate(invalidDpp);
+            throw new IllegalStateException("The deliberately incomplete DPP unexpectedly passed validation");
+        } catch (dppsdk.core.validation.ValidationException exception) {
+            System.out.println("validation error : " + exception.getMessage());
         }
 
         // Demonstrates API/HTTP failure handling for a missing repository object.
@@ -156,7 +175,7 @@ class HttpServiceDemoRunner {
             ConsoleSupport.clientError(exception);
         }
 
-        // Demonstrates soft delete via DELETE /v1/dpps/{dppId}; lifecycle history remains a mock internal concern.
+        // Demonstrates soft delete via DELETE /v1/dpps/{dppId}; lifecycle history remains a demo internal concern.
         ConsoleSupport.step("DeleteDPPById");
         ConsoleSupport.deleteResponse(repoClient.deleteDppById(dppId));
 
@@ -195,17 +214,34 @@ class HttpServiceDemoRunner {
         return servicePreflight.resolveReachable(displayName, dockerUrl, localUrl, moduleName);
     }
 
-    private void deleteStaleDemoDppIfPresent(HttpDppRepoClient<Dpp4Fun> repoClient, String productId) {
+    private void deleteStaleDemoDppIfPresent(HttpDppRepoClient repoClient, String productId) {
         try {
-            Dpp4Fun existingDpp = repoClient.readDppByProductId(productId);
+            JsonNode existingDpp = repoClient.readDppByProductId(productId).getPayload();
             ConsoleSupport.step("Cleanup stale demo DPP");
-            System.out.println("dppId      : " + existingDpp.getDppId());
-            ConsoleSupport.deleteResponse(repoClient.deleteDppById(existingDpp.getDppId()));
-        } catch (dpp.repo.client.exception.DppHttpClientException exception) {
-            if (exception.statusCode() != 404) {
+            String existingDppId = existingDpp.path("digitalProductPassportId").asText();
+            System.out.println("dppId      : " + existingDppId);
+            ConsoleSupport.deleteResponse(repoClient.deleteDppById(existingDppId));
+        } catch (dpp.repo.client.exception.DppClientException exception) {
+            if (!isNotFound(exception)) {
                 throw exception;
             }
         }
+    }
+
+    private void validate(Dpp4Fun dpp) {
+        var result = validator.validate(dpp);
+        if (!result.isValid()) {
+            throw new dppsdk.core.validation.ValidationException("Dpp4Fun validation failed: " + result.issues());
+        }
+    }
+
+    private boolean isNotFound(dpp.repo.client.exception.DppClientException exception) {
+        if (exception instanceof dpp.repo.client.exception.DppApiClientException apiException) {
+            return apiException.httpStatus() == 404
+                    || apiException.statusCode() == dpp.repo.payloads.DppStatusCode.ClientErrorResourceNotFound;
+        }
+        return exception instanceof dpp.repo.client.exception.DppHttpClientException httpException
+                && httpException.statusCode() == 404;
     }
 
     private static int configuredPort(String key, int fallback) {

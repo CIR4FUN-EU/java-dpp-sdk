@@ -1,215 +1,112 @@
 package demo.producer.support;
 
-import dppsdk.core.model.Contact;
-import dppsdk.core.model.Documentation;
-import dppsdk.core.model.DppCore;
-import dppsdk.core.model.Email;
-import dppsdk.core.model.Nameplate;
-import dppsdk.core.model.Organization;
-import dppsdk.core.model.OrganizationRole;
-import dppsdk.core.model.PassportMetadata;
-import dppsdk.dpp4fun.model.BillOfMaterials;
-import dppsdk.dpp4fun.model.Characteristics;
-import dppsdk.dpp4fun.model.Dimensions;
+import dppsdk.core.model.DppHeader;
+import dppsdk.core.model.Granularity;
+import dppsdk.dpp4fun.model.aspect.BillOfMaterials;
+import dppsdk.dpp4fun.model.characteristics.ChairCharacteristics;
 import dppsdk.dpp4fun.model.Dpp4Fun;
-import dppsdk.dpp4fun.model.Material;
-import dppsdk.dpp4fun.model.ProductClassification;
-import java.time.LocalDate;
+import dppsdk.dpp4fun.model.unit.LengthUnit;
+import dppsdk.dpp4fun.model.composite.Material;
+import dppsdk.dpp4fun.model.aspect.Nameplate;
+
+import java.net.URI;
+import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 
+/** Builds demo passports through the public typed D4.1 API. */
 public final class DemoDppFactory {
 
     public static final String BED_DPP_ID = "9f2c5f7e-77a1-4f8a-a7fb-95f30e9a6c01";
     public static final String CHAIR_DPP_ID = "2e0dbac3-4d3f-4a9a-9dc8-7de3db4b14f2";
     public static final String BED_PRODUCT_ID = "04012345678911";
     public static final String CHAIR_PRODUCT_ID = "04012345678912";
+    public static final String BRAND_PATH = "$.elements[1].elements[5]";
+    public static final String FIRST_MATERIAL_NAME_PATH = "$.elements[0].elements[0].value[0].elements[0]";
 
     public Dpp4Fun createValidBedDpp() {
-        return createDpp("Cir4Fun Platform Bed", "Beds", "Bed", "Warm oak", BED_DPP_ID, BED_PRODUCT_ID, "C4F-DEMO-011");
+        return createDpp("Cir4Fun Platform Bed", BED_DPP_ID, BED_PRODUCT_ID, "C4F-DEMO-011");
     }
 
     public Dpp4Fun createValidChairDpp() {
-        return createDpp("Cir4Fun Office Chair", "Chairs", "Chair", "Graphite", CHAIR_DPP_ID, CHAIR_PRODUCT_ID, "C4F-DEMO-012");
+        return createDpp("Cir4Fun Office Chair", CHAIR_DPP_ID, CHAIR_PRODUCT_ID, "C4F-DEMO-012");
     }
 
     public Dpp4Fun createUpdatedBedDpp() {
-        return withProductName(createValidBedDpp(), "Cir4Fun Platform Bed - Updated Demo");
+        return withBrand(createValidBedDpp(), "Cir4Fun Platform Bed - Updated Demo");
     }
 
-    public Dpp4Fun createDppWithWrongSupplierRole() {
-        Dpp4Fun valid = createValidChairDpp();
-        Nameplate nameplate = valid.getNameplate().toBuilder()
-                .supplier(organization("Partner Distribution GmbH", OrganizationRole.DISTRIBUTOR))
-                .build();
-        DppCore coreDpp = valid.getCoreDpp().toBuilder()
-                .nameplate(nameplate)
-                .build();
-        return valid.toBuilder().coreDpp(coreDpp).build();
+    /** An incomplete typed passport used to demonstrate profile validation errors. */
+    public Dpp4Fun createIncompleteDpp() {
+        return Dpp4Fun.builder().build();
     }
 
-    public Dpp4Fun createDppWithInvalidDocumentation() {
-        Dpp4Fun valid = createValidBedDpp();
-        Documentation invalidDocumentation = new Documentation.Builder()
-                .downloadable(true)
-                .availableForYears(5)
+    public Dpp4Fun withBrand(Dpp4Fun dpp, String productName) {
+        Nameplate nameplate = dpp.getNameplate().toBuilder()
+                .brand(productName)
                 .build();
-        DppCore coreDpp = valid.getCoreDpp().toBuilder()
-                .documentation(invalidDocumentation)
-                .build();
-        return valid.toBuilder()
-                .coreDpp(coreDpp)
-                .build();
-    }
-
-    public Dpp4Fun withProductName(Dpp4Fun dpp, String productName) {
-        Characteristics updatedCharacteristics = dpp.getCharacteristics().toBuilder()
-                .productName(productName)
-                .build();
-        return dpp.toBuilder()
-                .characteristics(updatedCharacteristics)
-                .build();
+        return dpp.toBuilder().nameplate(nameplate).build();
     }
 
     public Dpp4Fun withFreshDppId(Dpp4Fun dpp) {
-        String dppId = UUID.randomUUID().toString();
-        PassportMetadata updatedMetadata = dpp.getPassportMetadata().toBuilder()
-                .uniqueProductIdentifier(UUID.fromString(dppId))
-                .qrCodeOrDigitalTag("https://demo.example/dpp/" + dppId)
+        DppHeader updated = dpp.getHeader().toBuilder()
+                .digitalProductPassportId(UUID.randomUUID().toString())
+                .lastUpdated(Instant.now())
                 .build();
-        DppCore updatedCoreDpp = dpp.getCoreDpp().toBuilder()
-                .passportMetadata(updatedMetadata)
-                .build();
-        return dpp.toBuilder()
-                .coreDpp(updatedCoreDpp)
-                .build();
+        return dpp.toBuilder().header(updated).build();
     }
 
     public String createMalformedJson() {
-        return "{\n  \"passportMetadata\": {\n    \"uniqueProductIdentifier\": \"not-closed\"\n";
+        return "{\n  \"digitalProductPassportId\": \"not-closed\"\n";
     }
 
     public static String idOf(Dpp4Fun dpp) {
-        return dpp.getPassportMetadata().getUniqueProductIdentifier().toString();
+        return dpp.getDigitalProductPassportId();
     }
 
     public static Function<Dpp4Fun, String> idExtractor() {
         return DemoDppFactory::idOf;
     }
 
-    private Dpp4Fun createDpp(
-            String productName,
-            String category,
-            String productType,
-            String color,
-            String id,
-            String gtinCode,
-            String internalArticleNumber
-    ) {
-        DppCore coreDpp = new DppCore.Builder()
-                .passportMetadata(metadata(id))
-                .nameplate(nameplate(gtinCode, internalArticleNumber))
-                .documentation(documentation())
+    private Dpp4Fun createDpp(String productName, String dppId, String productId, String articleNumber) {
+        DppHeader header = new DppHeader.Builder()
+                .digitalProductPassportId(dppId)
+                .uniqueProductIdentifier(productId)
+                .granularity(Granularity.MODEL)
+                .dppSchemaVersion(Dpp4Fun.SCHEMA_VERSION)
+                .dppStatus("active")
+                .lastUpdated(Instant.parse("2026-04-24T00:00:00Z"))
+                .economicOperatorId("urn:example:operator:cir4fun")
                 .build();
-
-        return new Dpp4Fun.Builder()
-                .coreDpp(coreDpp)
-                .classification(classification(category))
-                .characteristics(characteristics(productName, productType, color))
-                .billOfMaterials(billOfMaterials())
-                .build();
-    }
-
-    private PassportMetadata metadata(String id) {
-        return new PassportMetadata.Builder()
-                .uniqueProductIdentifier(UUID.fromString(id))
-                .addPassportUpdateDate(LocalDate.of(2026, 4, 24))
-                .qrCodeOrDigitalTag("https://demo.example/dpp/" + id)
-                .externalDocumentationLink("https://demo.example/docs/furniture")
-                .build();
-    }
-
-    private ProductClassification classification(String category) {
-        return new ProductClassification.Builder()
-                .sector("Furniture")
-                .group("Home and office furniture")
-                .category(category)
-                .addTag("cir4fun")
-                .addTag("demo")
-                .build();
-    }
-
-    private Characteristics characteristics(String productName, String productType, String color) {
-        return new Characteristics.Builder()
-                .productName(productName)
-                .description("Partner demo product passport")
+        Nameplate nameplate = Nameplate.builder()
+                .gtinCode(productId)
+                .internalArticleNumber(articleNumber)
+                .manufacturerName("Cir4Fun Furniture GmbH")
+                .manufacturerProductDesignation(Map.of("en-GB", productName, "de-DE", productName))
+                .uriOfManufacturer(URI.create("https://demo.example/organizations/cir4fun-furniture-gmbh"))
                 .brand("Cir4Fun")
-                .productType(productType)
-                .dimensions(new Dimensions.Builder()
-                        .width(90.0)
-                        .height(80.0)
-                        .depth(120.0)
-                        .unit("cm")
-                        .build())
-                .weight(24.5)
-                .color(color)
-                .addFeature("repairable")
-                .addFeature("recyclable")
+                .uriOfTheProduct(URI.create("https://demo.example/products/" + articleNumber.toLowerCase()))
                 .build();
-    }
-
-    private Nameplate nameplate(String gtinCode, String internalArticleNumber) {
-        return new Nameplate.Builder()
-                .gtinCode(gtinCode)
-                .internalArticleNumber(internalArticleNumber)
-                .batchNumber("DEMO-2026-04")
-                .customsTariffNumber("940360")
-                .uriOfTheProduct("https://demo.example/products/" + internalArticleNumber.toLowerCase())
-                .manufacturer(organization("Cir4Fun Furniture GmbH", OrganizationRole.MANUFACTURER))
-                .supplier(organization("Partner Supplier GmbH", OrganizationRole.SUPPLIER))
+        BillOfMaterials billOfMaterials = BillOfMaterials.builder()
+                .addMaterial(new Material.Builder().name("FSC certified wood").mandatory(true).portion(72.0)
+                        .reference(URI.create("urn:cir4fun:material:MAT-WOOD-001")).build())
+                .addMaterial(new Material.Builder().name("Recycled steel fittings").mandatory(true).portion(8.0)
+                        .reference(URI.create("urn:cir4fun:material:MAT-STEEL-002")).build())
                 .build();
-    }
-
-    private Organization organization(String name, OrganizationRole role) {
-        return new Organization.Builder()
-                .name(name)
-                .gln("4000001000005")
-                .uri("https://demo.example/organizations/" + name.toLowerCase().replace(" ", "-"))
-                .contact(new Contact.Builder()
-                        .organization(name)
-                        .email(new Email.Builder()
-                                .emailAddress("contact@demo.example")
-                                .typeOfEmail("business")
-                                .build())
-                        .build())
-                .role(role)
+        ChairCharacteristics chair = ChairCharacteristics.builder()
+                .length(120, LengthUnit.CENTIMETER)
+                .width(90, LengthUnit.CENTIMETER)
+                .height(80, LengthUnit.CENTIMETER)
+                .weight(24.5, dppsdk.dpp4fun.model.unit.MassUnit.KILOGRAM)
+                .color("Graphite")
+                .seatHeight(46, LengthUnit.CENTIMETER)
+                .stackable(false)
                 .build();
-    }
-
-    private BillOfMaterials billOfMaterials() {
-        return new BillOfMaterials.Builder()
-                .addMaterial(new Material.Builder()
-                        .name("FSC certified wood")
-                        .mandatory(true)
-                        .portion(72.0)
-                        .reference("MAT-WOOD-001")
-                        .build())
-                .addMaterial(new Material.Builder()
-                        .name("Recycled steel fittings")
-                        .mandatory(true)
-                        .portion(8.0)
-                        .reference("MAT-STEEL-002")
-                        .build())
-                .build();
-    }
-
-    private Documentation documentation() {
-        return new Documentation.Builder()
-                .digitalInstructionsLink("https://demo.example/docs/assembly")
-                .safetyInstructionsLink("https://demo.example/docs/safety")
-                .downloadable(true)
-                .availableForYears(10)
-                .paperCopyAvailableOnRequest(true)
+        return Dpp4Fun.builder(header)
+                .nameplate(nameplate)
+                .billOfMaterials(billOfMaterials)
+                .chairCharacteristics(chair)
                 .build();
     }
 }

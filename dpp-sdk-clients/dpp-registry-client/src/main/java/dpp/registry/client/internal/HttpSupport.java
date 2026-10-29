@@ -56,7 +56,12 @@ public final class HttpSupport {
         while (trimmed.endsWith("/")) {
             trimmed = trimmed.substring(0, trimmed.length() - 1);
         }
-        URI.create(trimmed);
+        URI uri = URI.create(trimmed);
+        String scheme = uri.getScheme();
+        if (!uri.isAbsolute() || uri.getHost() == null
+                || !("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+            throw new IllegalArgumentException("baseUrl must be an absolute HTTP(S) URL with a host");
+        }
         return trimmed;
     }
 
@@ -127,10 +132,23 @@ public final class HttpSupport {
         }
     }
 
-    public static void requireSuccess(HttpResponse<String> response) {
+    public static void requireSuccess(HttpResponse<String> response, ObjectMapper objectMapper) {
         int status = response.statusCode();
         if (status < 200 || status >= 300) {
-            throw new DppHttpClientException("DPP endpoint returned non-success HTTP status " + status, status, response.body());
+            String rawBody = response.body();
+            try {
+                DppApiResponse<JsonNode> apiResponse = parseApiResponse(objectMapper, rawBody);
+                if (apiResponse.getStatusCode() == null || apiResponse.getStatusCode().isSuccess()) {
+                    throw new IllegalArgumentException("Error response has no error statusCode");
+                }
+                throw new DppApiClientException("DPP endpoint returned HTTP " + status, status,
+                        apiResponse.getStatusCode(), apiResponse.getMessage(), rawBody, null);
+            } catch (DppApiClientException exception) {
+                throw exception;
+            } catch (RuntimeException exception) {
+                throw new DppHttpClientException(
+                        "DPP endpoint returned non-success HTTP status " + status, status, rawBody, exception);
+            }
         }
     }
 
@@ -154,7 +172,7 @@ public final class HttpSupport {
             );
         }
         if (!statusCode.isSuccess()) {
-            List<DppApiMessage> messages = response.getMessages();
+            List<DppApiMessage> messages = response.getMessage();
             throw new DppApiClientException(
                     "DPP API returned error status " + statusCode,
                     statusCode,

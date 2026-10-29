@@ -27,7 +27,7 @@ class DemoServicePreflightTest {
     }
 
     @Test
-    @DisplayName("Health check passes when the expected mock service is reachable")
+    @DisplayName("Health check passes when the expected demo service is reachable")
     void healthCheckPassesWhenServiceIsReachable() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/health", this::writeOkHealthResponse);
@@ -77,7 +77,7 @@ class DemoServicePreflightTest {
     }
 
     @Test
-    @DisplayName("Health check fails with an actionable message when the mock service is unreachable")
+    @DisplayName("Health check fails with an actionable message when the demo service is unreachable")
     void healthCheckFailsWithActionableMessageWhenServiceIsUnreachable() {
         DemoServicePreflight preflight = new DemoServicePreflight();
         String unreachableUrl = "http://127.0.0.1:65529";

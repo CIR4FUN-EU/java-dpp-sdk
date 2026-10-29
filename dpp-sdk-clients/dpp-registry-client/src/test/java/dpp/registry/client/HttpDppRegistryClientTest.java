@@ -20,7 +20,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HttpDppRegistryClientTest {
     @Test
@@ -65,6 +67,8 @@ class HttpDppRegistryClientTest {
             );
 
             assertEquals("registry-1", response.getRegistrationId());
+            assertEquals(DppStatusCode.SuccessCreated, response.getStatusCode());
+            assertEquals(0, response.getMessage().size());
             assertEquals(1, hits.get());
         }
     }
@@ -91,18 +95,26 @@ class HttpDppRegistryClientTest {
     }
 
     @Test
-    void postNewDppToRegistryRequiresRegistrationId() {
+    void postNewDppToRegistryAcceptsAbsentOptionalRegistrationId() {
         try (TestServer server = TestServer.start()) {
             server.httpServer().createContext("/v1/registerDPP", exchange ->
                     respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":{},\"messages\":[]}"));
             DppRegistryClient client = new HttpDppRegistryClient(server.baseUrl());
 
-            DppMappingClientException ex = assertThrows(
-                    DppMappingClientException.class,
-                    () -> client.postNewDppToRegistry(new RegisterDppRequest("product-1", "dpp-1", "operator-1", "http://localhost:8082"))
-            );
+            assertNull(client.postNewDppToRegistry(new RegisterDppRequest(
+                    "product-1", "dpp-1", "operator-1", "http://localhost:8082")).getRegistrationId());
+        }
+    }
 
-            assertEquals("Missing required response field: payload.registrationId", ex.getMessage());
+    @Test
+    void postNewDppToRegistryAcceptsNullOptionalPayload() {
+        try (TestServer server = TestServer.start()) {
+            server.httpServer().createContext("/v1/registerDPP", exchange ->
+                    respond(exchange, 201, "{\"statusCode\":\"SuccessCreated\",\"payload\":null}"));
+            DppRegistryClient client = new HttpDppRegistryClient(server.baseUrl());
+
+            assertNull(client.postNewDppToRegistry(new RegisterDppRequest(
+                    "product-1", "dpp-1", "operator-1", "http://localhost:8082")).getRegistrationId());
         }
     }
 
@@ -125,7 +137,7 @@ class HttpDppRegistryClientTest {
     void wrapperApiErrorsExposeRegistryStatus() {
         try (TestServer server = TestServer.start()) {
             server.httpServer().createContext("/v1/registerDPP", exchange ->
-                    respond(exchange, 200, "{\"statusCode\":\"ClientResourceConflict\",\"payload\":null,\"messages\":[{\"messageType\":\"Error\",\"text\":\"duplicate\"}]}"));
+                    respond(exchange, 409, "{\"statusCode\":\"ClientResourceConflict\",\"payload\":null,\"messages\":[{\"messageType\":\"Error\",\"text\":\"duplicate\"}]}"));
             DppRegistryClient client = new HttpDppRegistryClient(server.baseUrl());
 
             DppApiClientException ex = assertThrows(
@@ -134,7 +146,9 @@ class HttpDppRegistryClientTest {
             );
 
             assertEquals(DppStatusCode.ClientResourceConflict, ex.statusCode());
+            assertEquals(409, ex.httpStatus());
             assertEquals("duplicate", ex.messages().get(0).getText());
+            assertTrue(ex.rawResponseBody().contains("duplicate"));
         }
     }
 
