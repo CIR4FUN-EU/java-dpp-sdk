@@ -11,7 +11,7 @@ The SDK gives you the datamodels, repository persistence, HTTP clients, a regist
 
 The demo services are examples, not production deployments.
 
-Source and releases: [CIR4FUN-EU/java-dpp-sdk](https://github.com/CIR4FUN-EU/java-dpp-sdk) · [changelog](CHANGELOG.md) · [license](LICENSE)
+Source and releases: [CIR4FUN-EU/java-dpp-sdk](https://github.com/CIR4FUN-EU/java-dpp-sdk) · [changelog](CHANGELOG.md) · [license](LICENSE) · [contributing](CONTRIBUTING.md) · [security policy](SECURITY.md)
 
 ## Standards alignment
 
