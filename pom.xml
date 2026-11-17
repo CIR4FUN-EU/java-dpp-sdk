@@ -11,6 +11,14 @@
     <name>DPP SDK</name>
     <description>Top-level aggregator for the DPP SDK datamodel, PostgreSQL, client, and demo subprojects.</description>
 
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <modules>
         <module>dpp-datamodel</module>
         <module>dpp-postgres</module>
